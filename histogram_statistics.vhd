@@ -1,31 +1,61 @@
--- File name: histogram_statistics.vhd 
--- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
--- =======================================
--- Revision: 1.0 (file created)
---		Date: Jul 25, 2024
--- =========
--- Description:	[Histogram Statistics Mu3e IP] 
---		This IP generates the histogram on-the-fly by filling the predefined bins.
---		Implementation can be choosen to be BRAM or MLAB.
---			1) BRAM (M10K): {best for building histogram with large number of bins and low concurrency requirement}
+-- ------------------------------------------------------------------------------------------------------------
+-- IP Name:             histogram_statistics
+-- Author:              Yifeng Wang (yifenwan@phys.ethz.ch)
+-- =========================================================================
+-- Revision:            1.0
+-- Date:                Jul 25, 2024 (file created)
+-- +-----------------------------------------------------------------------+
+-- Revision:            1.1
+-- Date:                Oct 22, 2024 (formatted)
+-- =========================================================================
+-- Description:         Host online histogram to collect statistics infomation on the snooped data stream
+--
+-- Implementation:                
+--			1) BRAM (M10K): best for building histogram with large number of bins and low concurrency requirement
 --				pro: resource usage is small, as each M10K can host 256 bins
 --				con: max count of a bin is limited at 40 bit; max throughput is 1; flushing takes time
---			2) MLAB: {best for high concurrency and precise timing scenario}
+--			2) MLAB: best for high concurrency and precise timing scenario
 --				pro: high concurrency, all bins can be updated at the same cycle; sclr is cycle-accurate; arbitary max count
 --				con: high resource usage, 32-bit counter consumes 17 ALMs. 
-
-
+-- Mode:
+--          operation mode:
+--              1) "free-running" mode: read <hist_bin> will get the current value after last clear.
+--              2) "rate" mode: read <hist_bin> will yield the value before the last clear.
+--                  - ex: if you connect clear to a 1 Hz periodic counter, this histogram will display the rate of data stream.
+--          debug mode:
+--              1) "debug-off" mode: no effect; the input stream will fill the histogram.
+--              2) "timestamp(ts)-difference" mode: difference of the input stream and fpga local counter will be displayed.
+--                  - use case: debugging the latency of the whole DAQ system, i.e. the time delay of event registered by 
+--                              MuTRiG TDC and received by this IP. A good way to quantitatively study the system flow control
+--                              and architectural designs.
+--
+-- Usage:
+--          data flow:
+--              - connect <hist_fill_in> to the data to snoop from upstream
+--              - connect <hist_fill_out> to the downstream as intact of upstream (this IP is transparent to data)
+--
+--          control flow:
+--              - connect avmm master to <csr> to dynamically control this IP (see "csr_address_map")
+--              - read <hist_bin> to get the bin counts of histogram (see "Mode")             
+--              - (*optional) connect <ctrl> to start a global sync counter, if you need to debug in "time-difference" mode. 
+--
+-- ------------------------------------------------------------------------------------------------------------
+--	
 -- ================ synthsizer configuration =================== 		
 -- altera vhdl_input_version vhdl_2008
--- ============================================================= 
+-- =============================================================
 
+-- basic libraries
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+-- additional libraries
 use ieee.std_logic_misc.or_reduce;
+use ieee.std_logic_misc.and_reduce;
 use IEEE.math_real.log2;
 use IEEE.math_real.ceil;
 use IEEE.math_real.floor;
+-- altera-specific libraries
 library altera; 
 use altera.altera_syn_attributes.all;
 LIBRARY lpm; 
@@ -59,22 +89,22 @@ generic (
 	DEBUG				: natural := 1
 );
 port (
-	-- avmm-slave
-	-- read the histogram bin count
-	avs_hist_bin_readdata				: out std_logic_vector(31 downto 0);
+	-- AVST sink [hist_bin]
+	-- (read histogram bins)
+	avs_hist_bin_readdata				: out std_logic_vector(31 downto 0); 
 	avs_hist_bin_read					: in  std_logic;
 	avs_hist_bin_address				: in  std_logic_vector(AVS_ADDR_WIDTH-1 downto 0);
 	avs_hist_bin_waitrequest			: out std_logic; 
 	avs_hist_bin_write					: in  std_logic;
-	avs_hist_bin_writedata				: in  std_logic_vector(31 downto 0);
+	avs_hist_bin_writedata				: in  std_logic_vector(31 downto 0); -- write 0 to flush/clear the histogram
 	-- burst and pipeline transaction
 	avs_hist_bin_burstcount				: in  std_logic_vector(AVS_ADDR_WIDTH-1 downto 0); -- user can burst for the whole thing
 	avs_hist_bin_readdatavalid			: out std_logic;
 	avs_hist_bin_writeresponsevalid		: out std_logic;
 	avs_hist_bin_response				: out std_logic_vector(1 downto 0);
 	
-	-- avmm-slave
-	-- CSR
+	-- AVMM slave [csr]
+    -- (dynamically set the bin width, 
 	avs_csr_readdata					: out std_logic_vector(31 downto 0);
 	avs_csr_read						: in  std_logic;
 	avs_csr_address						: in  std_logic_vector(3 downto 0);
@@ -82,8 +112,8 @@ port (
 	avs_csr_write						: in  std_logic;
 	avs_csr_writedata					: in  std_logic_vector(31 downto 0);
 	
-	-- avst-sink
-	-- data with filterable content
+	-- AVST sink [hist_fill_in]
+	-- (fill histogram)
 	asi_hist_fill_in_ready					: out std_logic; -- not needed if replay buffer is enabled 
 	asi_hist_fill_in_valid					: in  std_logic;
 	asi_hist_fill_in_data					: in  std_logic_vector(AVST_DATA_WIDTH-1 downto 0);
@@ -91,8 +121,8 @@ port (
 	asi_hist_fill_in_endofpacket			: in  std_logic;
 	asi_hist_fill_in_channel				: in  std_logic_vector(AVST_CHANNEL_WIDTH-1 downto 0);
 	
-	-- avst-source (enabled in snoop mode)
-	-- mirror the avst input 
+	-- AVST source [hist_fill_out]
+	-- (mirror the hist_fill_in port)
 	aso_hist_fill_out_ready					: in  std_logic := '1'; -- NOTE: if dangling, must be set to one, otherwise no data to deassembly
 	aso_hist_fill_out_valid					: out std_logic;
 	aso_hist_fill_out_data					: out std_logic_vector(AVST_DATA_WIDTH-1 downto 0);
@@ -100,7 +130,8 @@ port (
 	aso_hist_fill_out_endofpacket			: out std_logic;
 	aso_hist_fill_out_channel				: out std_logic_vector(AVST_CHANNEL_WIDTH-1 downto 0);
 	
-	-- run control interface
+    -- AVST sink [ctrl]
+	-- (run control management agent)
 	asi_ctrl_data						: in  std_logic_vector(8 downto 0); 
 	asi_ctrl_valid						: in  std_logic;
 	asi_ctrl_ready						: out std_logic;
@@ -159,7 +190,7 @@ architecture rtl of histogram_statistics is
 	constant CSR_COUNTER_WIDTH	: natural := avs_csr_readdata'length;
 	type csr_t is record 
 		commit					: std_logic;
-		mode					: std_logic;
+		mode					: std_logic_vector(3 downto 0);
 		update_key_is_unsigned	: std_logic;
 		filter_enable			: std_logic;
 		filter_is_reject		: std_logic;
@@ -497,7 +528,11 @@ begin
 	--					bit: 0 ('0' is disable; '1' is enable)
 	--					bit: 1 ('0' is accept; '1' is reject)
 	--				R: representation of update key (0x0 is signed [default], 0x1 is unsigned) 
-	--				M: op mode. 0=normal, 1=time diff of current ts8n input to a running gts 
+	--				M: op mode. 0=normal, 1=time diff of current ts8n input to a running gts, 2=rate-monitor, 0xf=flush
+    --                  normal: hist collects data until full (no overflow)
+    --                  time-diff: measures the life time of hits (hit_ts - running_gts) 
+    --                  rate-monitor: the bin [0-255] will be dumped to [256-511] every 1s. read to <hist_bin> will be re-directed to [256-511]
+    --                  flush: clear the histogram bins
 	--				C: commit (write 0x1 to commit all the settings, if read is 0x0 means setting is completed) 
 	-- 
 	-- 		1: left bound (signed)
@@ -535,7 +570,7 @@ begin
 				-- =========================
 				-- word 0 (csr)
 				csr.commit				<= '0';
-				csr.mode				<= '0';
+				csr.mode				<= (others => '0');
 				if (UPDATE_KEY_REPRESENTATION = "SIGNED") then
 					csr.update_key_is_unsigned		<= '0';
 				else
@@ -567,7 +602,7 @@ begin
 					case to_integer(unsigned(avs_csr_address)) is
 						when 0 => 
 							avs_csr_readdata(0)					<= csr.commit; -- write to 
-							avs_csr_readdata(4)					<= csr.mode;
+							avs_csr_readdata(7 downto 4)		<= csr.mode;
 							avs_csr_readdata(8)					<= csr.update_key_is_unsigned;
 							avs_csr_readdata(12)				<= csr.filter_enable;
 							avs_csr_readdata(13)				<= csr.filter_is_reject;
@@ -600,7 +635,7 @@ begin
 					case to_integer(unsigned(avs_csr_address)) is
 						when 0 => 
 							csr.commit							<= avs_csr_writedata(0);
-							csr.mode							<= avs_csr_writedata(4);
+							csr.mode							<= avs_csr_writedata(7 downto 4);
 							csr.update_key_is_unsigned			<= avs_csr_writedata(8);
 							csr.filter_enable					<= avs_csr_writedata(12);
 							csr.filter_is_reject				<= avs_csr_writedata(13);
@@ -795,7 +830,7 @@ begin
 		if (rising_edge(i_clk)) then
 			-- @@ NO RESET @@
 			
-			if (csr.mode = '0') then -- normal op
+			if (to_integer(unsigned(csr.mode)) = 0) then -- normal op
 				update_key			:= deassembly_update_key_raw(update_key'high downto 0); -- truncate from 39 bit -> 16 bit
 				-- reg the output data and valid (error_free) of deassembly
 				if (unsigned(deassembly_update_key_error) = 0) then -- mask the valid if error is reported by the shift register module
@@ -803,7 +838,7 @@ begin
 				else
 					update_key_valid	:= '0';
 				end if;
-			else -- time difference mode
+			elsif (to_integer(unsigned(csr.mode)) = 1) then -- hit life-time mode
 				update_key			:= asi_debug_ts_data;
 				update_key_valid	:= asi_debug_ts_valid;
 			end if; -- gts - input = diff (signed) 0~2000
@@ -813,35 +848,34 @@ begin
 			else
 				filter_key_valid	:= '0';
 			end if;
+            
+
 			filter_key			:= deassembly_filter_key_raw(filter_key'high downto 0);
 			
 			-- filtering 
-			if (update_key_valid = '1' and filter_key_valid = '1') then -- start to match only when both keys are valid
-				if (csr.filter_enable = '1') then  
-					case csr.filter_is_reject is 
-						when '0' =>
-							if (to_integer(unsigned(filter_key)) = to_integer(csr.filter_key)) then 
-								deassembly_filtered_valid		<= '1';
-								deassembly_filtered_data		<= update_key;
-							else 
-								deassembly_filtered_valid		<= '0';
-							end if;
-						when '1' =>
-							if (to_integer(unsigned(filter_key)) /= to_integer(csr.filter_key)) then 
-								deassembly_filtered_valid		<= '1';
-								deassembly_filtered_data		<= update_key;
-							else 
-								deassembly_filtered_valid		<= '0';
-							end if;
-						when others =>
-					end case;
-				else -- filter function disabled by csr
-					deassembly_filtered_valid		<= '1';
-					deassembly_filtered_data		<= update_key;
-				end if;
-			else
-				deassembly_filtered_valid		<= '0';
-			end if;
+            if (csr.filter_enable = '1') then  
+                case csr.filter_is_reject is 
+                    when '0' =>
+                        if (to_integer(unsigned(filter_key)) = to_integer(csr.filter_key)) then 
+                            deassembly_filtered_valid		<= update_key_valid;
+                            deassembly_filtered_data		<= update_key;
+                        else 
+                            deassembly_filtered_valid		<= '0';
+                        end if;
+                    when '1' =>
+                        if (to_integer(unsigned(filter_key)) /= to_integer(csr.filter_key)) then 
+                            deassembly_filtered_valid		<= update_key_valid;
+                            deassembly_filtered_data		<= update_key;
+                        else 
+                            deassembly_filtered_valid		<= '0';
+                        end if;
+                    when others =>
+                end case;
+            else -- filter function disabled by csr
+                deassembly_filtered_valid		<= update_key_valid;
+                deassembly_filtered_data		<= update_key;
+            end if;
+			
 			
 			if (i_rst = '1') then 
 				csr.overflow_cnt		<= (others => '0');
@@ -849,7 +883,7 @@ begin
 			else 
 				-- range check (overflow or underflow)
 				if (deassembly_filtered_valid = '1') then
-					if (csr.update_key_is_unsigned = '1' and csr.mode = '0') then -- for UNSIGNED key. NOTE: in speical mode the key must be signed!
+					if (csr.update_key_is_unsigned = '1' and to_integer(unsigned(csr.mode)) = 0) then -- for UNSIGNED key. NOTE: in speical mode the key must be signed!
 						if (to_integer(unsigned(deassembly_filtered_data)) >= to_integer(csr.right_bound)) then 
 							csr.overflow_cnt	<= csr.overflow_cnt + 1;
 						elsif (to_integer(unsigned(deassembly_filtered_data)) < to_integer(csr.left_bound)) then
@@ -1023,8 +1057,8 @@ begin
 		box_filler_thread_b_busy		<= '0';
 		
 		-- wire from end reg of pipeline
-		box_filler_input_valid		<= sar_pipeline(SAR_PIPELINE_N_STAGES-1).valid;
-		box_filler_write_addr		<= sar_pipeline(SAR_PIPELINE_N_STAGES-1).box_index;
+		--box_filler_input_valid		<= sar_pipeline(SAR_PIPELINE_N_STAGES-1).valid;
+		--box_filler_write_addr		<= sar_pipeline(SAR_PIPELINE_N_STAGES-1).box_index;
 		-- arbiter 
 		-- start thread a if possible. otherwise, when a is busy, start b. 
 		if (box_filler_input_valid = '1') then -- assign new hit to thread a or b
@@ -1044,8 +1078,14 @@ begin
 				ram_addr_a			<= box_filler_write_addr;
 			when POST_DATA => 
 				ram_we_a			<= '1';
-				ram_data_a			<= std_logic_vector(unsigned(ram_q_a) + 1); -- incr the current count (TODO: make incr amount variable) 
-				ram_addr_a			<= box_filler_write_addr_a_reg;
+                if (and_reduce(ram_q_a) = '1') then 
+                    -- overflow: keep the max value
+                    ram_data_a          <= ram_q_a; 
+                else 
+                    -- no overflow: update the value (incr value)
+                    ram_data_a			<= std_logic_vector(unsigned(ram_q_a) + 1); -- incr the current count (TODO: make incr amount variable) 
+				end if;
+                ram_addr_a			<= box_filler_write_addr_a_reg;
 			when FLUSHING =>
 				ram_we_a			<= '1';
 				ram_data_a			<= (others => '0');
@@ -1059,7 +1099,13 @@ begin
 				box_filler_thread_b_busy	<= '0';
 			when POST_DATA => 
 				ram_we_b			<= '1';
-				ram_data_b			<= std_logic_vector(unsigned(ram_q_b) + 1); -- incr the current count 
+                if (and_reduce(ram_q_b) = '1') then 
+                    -- overflow: keep the max value
+                    ram_data_b          <= ram_q_b; 
+                else 
+                    -- no overflow: update the value (incr value)
+                    ram_data_b			<= std_logic_vector(unsigned(ram_q_b) + 1); -- incr the current count 
+                end if;
 				ram_addr_b			<= box_filler_write_addr_b_reg;
 				box_filler_thread_b_busy	<= '1';
 			when AV_READ =>
@@ -1079,6 +1125,12 @@ begin
 				box_filler_thread_b		<= POST_ADDR;
 				box_filler_flushing_done	<= '0';
 			else 
+                -- -----------------------
+                -- SAR -> box_filler
+                -- -----------------------
+                box_filler_input_valid		<= sar_pipeline(SAR_PIPELINE_N_STAGES-1).valid; -- d1 of last stage valid
+                box_filler_write_addr		<= sar_pipeline(SAR_PIPELINE_N_STAGES-1).box_index_comb; -- reg the last sar stage 
+            
 				case box_filler_thread_a is 
 					when POST_ADDR =>
 						box_filler_flushing_cnt		<= (others => '0');

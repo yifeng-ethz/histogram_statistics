@@ -18,9 +18,9 @@ package require -exact qsys 16.1
 # 
 # module histogram_statistics
 # 
-set_module_property DESCRIPTION "This IP generates the histogram on-the-fly by filling the predefined bins."
+set_module_property DESCRIPTION "Generate on-chip real-time histogram from a data stream"
 set_module_property NAME histogram_statistics
-set_module_property VERSION 1.0.33
+set_module_property VERSION 24.0.1113
 set_module_property INTERNAL false
 set_module_property OPAQUE_ADDRESS_MAP true
 set_module_property GROUP "Mu3e Data Plane/Debug"
@@ -49,69 +49,163 @@ add_fileset_file alt_dpram_true.vhd VHDL PATH alt_dpram/alt_dpram_true.vhd
 # 
 # parameters
 # 
+############################## UPDATE_KEY_BIT_HI ##############################
 add_parameter UPDATE_KEY_BIT_HI NATURAL 29
 set_parameter_property UPDATE_KEY_BIT_HI DEFAULT_VALUE 29
-set_parameter_property UPDATE_KEY_BIT_HI DISPLAY_NAME UPDATE_KEY_BIT_HI
+set_parameter_property UPDATE_KEY_BIT_HI DISPLAY_NAME "Update key msb location"
 set_parameter_property UPDATE_KEY_BIT_HI TYPE NATURAL
 set_parameter_property UPDATE_KEY_BIT_HI UNITS None
-set_parameter_property UPDATE_KEY_BIT_HI ALLOWED_RANGES 0:2147483647
+set_parameter_property UPDATE_KEY_BIT_HI ALLOWED_RANGES 0:255
 set_parameter_property UPDATE_KEY_BIT_HI HDL_PARAMETER true
+set descpt \
+"
+<html>
+    Set the bit location of <b>msb</b> of the update key in the snooped data stream.
+</html>
+"
+set_parameter_property UPDATE_KEY_BIT_HI DESCRIPTION $descpt
+set_parameter_property UPDATE_KEY_BIT_HI LONG_DESCRIPTION $descpt
+
+############################## UPDATE_KEY_BIT_LO ##############################
 add_parameter UPDATE_KEY_BIT_LO NATURAL 17
 set_parameter_property UPDATE_KEY_BIT_LO DEFAULT_VALUE 17
-set_parameter_property UPDATE_KEY_BIT_LO DISPLAY_NAME UPDATE_KEY_BIT_LO
+set_parameter_property UPDATE_KEY_BIT_LO DISPLAY_NAME "Update key lsb location"
 set_parameter_property UPDATE_KEY_BIT_LO TYPE NATURAL
 set_parameter_property UPDATE_KEY_BIT_LO UNITS None
-set_parameter_property UPDATE_KEY_BIT_LO ALLOWED_RANGES 0:2147483647
+set_parameter_property UPDATE_KEY_BIT_LO ALLOWED_RANGES 0:255
 set_parameter_property UPDATE_KEY_BIT_LO HDL_PARAMETER true
+set descpt \
+"
+<html>
+    Set the bit location of <b>lsb</b> of the update key in the snooped data stream.
+</html>
+"
+set_parameter_property UPDATE_KEY_BIT_LO DESCRIPTION $descpt
+set_parameter_property UPDATE_KEY_BIT_LO LONG_DESCRIPTION $descpt
+
+############################## UPDATE_KEY_REPRESENTATION ##############################
 add_parameter UPDATE_KEY_REPRESENTATION STRING UNSIGNED ""
 set_parameter_property UPDATE_KEY_REPRESENTATION DEFAULT_VALUE UNSIGNED
-set_parameter_property UPDATE_KEY_REPRESENTATION DISPLAY_NAME UPDATE_KEY_REPRESENTATION
+set_parameter_property UPDATE_KEY_REPRESENTATION DISPLAY_NAME "Update key data type"
 set_parameter_property UPDATE_KEY_REPRESENTATION TYPE STRING
 set_parameter_property UPDATE_KEY_REPRESENTATION UNITS None
-set_parameter_property UPDATE_KEY_REPRESENTATION DESCRIPTION ""
+set_parameter_property UPDATE_KEY_REPRESENTATION ALLOWED_RANGES {"UNSIGNED: unsigned" "SIGNED: signed"}
+set descpt \
+"
+<html>
+    Set the data type of the update key. No floating point format supported. <b>Signed</b> will be in 2's complement format. 
+</html>
+"
+set_parameter_property UPDATE_KEY_REPRESENTATION DESCRIPTION $descpt
+set_parameter_property UPDATE_KEY_REPRESENTATION LONG_DESCRIPTION $descpt
 set_parameter_property UPDATE_KEY_REPRESENTATION HDL_PARAMETER true
+
+############################## FILTER_KEY_BIT_HI ##############################
 add_parameter FILTER_KEY_BIT_HI NATURAL 38
 set_parameter_property FILTER_KEY_BIT_HI DEFAULT_VALUE 38
-set_parameter_property FILTER_KEY_BIT_HI DISPLAY_NAME FILTER_KEY_BIT_HI
+set_parameter_property FILTER_KEY_BIT_HI DISPLAY_NAME "Filter key msb location"
 set_parameter_property FILTER_KEY_BIT_HI TYPE NATURAL
 set_parameter_property FILTER_KEY_BIT_HI UNITS None
-set_parameter_property FILTER_KEY_BIT_HI ALLOWED_RANGES 0:2147483647
+set_parameter_property FILTER_KEY_BIT_HI ALLOWED_RANGES 0:255
 set_parameter_property FILTER_KEY_BIT_HI HDL_PARAMETER true
+set descpt \
+"
+<html>
+    Set the bit location of <b>msb</b> of the filter key in the snooped data stream.
+</html>
+"
+set_parameter_property FILTER_KEY_BIT_HI DESCRIPTION $descpt
+set_parameter_property FILTER_KEY_BIT_HI LONG_DESCRIPTION $descpt
+
+############################## FILTER_KEY_BIT_LO ##############################
 add_parameter FILTER_KEY_BIT_LO NATURAL 35
 set_parameter_property FILTER_KEY_BIT_LO DEFAULT_VALUE 35
-set_parameter_property FILTER_KEY_BIT_LO DISPLAY_NAME FILTER_KEY_BIT_LO
+set_parameter_property FILTER_KEY_BIT_LO DISPLAY_NAME "Filter key lsb location"
 set_parameter_property FILTER_KEY_BIT_LO TYPE NATURAL
 set_parameter_property FILTER_KEY_BIT_LO UNITS None
-set_parameter_property FILTER_KEY_BIT_LO ALLOWED_RANGES 0:2147483647
+set_parameter_property FILTER_KEY_BIT_LO ALLOWED_RANGES 0:255
 set_parameter_property FILTER_KEY_BIT_LO HDL_PARAMETER true
+set descpt \
+"
+<html>
+    Set the bit location of <b>lsb</b> of the filter key in the snooped data stream.
+</html>
+"
+set_parameter_property FILTER_KEY_BIT_LO DESCRIPTION $descpt
+set_parameter_property FILTER_KEY_BIT_LO LONG_DESCRIPTION $descpt
+
+############################## SAR_TICK_WIDTH ##############################
 add_parameter SAR_TICK_WIDTH NATURAL 32
 set_parameter_property SAR_TICK_WIDTH DEFAULT_VALUE 32
-set_parameter_property SAR_TICK_WIDTH DISPLAY_NAME SAR_TICK_WIDTH
+set_parameter_property SAR_TICK_WIDTH DISPLAY_NAME "Sampling resolution"
 set_parameter_property SAR_TICK_WIDTH TYPE NATURAL
-set_parameter_property SAR_TICK_WIDTH UNITS None
-set_parameter_property SAR_TICK_WIDTH ALLOWED_RANGES 0:2147483647
+set_parameter_property SAR_TICK_WIDTH UNITS Bits
+set_parameter_property SAR_TICK_WIDTH ALLOWED_RANGES 1:127
 set_parameter_property SAR_TICK_WIDTH HDL_PARAMETER true
+set descpt \
+"
+<html>
+    Set the sampling resolution (SAR quantizer tick width). Affects the bin boundary resolution. Must be equal or larger than <b>SAR_KEY_WIDTH</b>.
+</html>
+"
+set_parameter_property SAR_TICK_WIDTH DESCRIPTION $descpt
+set_parameter_property SAR_TICK_WIDTH LONG_DESCRIPTION $descpt
+
+############################## SAR_KEY_WIDTH ##############################
 add_parameter SAR_KEY_WIDTH NATURAL 16
 set_parameter_property SAR_KEY_WIDTH DEFAULT_VALUE 16
-set_parameter_property SAR_KEY_WIDTH DISPLAY_NAME SAR_KEY_WIDTH
+set_parameter_property SAR_KEY_WIDTH DISPLAY_NAME "Maximum key width"
 set_parameter_property SAR_KEY_WIDTH TYPE NATURAL
-set_parameter_property SAR_KEY_WIDTH UNITS None
-set_parameter_property SAR_KEY_WIDTH ALLOWED_RANGES 0:2147483647
+set_parameter_property SAR_KEY_WIDTH UNITS Bits
+set_parameter_property SAR_KEY_WIDTH ALLOWED_RANGES 1:127
 set_parameter_property SAR_KEY_WIDTH HDL_PARAMETER true
+set descpt \
+"
+<html>
+    Set the maximum width of the update and filter key. Default is 16, but you can change to 32 or higher, which needs tuning of pipeline parameter of \"key getter\". 
+</html>
+"
+set_parameter_property SAR_KEY_WIDTH DESCRIPTION $descpt
+set_parameter_property SAR_KEY_WIDTH LONG_DESCRIPTION $descpt
+
+############################## N_BINS ##############################
 add_parameter N_BINS NATURAL 256
 set_parameter_property N_BINS DEFAULT_VALUE 256
-set_parameter_property N_BINS DISPLAY_NAME N_BINS
+set_parameter_property N_BINS DISPLAY_NAME "Number of bins in the histogram"
 set_parameter_property N_BINS TYPE NATURAL
 set_parameter_property N_BINS UNITS None
-set_parameter_property N_BINS ALLOWED_RANGES 0:2147483647
+set_parameter_property N_BINS ALLOWED_RANGES 1:2048
 set_parameter_property N_BINS HDL_PARAMETER true
+set descpt \
+"
+<html>
+    Set the number of bins in the histogram. More bins will require more cycles to flush. <br>
+    Resouce estimation: two M10K (= 1 true-dpram) can host up to 512 bins. 
+</html>
+"
+set_parameter_property N_BINS DESCRIPTION $descpt
+set_parameter_property N_BINS LONG_DESCRIPTION $descpt
+
+############################## MAX_COUNT_BITS ##############################
 add_parameter MAX_COUNT_BITS NATURAL 40
 set_parameter_property MAX_COUNT_BITS DEFAULT_VALUE 40
-set_parameter_property MAX_COUNT_BITS DISPLAY_NAME MAX_COUNT_BITS
+set_parameter_property MAX_COUNT_BITS DISPLAY_NAME "Width of the histogram bin counter"
 set_parameter_property MAX_COUNT_BITS TYPE NATURAL
-set_parameter_property MAX_COUNT_BITS UNITS None
-set_parameter_property MAX_COUNT_BITS ALLOWED_RANGES 0:2147483647
+set_parameter_property MAX_COUNT_BITS UNITS Bits
+set_parameter_property MAX_COUNT_BITS ALLOWED_RANGES 1:72
 set_parameter_property MAX_COUNT_BITS HDL_PARAMETER true
+set descpt \
+"
+<html>
+    Set the histogram bin counter width. Default is 40. <br>
+    <b>Warning</b>: if <b>hist_bin</b> interface has readdata width less than histogram, you cannot read the full bin, as only lower bits are read out. Meanwhile, the overflow protection is only active when the maximum count has reached, so you should consider aligning this parameter with readdata width of <b>hist_bin</b> interface.<br>
+    Resource estimation: two M10K (= 1 true-dpram) support maximum of 40 bits. four M10K (= 1 true-dpram) support maximum of 72 bits.
+</html>
+"
+set_parameter_property MAX_COUNT_BITS DESCRIPTION $descpt
+set_parameter_property MAX_COUNT_BITS LONG_DESCRIPTION $descpt
+
+
 add_parameter DEF_LEFT_BOUND INTEGER -1000
 set_parameter_property DEF_LEFT_BOUND DEFAULT_VALUE -1000
 set_parameter_property DEF_LEFT_BOUND DISPLAY_NAME DEF_LEFT_BOUND
