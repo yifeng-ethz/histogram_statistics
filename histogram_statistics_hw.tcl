@@ -4,7 +4,7 @@
 
 
 # 
-# histogram_statistics "Histogram Statistics Mu3e IP" v1.0.33
+# histogram_statistics "Histogram Statistics Mu3e IP" v24.0.1213
 # Yifeng Wang 2024.08.09.16:45:33
 # This IP generates the histogram on-the-fly by filling the predefined bins.
 # 
@@ -20,7 +20,7 @@ package require -exact qsys 16.1
 # 
 set_module_property DESCRIPTION "Generate on-chip real-time histogram from a data stream"
 set_module_property NAME histogram_statistics
-set_module_property VERSION 24.0.1113
+set_module_property VERSION 24.0.1213
 set_module_property INTERNAL false
 set_module_property OPAQUE_ADDRESS_MAP true
 set_module_property GROUP "Mu3e Data Plane/Debug"
@@ -360,7 +360,7 @@ add_interface hist_fill_in avalon_streaming end
 set_interface_property hist_fill_in associatedClock clock_interface
 set_interface_property hist_fill_in associatedReset reset_interface
 set_interface_property hist_fill_in dataBitsPerSymbol 39
-set_interface_property hist_fill_in errorDescriptor ""
+set_interface_property hist_fill_in errorDescriptor {"tserr"}
 set_interface_property hist_fill_in firstSymbolInHighOrderBits true
 set_interface_property hist_fill_in maxChannel 15
 set_interface_property hist_fill_in readyLatency 0
@@ -376,6 +376,7 @@ add_interface_port hist_fill_in asi_hist_fill_in_data data Input avst_data_width
 add_interface_port hist_fill_in asi_hist_fill_in_startofpacket startofpacket Input 1
 add_interface_port hist_fill_in asi_hist_fill_in_endofpacket endofpacket Input 1
 add_interface_port hist_fill_in asi_hist_fill_in_channel channel Input avst_channel_width
+add_interface_port hist_fill_in asi_hist_fill_in_error error Input 1
 
 
 # 
@@ -385,7 +386,7 @@ add_interface hist_fill_out avalon_streaming start
 set_interface_property hist_fill_out associatedClock clock_interface
 set_interface_property hist_fill_out associatedReset reset_interface
 set_interface_property hist_fill_out dataBitsPerSymbol 39
-set_interface_property hist_fill_out errorDescriptor ""
+set_interface_property hist_fill_out errorDescriptor {"tserr"}
 set_interface_property hist_fill_out firstSymbolInHighOrderBits true
 set_interface_property hist_fill_out maxChannel 15
 set_interface_property hist_fill_out readyLatency 0
@@ -401,7 +402,7 @@ add_interface_port hist_fill_out aso_hist_fill_out_data data Output avst_data_wi
 add_interface_port hist_fill_out aso_hist_fill_out_startofpacket startofpacket Output 1
 add_interface_port hist_fill_out aso_hist_fill_out_endofpacket endofpacket Output 1
 add_interface_port hist_fill_out aso_hist_fill_out_channel channel Output avst_channel_width
-
+add_interface_port hist_fill_out aso_hist_fill_out_error error Output 1
 
 # 
 # connection point clock_interface
@@ -455,22 +456,22 @@ add_interface_port ctrl asi_ctrl_ready ready Output 1
 
 
 # 
-# connection point debug_ts
+# connection point debug_1
 # 
-add_interface debug_ts avalon_streaming end
-set_interface_property debug_ts associatedClock clock_interface
-set_interface_property debug_ts associatedReset reset_interface
-set_interface_property debug_ts dataBitsPerSymbol 16
-set_interface_property debug_ts errorDescriptor ""
-set_interface_property debug_ts firstSymbolInHighOrderBits true
-set_interface_property debug_ts maxChannel 0
-set_interface_property debug_ts readyLatency 0
-set_interface_property debug_ts ENABLED true
-set_interface_property debug_ts EXPORT_OF ""
-set_interface_property debug_ts PORT_NAME_MAP ""
-set_interface_property debug_ts CMSIS_SVD_VARIABLES ""
-set_interface_property debug_ts SVD_ADDRESS_GROUP ""
+add_interface debug_1 avalon_streaming end
+set_interface_property debug_1 associatedClock clock_interface
+set_interface_property debug_1 associatedReset reset_interface
+set_interface_property debug_1 dataBitsPerSymbol 16
+set_interface_property debug_1 errorDescriptor ""
+set_interface_property debug_1 firstSymbolInHighOrderBits true
+set_interface_property debug_1 maxChannel 0
+set_interface_property debug_1 readyLatency 0
+set_interface_property debug_1 ENABLED true
+set_interface_property debug_1 EXPORT_OF ""
+set_interface_property debug_1 PORT_NAME_MAP ""
+set_interface_property debug_1 CMSIS_SVD_VARIABLES ""
+set_interface_property debug_1 SVD_ADDRESS_GROUP ""
 
-add_interface_port debug_ts asi_debug_ts_valid valid Input 1
-add_interface_port debug_ts asi_debug_ts_data data Input 16
+add_interface_port debug_1 asi_debug_1_valid valid Input 1
+add_interface_port debug_1 asi_debug_1_data data Input 16
 

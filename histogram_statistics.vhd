@@ -120,6 +120,7 @@ port (
 	asi_hist_fill_in_startofpacket			: in  std_logic;
 	asi_hist_fill_in_endofpacket			: in  std_logic;
 	asi_hist_fill_in_channel				: in  std_logic_vector(AVST_CHANNEL_WIDTH-1 downto 0);
+    asi_hist_fill_in_error                  : in  std_logic_vector(0 downto 0);
 	
 	-- AVST source [hist_fill_out]
 	-- (mirror the hist_fill_in port)
@@ -129,6 +130,7 @@ port (
 	aso_hist_fill_out_startofpacket			: out std_logic;
 	aso_hist_fill_out_endofpacket			: out std_logic;
 	aso_hist_fill_out_channel				: out std_logic_vector(AVST_CHANNEL_WIDTH-1 downto 0);
+    aso_hist_fill_out_error                 : out std_logic_vector(0 downto 0);
 	
     -- AVST sink [ctrl]
 	-- (run control management agent)
@@ -137,8 +139,8 @@ port (
 	asi_ctrl_ready						: out std_logic;
 	
 	-- debug ts port (gts - mts)
-	asi_debug_ts_valid					: in  std_logic;
-	asi_debug_ts_data					: in  std_logic_vector(15 downto 0);
+	asi_debug_1_valid					: in  std_logic;
+	asi_debug_1_data					: in  std_logic_vector(15 downto 0);
 	
 	-- reset and clock interface
 	i_rst								: in  std_logic;
@@ -242,6 +244,9 @@ architecture rtl of histogram_statistics is
 	
 	signal deassembly_filtered_data			: std_logic_vector(SAR_KEY_WIDTH-1 downto 0);
 	signal deassembly_filtered_valid		: std_logic;
+    
+    signal latency_out_valid                : std_logic;
+    signal latency_out_data                 : std_logic_vector(SAR_KEY_WIDTH-1 downto 0);
 	
 	signal deassembly_out_data				: std_logic_vector(SAR_KEY_WIDTH-1 downto 0);
 	signal deassembly_out_valid				: std_logic;
@@ -406,7 +411,7 @@ begin
 	-- ---------------------------------
 	-- avmm hist agent interface
 	-- ---------------------------------
-	proc_avmm_hist_agent : process (i_clk, i_rst)
+	proc_avmm_hist_agent : process (i_clk)
 	begin
 		if (rising_edge(i_clk)) then
 			-- @@ SYNC RESET @@
@@ -515,7 +520,7 @@ begin
 	-- --------------------------------------
 	-- avmm csr agent interface 
 	-- --------------------------------------
-	proc_csr_agent : process (i_rst,i_clk)
+	proc_csr_agent : process (i_clk)
 	-- avalon memory-mapped interface for accessing the control and status registers
 	-- -----------------------------------------
 	-- 		address map: (word)
@@ -695,7 +700,7 @@ begin
 	-----------------------------
 	-- bin width calculator
 	------------------------------
-	proc_bin_width_calculator : process (i_rst, i_clk)
+	proc_bin_width_calculator : process (i_clk)
 	begin
 		if (rising_edge(i_clk)) then
 			if (i_rst = '1') then 
@@ -821,92 +826,138 @@ begin
 	
 	
 	
-	proc_deassembly : process (i_rst, i_clk)
+	proc_deassembly : process (i_clk)
 		variable update_key			: std_logic_vector(SAR_KEY_WIDTH-1 downto 0);
 		variable filter_key			: std_logic_vector(SAR_KEY_WIDTH-1 downto 0);
 		variable update_key_valid	: std_logic;
 		variable filter_key_valid	: std_logic;
 	begin
 		if (rising_edge(i_clk)) then
-			-- @@ NO RESET @@
-			
-			if (to_integer(unsigned(csr.mode)) = 0) then -- normal op
-				update_key			:= deassembly_update_key_raw(update_key'high downto 0); -- truncate from 39 bit -> 16 bit
-				-- reg the output data and valid (error_free) of deassembly
-				if (unsigned(deassembly_update_key_error) = 0) then -- mask the valid if error is reported by the shift register module
-					update_key_valid	:= deassembly_update_key_valid;
-				else
-					update_key_valid	:= '0';
-				end if;
-			elsif (to_integer(unsigned(csr.mode)) = 1) then -- hit life-time mode
-				update_key			:= asi_debug_ts_data;
-				update_key_valid	:= asi_debug_ts_valid;
-			end if; -- gts - input = diff (signed) 0~2000
-			
+            -- ----------------------------------
+            -- 1.a) input mux  
+            -- ----------------------------------
+            -- stream[:] or debug<n> -> update_key
+            -- ---------------------------------------
+            -- mode[3:0] : -1       - debug input1
+            --             -2       - debug input2
+            --             ...
+            --             -n       - debug input<n>, n up to 2^3=8 (4'b1000)
+            --             ---------------------------
+            --             *0       - stream-raw
+            --              1       - stream-tdf
+            --             ---------------------------
+            --
+            -- -----------------------------------
+            -- default 
+            update_key          := (others => '0');
+            update_key_valid    := '0';
+            case to_integer(signed(csr.mode)) is 
+                -- stream inputs: 
+                when 0 => -- stream-raw
+                    update_key			:= deassembly_update_key_raw(update_key'high downto 0); -- truncate from 39 bit -> 16 bit
+                    -- reg the output data and valid (error_free) of deassembly
+                    if (unsigned(deassembly_update_key_error) = 0) then -- mask the valid if error is reported by the shift register module
+                        update_key_valid	:= deassembly_update_key_valid;
+                    end if;
+                when 1 => -- stream-tdf
+                    update_key          := deassembly_update_key_raw(update_key'high downto 0);
+                    update_key_valid    := deassembly_update_key_valid;
+                -- debug inputs: 
+                when -1 => -- debug-1
+                    -- gts - input = diff (signed) 0~2000
+                    update_key			:= asi_debug_1_data;
+                    update_key_valid	:= asi_debug_1_valid;
+                when -2 =>
+                    -- ...
+                when others => 
+                    null;
+            end case;
+            
+			-- ----------------------------------
+            -- 1.b) stream[:] -> filter_key
+            -- ----------------------------------
+            -- default 
+            filter_key_valid	:= '0';
+            -- error:
 			if (unsigned(deassembly_filter_key_error) = 0) then
 				filter_key_valid	:= deassembly_filter_key_valid;
-			else
-				filter_key_valid	:= '0';
 			end if;
-            
-
+            -- get the filter key from trimed lower bits
 			filter_key			:= deassembly_filter_key_raw(filter_key'high downto 0);
-			
-			-- filtering 
+            
+			-- --------------------------------------
+			-- 2) filtering -> deassembly_filtered
+            -- --------------------------------------
+            -- default 
+            deassembly_filtered_valid           <= update_key_valid;
+            deassembly_filtered_data            <= update_key;
+            -- filter function enabled by csr
             if (csr.filter_enable = '1') then  
                 case csr.filter_is_reject is 
                     when '0' =>
                         if (to_integer(unsigned(filter_key)) = to_integer(csr.filter_key)) then 
                             deassembly_filtered_valid		<= update_key_valid;
                             deassembly_filtered_data		<= update_key;
-                        else 
-                            deassembly_filtered_valid		<= '0';
                         end if;
                     when '1' =>
                         if (to_integer(unsigned(filter_key)) /= to_integer(csr.filter_key)) then 
                             deassembly_filtered_valid		<= update_key_valid;
                             deassembly_filtered_data		<= update_key;
-                        else 
-                            deassembly_filtered_valid		<= '0';
                         end if;
                     when others =>
+                        null;
                 end case;
-            else -- filter function disabled by csr
-                deassembly_filtered_valid		<= update_key_valid;
-                deassembly_filtered_data		<= update_key;
             end if;
-			
-			
+            
+            -- ----------------------------------------------------
+            -- 3) tdf (time difference) calculation -> latency_out
+			-- ----------------------------------------------------
+            -- default 
+            latency_out_valid       <= deassembly_filtered_valid;
+            latency_out_data        <= deassembly_filtered_data;
+            -- gts - hts = 64-1072 at output of processor. higher at cam infifo.out
+            if (to_integer(signed(csr.mode)) = 1) then 
+                latency_out_valid       <= deassembly_filtered_valid;
+                latency_out_data        <= std_logic_vector(to_unsigned(to_integer(gts_8n) - to_integer(unsigned(deassembly_filtered_data)), latency_out_data'length));
+            end if;
+            
+			-- --------------------------------------------------------------
+			-- 4) key range check (overflow or underflow) -> deassembly_out
+            -- --------------------------------------------------------------
 			if (i_rst = '1') then 
 				csr.overflow_cnt		<= (others => '0');
 				csr.underflow_cnt		<= (others => '0');
+                deassembly_out_valid	<= '0';
+                deassembly_out_data     <= (others => '0');
 			else 
-				-- range check (overflow or underflow)
-				if (deassembly_filtered_valid = '1') then
-					if (csr.update_key_is_unsigned = '1' and to_integer(unsigned(csr.mode)) = 0) then -- for UNSIGNED key. NOTE: in speical mode the key must be signed!
-						if (to_integer(unsigned(deassembly_filtered_data)) >= to_integer(csr.right_bound)) then 
+                -- default 
+                deassembly_out_valid	<= '0';
+                -- logic
+				if (latency_out_valid = '1') then
+					if (csr.update_key_is_unsigned = '1') then -- for UNSIGNED key. NOTE: in speical mode the key must be signed!
+						if (to_integer(unsigned(latency_out_data)) >= to_integer(csr.right_bound)) then 
 							csr.overflow_cnt	<= csr.overflow_cnt + 1;
-						elsif (to_integer(unsigned(deassembly_filtered_data)) < to_integer(csr.left_bound)) then
+						elsif (to_integer(unsigned(latency_out_data)) < to_integer(csr.left_bound)) then
 							csr.underflow_cnt	<= csr.underflow_cnt + 1;
 						else -- passed
 							deassembly_out_valid		<= '1';
-							deassembly_out_data			<= deassembly_filtered_data;
+							deassembly_out_data			<= latency_out_data;
 						end if;
 					else -- for SIGNED key
-						if (to_integer(signed(deassembly_filtered_data)) >= to_integer(csr.right_bound)) then 
+						if (to_integer(signed(latency_out_data)) >= to_integer(csr.right_bound)) then 
 							csr.overflow_cnt	<= csr.overflow_cnt + 1;
-						elsif (to_integer(signed(deassembly_filtered_data)) < to_integer(csr.left_bound)) then
+						elsif (to_integer(signed(latency_out_data)) < to_integer(csr.left_bound)) then
 							csr.underflow_cnt	<= csr.underflow_cnt + 1;
 						else -- passed
 							deassembly_out_valid		<= '1';
-							deassembly_out_data			<= deassembly_filtered_data;
+							deassembly_out_data			<= latency_out_data;
 						end if;
 					end if;
-				else
-					deassembly_out_valid	<= '0';
 				end if;
 			end if;
-					
+            -- -----
+            -- end
+			-- -----
 		end if;
 	end process;
 	
@@ -930,7 +981,7 @@ begin
 	-- ------------------------------------------------------
 	-- Successive Approximation Register (SAR) pipeline
 	-- ------------------------------------------------------
-	proc_sar_single_stage : process (i_rst, i_clk)
+	proc_sar_single_stage : process (i_clk)
 	begin
 		if (rising_edge(i_clk)) then 
 			if (i_rst = '1') then
@@ -965,30 +1016,7 @@ begin
 	
 	
 	gen_div2_for_sar_pipeline : for i in 0 to SAR_PIPELINE_N_STAGES-1 generate -- 8 stages for 256 bins
-		-- -----------------------------------------
-		-- -- lpm divider for sar pipeline (average the two ticks)
-		-- -----------------------------------------
---		div_for_middile : LPM_DIVIDE
---		generic map(
---			LPM_WIDTHN		=> SAR_TICK_WIDTH,
---			LPM_WIDTHD		=> 3,
---			LPM_NREPRESENTATION => "SIGNED",
---			LPM_DREPRESENTATION => "SIGNED",
---			LPM_PIPELINE 		=> 0 -- pure comb
---		)
---		port map (
---			NUMER		=> div_in_num(i),
---			DENOM		=> std_logic_vector(to_signed(2,3)),
---			QUOTIENT	=> div_out_quo(i),
---			REMAIN		=> div_out_dummy_remain(i)
---		);
-		
-		-- simple right shift (/2)
-		--div_out_quo(i)			<= std_logic_vector(to_signed(to_integer(signed(div_in_num(i)))/2, div_out_quo(i)'length));
-			
 		div_out_quo(i)				<= std_logic_vector(shift_right(signed(div_in_num(i)), 1));
-		
-		
 	end generate;
 
 	proc_sar_single_stage_comb : process (all)
@@ -1078,13 +1106,17 @@ begin
 				ram_addr_a			<= box_filler_write_addr;
 			when POST_DATA => 
 				ram_we_a			<= '1';
-                if (and_reduce(ram_q_a) = '1') then 
-                    -- overflow: keep the max value
+                if (and_reduce(ram_q_a(AVST_DATA_WIDTH-1 downto 0)) = '1') then 
+                    -- overflow: keep the max value of the read interface can support
                     ram_data_a          <= ram_q_a; 
                 else 
                     -- no overflow: update the value (incr value)
                     ram_data_a			<= std_logic_vector(unsigned(ram_q_a) + 1); -- incr the current count (TODO: make incr amount variable) 
-				end if;
+                    -- speical condition: if the thread b was blocked due to atomic (thread a is currently writing). thread a will increase the count for b. (incr 2)
+                    if (box_filler_input_valid_b = '1' and box_filler_write_addr = box_filler_write_addr_a_reg and box_filler_thread_a = POST_DATA) then  -- current write address is same as thread a's last write.
+                        ram_data_a          <= std_logic_vector(unsigned(ram_q_a) + 2);
+                    end if;
+                end if;
                 ram_addr_a			<= box_filler_write_addr_a_reg;
 			when FLUSHING =>
 				ram_we_a			<= '1';
@@ -1099,12 +1131,16 @@ begin
 				box_filler_thread_b_busy	<= '0';
 			when POST_DATA => 
 				ram_we_b			<= '1';
-                if (and_reduce(ram_q_b) = '1') then 
+                if (and_reduce(ram_q_b(AVST_DATA_WIDTH-1 downto 0)) = '1') then 
                     -- overflow: keep the max value
                     ram_data_b          <= ram_q_b; 
                 else 
                     -- no overflow: update the value (incr value)
                     ram_data_b			<= std_logic_vector(unsigned(ram_q_b) + 1); -- incr the current count 
+                    -- speical condition: if the thread a was blocked due to atomic (thread b is currently writing). thread b will increase the count for a. (incr 2)
+                    if (box_filler_input_valid_a = '1' and box_filler_write_addr = box_filler_write_addr_b_reg and box_filler_thread_b = POST_DATA) then  -- current write address is same as thread a's last write.
+                        ram_data_b          <= std_logic_vector(unsigned(ram_q_b) + 2);
+                    end if;
                 end if;
 				ram_addr_b			<= box_filler_write_addr_b_reg;
 				box_filler_thread_b_busy	<= '1';
@@ -1139,6 +1175,9 @@ begin
 						elsif (box_filler_input_valid_a = '1') then 
 							box_filler_thread_a		<= POST_DATA;
 							box_filler_write_addr_a_reg		<= box_filler_write_addr; -- remember this for the next cycle
+                            if (box_filler_write_addr = box_filler_write_addr_b_reg and ram_we_b = '1') then -- thread b is writing this ram location
+                                box_filler_thread_a         <= POST_ADDR; -- block thread a from starting!
+                            end if;
 						end if;
 					when POST_DATA => 
 						box_filler_thread_a		<= POST_ADDR;
@@ -1167,6 +1206,16 @@ begin
 							box_filler_thread_b					<= AV_READ;
 						elsif (box_filler_input_valid_b = '1') then 
 							box_filler_thread_b					<= POST_DATA;
+                            -- NOTE: to the same address: mask the another thread when this write is immedate after the thread a write.
+                            -- -----------------------------------------------------------------------------------------------------------------
+                            -- this is a RDW speical case for the true-dp ram, to the same address, you cannot write and read across port.
+                            -- for example: you might expect to the same port, the write value will be updated in the next cycle (latency=1).
+                            --              however, this is only true for the same port. the write value will be updated to another port in 2 cycles after (latency=2).
+                            --              if you attempt to read in the next cycle after one port is written, an glitch could happen, which data is un-defined. 
+                            -- in this cycle, thread a is post data (wr_en = 1) and thread b is post address. in this case, the read value (q) will not be valid in the next cycle.
+                            if (box_filler_write_addr = box_filler_write_addr_a_reg and ram_we_a = '1') then 
+                                box_filler_thread_b                 <= POST_ADDR; -- block thread b from starting!
+                            end if;
 							box_filler_write_addr_b_reg			<= box_filler_write_addr; -- remember this for the next cycle
 						end if;
 					when POST_DATA => 
@@ -1228,13 +1277,14 @@ begin
 	aso_hist_fill_out_startofpacket	<= asi_hist_fill_in_startofpacket;
 	aso_hist_fill_out_endofpacket	<= asi_hist_fill_in_endofpacket;
 	aso_hist_fill_out_channel		<= asi_hist_fill_in_channel;
+    aso_hist_fill_out_error         <= asi_hist_fill_in_error;
 	
 	-- -----------------------
 	-- run control management
 	-- -----------------------
 	asi_ctrl_ready			<= '1'; -- for now always ready
 	
-	proc_run_management_agent : process (i_rst, i_clk)
+	proc_run_management_agent : process (i_clk)
 	begin
 		if (rising_edge(i_clk)) then 
 			if (i_rst = '1') then 
@@ -1272,7 +1322,7 @@ begin
 		end if;
 	end process;
 	
-	proc_run_state : process (i_clk, i_rst)
+	proc_run_state : process (i_clk)
 	begin
 		if (rising_edge(i_clk)) then 
 			case run_state_cmd is 
