@@ -89,7 +89,7 @@ generic (
 	DEBUG				: natural := 1
 );
 port (
-	-- AVST sink [hist_bin]
+	-- AVST sink <hist_bin>
 	-- (read histogram bins)
 	avs_hist_bin_readdata				: out std_logic_vector(31 downto 0); 
 	avs_hist_bin_read					: in  std_logic;
@@ -103,7 +103,7 @@ port (
 	avs_hist_bin_writeresponsevalid		: out std_logic;
 	avs_hist_bin_response				: out std_logic_vector(1 downto 0);
 	
-	-- AVMM slave [csr]
+	-- AVMM slave <csr>
     -- (dynamically set the bin width, 
 	avs_csr_readdata					: out std_logic_vector(31 downto 0);
 	avs_csr_read						: in  std_logic;
@@ -112,7 +112,7 @@ port (
 	avs_csr_write						: in  std_logic;
 	avs_csr_writedata					: in  std_logic_vector(31 downto 0);
 	
-	-- AVST sink [hist_fill_in]
+	-- AVST sink <hist_fill_in>
 	-- (fill histogram)
 	asi_hist_fill_in_ready					: out std_logic; -- not needed if replay buffer is enabled 
 	asi_hist_fill_in_valid					: in  std_logic;
@@ -122,7 +122,7 @@ port (
 	asi_hist_fill_in_channel				: in  std_logic_vector(AVST_CHANNEL_WIDTH-1 downto 0);
     asi_hist_fill_in_error                  : in  std_logic_vector(0 downto 0);
 	
-	-- AVST source [hist_fill_out]
+	-- AVST source <hist_fill_out>
 	-- (mirror the hist_fill_in port)
 	aso_hist_fill_out_ready					: in  std_logic := '1'; -- NOTE: if dangling, must be set to one, otherwise no data to deassembly
 	aso_hist_fill_out_valid					: out std_logic;
@@ -132,17 +132,37 @@ port (
 	aso_hist_fill_out_channel				: out std_logic_vector(AVST_CHANNEL_WIDTH-1 downto 0);
     aso_hist_fill_out_error                 : out std_logic_vector(0 downto 0);
 	
-    -- AVST sink [ctrl]
+    -- AVST sink <ctrl>
 	-- (run control management agent)
 	asi_ctrl_data						: in  std_logic_vector(8 downto 0); 
 	asi_ctrl_valid						: in  std_logic;
 	asi_ctrl_ready						: out std_logic;
 	
-	-- debug ts port (gts - mts)
+	-- debug ts port (gts - mts) <debug_1>
 	asi_debug_1_valid					: in  std_logic;
 	asi_debug_1_data					: in  std_logic_vector(15 downto 0);
+    
+    -- fillness pdf <debug_2>
+    asi_debug_2_valid	    			: in  std_logic;
+	asi_debug_2_data					: in  std_logic_vector(15 downto 0);
+    
+    -- fillness pdf <debug_3>
+    asi_debug_3_valid	    			: in  std_logic;
+	asi_debug_3_data					: in  std_logic_vector(15 downto 0);
+    
+    -- fillness pdf <debug_4>
+    asi_debug_4_valid	    			: in  std_logic;
+	asi_debug_4_data					: in  std_logic_vector(15 downto 0);
+    
+    -- fillness pdf <debug_5>
+    asi_debug_5_valid	    			: in  std_logic;
+	asi_debug_5_data					: in  std_logic_vector(15 downto 0);
+    
+    -- burstiness <debug_6>
+    asi_debug_6_valid	    			: in  std_logic;
+	asi_debug_6_data					: in  std_logic_vector(15 downto 0);
 	
-	-- reset and clock interface
+	-- reset and clock interfaces
 	i_rst								: in  std_logic;
 	i_clk								: in  std_logic
 	
@@ -533,11 +553,8 @@ begin
 	--					bit: 0 ('0' is disable; '1' is enable)
 	--					bit: 1 ('0' is accept; '1' is reject)
 	--				R: representation of update key (0x0 is signed [default], 0x1 is unsigned) 
-	--				M: op mode. 0=normal, 1=time diff of current ts8n input to a running gts, 2=rate-monitor, 0xf=flush
-    --                  normal: hist collects data until full (no overflow)
-    --                  time-diff: measures the life time of hits (hit_ts - running_gts) 
-    --                  rate-monitor: the bin [0-255] will be dumped to [256-511] every 1s. read to <hist_bin> will be re-directed to [256-511]
-    --                  flush: clear the histogram bins
+	--				M: op mode. see below
+    --                  
 	--				C: commit (write 0x1 to commit all the settings, if read is 0x0 means setting is completed) 
 	-- 
 	-- 		1: left bound (signed)
@@ -863,12 +880,33 @@ begin
                     update_key          := deassembly_update_key_raw(update_key'high downto 0);
                     update_key_valid    := deassembly_update_key_valid;
                 -- debug inputs: 
-                when -1 => -- debug-1
-                    -- gts - input = diff (signed) 0~2000
+                when -1 => -- debug-1 (in modes below please turn off filter on the stream, as it is not meaningful)
+                    -- gts - input = diff (signed) 0~2000 
                     update_key			:= asi_debug_1_data;
                     update_key_valid	:= asi_debug_1_valid;
-                when -2 =>
-                    -- ...
+                when -2 => -- debug-2
+                    -- fillness PDF of any storage unit (cam=0)
+                    update_key			:= asi_debug_2_data;
+                    update_key_valid	:= asi_debug_2_valid;
+                when -3 =>
+                    -- fillness PDF of any storage unit (cam=1)
+                    update_key			:= asi_debug_3_data;
+                    update_key_valid	:= asi_debug_3_valid;
+                when -4 =>
+                    -- fillness PDF of any storage unit (cam=2)
+                    update_key			:= asi_debug_4_data;
+                    update_key_valid	:= asi_debug_4_valid;
+                when -5 =>
+                    -- fillness PDF of any storage unit (cam=3)
+                    update_key			:= asi_debug_5_data;
+                    update_key_valid	:= asi_debug_5_valid;
+                when -6 =>
+                    -- burstiness
+                    -- format: [XX] [YY] (see processor IP)
+                    -- XX := timestamp (higher 8 bit). ex: 10 bit, range is -512 to 511, triming 2 bits yields -> -128 to 127
+                    -- YY := interarrival time (higher 8 bit). ex 10 bit, range is 0 to 1023, triming 2 bits yields -> 0 to 255
+                    update_key			:= asi_debug_6_data;
+                    update_key_valid	:= asi_debug_6_valid;
                 when others => 
                     null;
             end case;
