@@ -3,6 +3,7 @@
 -- =======================================
 -- Revision: 1.0 (file created)
 --		Date: Jul 31, 2024
+-- Revision: 1.1 (fix bugs of corner cases of lsb to lowest (0) and msb to highest (38))
 -- =========
 -- Description:	[Shift-register based on DSP (lpm_multiplier)]
 --	
@@ -58,9 +59,12 @@ architecture rtl of shift_reg_with_dsp is
 	signal mask_lsr							: std_logic_vector(DATA_WIDTH-1 downto 0);
 	signal stream_data_masked				: std_logic_vector(DATA_WIDTH-1 downto 0);
 	signal stream_data_lsr					: std_logic_vector(DATA_WIDTH-1 downto 0);
+	signal lpm_result_data					: std_logic_vector(DATA_WIDTH-1 downto 0);
+	signal lpm_result_mask					: std_logic_vector(DATA_WIDTH-1 downto 0);
 	signal stream_data_rev_out				: std_logic_vector(DATA_WIDTH-1 downto 0);
 	signal stream_data_in					: std_logic_vector(DATA_WIDTH-1 downto 0);
-	signal stream_data_in_reg				: std_logic_vector(DATA_WIDTH-1 downto 0);
+	type stream_data_in_reg_t is array (0 to LPM_MULT_PIPELINE) of std_logic_vector(DATA_WIDTH-1 downto 0);
+	signal stream_data_in_reg				: stream_data_in_reg_t;
 	
 	signal data_shift_datab_comb			: std_logic_vector(DATA_WIDTH-1 downto 0);
 	signal data_shift_datab					: std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -123,7 +127,7 @@ begin
 	begin
 		if (rising_edge(i_clk)) then
 			stream_data_rev_in_reg		<= stream_data_rev_in; -- latch the reversal data
-			stream_data_in_reg			<= stream_data_in; -- latch the original data
+			-- stream_data_in_reg			<= stream_data_in; -- latch the original data
 			bit_location_low_reg		<= i_bit_location_low; 
 			bit_location_high_reg		<= i_bit_location_high;
 			-- give 1 stage of delay to calculate the mask datab
@@ -171,14 +175,14 @@ begin
 		LPM_PIPELINE 		=> LPM_MULT_PIPELINE
 	)
 	port map (
-		DATAA 		=> stream_data_in_reg,
+		DATAA 		=> stream_data_in_reg(0),
 		DATAB(DATA_WIDTH downto 1) 		=> data_shift_datab, -- binary + 1 here
 		DATAB(0)			=> '0',
 		ACLR 		=> '0',
 		CLOCK 		=> i_clk,
 		CLKEN 		=> '1',
 		--SUM 		=> (14 downto 0 => '0'),
-		RESULT 		=> stream_data_lsr
+		RESULT 		=> lpm_result_data
 	);
 	
 	-- ---------------------------------------------------------
@@ -201,6 +205,16 @@ begin
 		binary_code		=> mask_shift_bits_binary, -- 26
 		onehot_code		=> mask_shift_datab_comb -- bit 26 is '1', others '0', meaning 2^26 to feed multiplier, which will shift 26 bit left
 	);
+	proc_shift_bypass_comb : process (all)
+	begin 
+		-- fixed: corner case, if selected lsb is 0 (shift by 0), give the data untouched
+		if (unsigned(i_bit_location_low) = 0) then 
+			stream_data_lsr		<= stream_data_in_reg(LPM_MULT_PIPELINE);
+		else 
+			stream_data_lsr		<= lpm_result_data;
+		end if;
+	end process;
+	
 		
 	
 	lpm_mult_shift_left_mask : LPM_MULT
@@ -220,13 +234,23 @@ begin
 		CLOCK 		=> i_clk,
 		CLKEN 		=> '1',
 		--SUM 		=> (14 downto 0 => '0'),
-		RESULT 		=> mask_lsr
+		RESULT 		=> lpm_result_mask
 	);
+
+	proc_mask_bypass_comb : process (all)
+	begin 
+		-- fixed: corner case, if selected msb is hi (unmask all), give the mask all '1's
+		-- note: if the selected bit is changed, old data will use new setting for a few cycles. TODO: refine this!
+		if (unsigned(i_bit_location_high) = DATA_WIDTH-1) then 
+			mask_lsr		<= (others => '1');
+		else 
+			mask_lsr		<= lpm_result_mask;
+		end if;
+	end process;
 	
 	-- ---------------------------------------------------------
 	-- (3) mask the lower bits with zeros
 	-- ---------------------------------------------------------
-	
 	proc_apply_mask_on_data : process (all)
 	begin
 		for i in 0 to DATA_WIDTH-1 loop
@@ -243,7 +267,6 @@ begin
 	-- ---------------------------------------------------------
 	-- (4) bit-reversal to the key resides in the lower bits
 	-- ---------------------------------------------------------
-	
 	proc_reverse_data_out : process (all)
 	begin
 		for i in 0 to stream_data_masked'high loop
@@ -288,7 +311,6 @@ begin
 				error_msg(LPM_MULT_PIPELINE).high_oor		<= error_msg(LPM_MULT_PIPELINE-1).high_oor;
 			end if;
 			
-			-- @@ NO RESET @@
 			-- pipeline error
 			gen_error_ppl : for i in 0 to LPM_MULT_PIPELINE-2 loop 
 				error_msg(i+1)		<= error_msg(i);
@@ -302,33 +324,37 @@ begin
 	proc_valid_pipeline : process (i_clk,i_rst)
 	begin
 		if (rising_edge(i_clk)) then -- only sync reset the first and last stage of pipeline, preparing for Hyperflex architecture. 
-			-- @@ SYNC RESET @@
 			if (i_rst = '1') then 
 				valid_ppl(0)					<= '0';
 				valid_ppl(LPM_MULT_PIPELINE)	<= '0';
+				stream_data_in_reg(0)			<= (others => '0');
+				stream_data_in_reg(LPM_MULT_PIPELINE) <= (others => '0');
 			else
 				-- feed valid to pipeline (reg-in)
 				if (i_stream_valid = '1') then 
 					valid_ppl(0)			<= '1';
+					stream_data_in_reg(0)	<= stream_data_in;
 				else
 					valid_ppl(0)			<= '0';
+					stream_data_in_reg(0)	<= (others => '0');
 				end if;
 				-- last stage
-				valid_ppl(LPM_MULT_PIPELINE)	<= valid_ppl(LPM_MULT_PIPELINE-1);
+				valid_ppl(LPM_MULT_PIPELINE)			<= valid_ppl(LPM_MULT_PIPELINE-1);
+				stream_data_in_reg(LPM_MULT_PIPELINE)	<= stream_data_in_reg(LPM_MULT_PIPELINE-1);
 			end if;
 			
-			-- @@ NO RESET @@
 			-- pipeline valid
 			gen_valid_ppl : for i in 0 to LPM_MULT_PIPELINE-2 loop 
-				valid_ppl(i+1)		<= valid_ppl(i);
+				valid_ppl(i+1)				<= valid_ppl(i);
+				stream_data_in_reg(i+1)		<= stream_data_in_reg(i);
 			end loop gen_valid_ppl;
+
 		end if;
 	end process;
 	
 	proc_output_assembly : process (i_clk,i_rst)
 	begin
 		if (rising_edge(i_clk)) then
-			-- @@ NO RESET @@
 			-- catch data at the output
 			o_stream_data_masked		<= stream_data_masked;
 			-- catch valid at the output
