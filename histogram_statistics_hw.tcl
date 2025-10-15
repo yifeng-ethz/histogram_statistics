@@ -8,6 +8,7 @@
 # 25.0.0228 - add <debug_[2-5]> interface 
 # 25.0.0306 - add <debug_[2-6]> interface 
 # 25.0.0925 - fix bugs of corner cases of lsb to lowest (0) and msb to highest (38)
+# 25.0.1014 - fix bug of filter function
 
 # 
 # request TCL package from ACDS 16.1
@@ -20,7 +21,7 @@ package require -exact qsys 16.1
 # 
 set_module_property DESCRIPTION "Generate on-chip real-time histogram from a data stream"
 set_module_property NAME histogram_statistics
-set_module_property VERSION 25.0.0925
+set_module_property VERSION 25.0.1014
 set_module_property INTERNAL false
 set_module_property OPAQUE_ADDRESS_MAP true
 set_module_property GROUP "Mu3e Data Plane/Debug"

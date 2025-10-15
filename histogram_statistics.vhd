@@ -926,11 +926,11 @@ begin
 			-- --------------------------------------
 			-- 2) filtering -> deassembly_filtered
             -- --------------------------------------
-            -- default 
-            deassembly_filtered_valid           <= update_key_valid;
-            deassembly_filtered_data            <= update_key;
+			-- default
+			deassembly_filtered_valid		<= '0';
+			deassembly_filtered_data		<= (others => '0');
             -- filter function enabled by csr
-            if (csr.filter_enable = '1') then  
+            if (csr.filter_enable = '1') then  -- filter on
                 case csr.filter_is_reject is 
                     when '0' =>
                         if (to_integer(unsigned(filter_key)) = to_integer(csr.filter_key)) then 
@@ -945,6 +945,9 @@ begin
                     when others =>
                         null;
                 end case;
+			else -- filter off
+				deassembly_filtered_valid           <= update_key_valid;
+            	deassembly_filtered_data            <= update_key;
             end if;
             
             -- ----------------------------------------------------
