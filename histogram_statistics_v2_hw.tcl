@@ -3,7 +3,7 @@
 
 package require -exact qsys 16.1
 
-set_module_property DESCRIPTION "Generate on-chip real-time histogram from a data stream"
+set_module_property DESCRIPTION "Multi-port coalescing histogram with pipelined bin index and ping-pong rate readout. Drop-in replacement for per-ASIC channel rate counter arrays."
 set_module_property NAME histogram_statistics_v2
 set_module_property VERSION 26.0.321
 set_module_property INTERNAL false
@@ -26,66 +26,113 @@ set_fileset_property QUARTUS_SYNTH ENABLE_FILE_OVERWRITE_MODE false
 add_fileset_file histogram_statistics_v2.vhd VHDL PATH histogram_statistics_v2.vhd TOP_LEVEL_FILE
 add_fileset_file histogram_statistics_v2_pkg.vhd VHDL PATH histogram_statistics_v2_pkg.vhd
 add_fileset_file hit_fifo.vhd VHDL PATH hit_fifo.vhd
+add_fileset_file coalescing_queue.vhd VHDL PATH coalescing_queue.vhd
 add_fileset_file rr_arbiter.vhd VHDL PATH rr_arbiter.vhd
 add_fileset_file bin_divider.vhd VHDL PATH bin_divider.vhd
-add_fileset_file coalescing_queue.vhd VHDL PATH coalescing_queue.vhd
-add_fileset_file pingpong_sram.vhd VHDL PATH pingpong_sram.vhd
 add_fileset_file true_dual_port_ram_single_clock.vhd VHDL PATH true_dual_port_ram_single_clock.vhd
+add_fileset_file pingpong_sram.vhd VHDL PATH pingpong_sram.vhd
 
-add_parameter UPDATE_KEY_BIT_HI NATURAL 29
-set_parameter_property UPDATE_KEY_BIT_HI HDL_PARAMETER true
-add_parameter UPDATE_KEY_BIT_LO NATURAL 17
-set_parameter_property UPDATE_KEY_BIT_LO HDL_PARAMETER true
-add_parameter UPDATE_KEY_REPRESENTATION STRING UNSIGNED
-set_parameter_property UPDATE_KEY_REPRESENTATION HDL_PARAMETER true
-add_parameter FILTER_KEY_BIT_HI NATURAL 38
-set_parameter_property FILTER_KEY_BIT_HI HDL_PARAMETER true
-add_parameter FILTER_KEY_BIT_LO NATURAL 35
-set_parameter_property FILTER_KEY_BIT_LO HDL_PARAMETER true
-add_parameter SAR_TICK_WIDTH NATURAL 32
-set_parameter_property SAR_TICK_WIDTH HDL_PARAMETER true
-add_parameter SAR_KEY_WIDTH NATURAL 16
-set_parameter_property SAR_KEY_WIDTH HDL_PARAMETER true
 add_parameter N_BINS NATURAL 256
+set_parameter_property N_BINS DISPLAY_NAME "Number of Bins"
 set_parameter_property N_BINS HDL_PARAMETER true
 add_parameter MAX_COUNT_BITS NATURAL 32
+set_parameter_property MAX_COUNT_BITS DISPLAY_NAME "Max Count Bits"
 set_parameter_property MAX_COUNT_BITS HDL_PARAMETER true
 add_parameter DEF_LEFT_BOUND INTEGER -1000
+set_parameter_property DEF_LEFT_BOUND DISPLAY_NAME "Default Left Bound"
 set_parameter_property DEF_LEFT_BOUND HDL_PARAMETER true
 add_parameter DEF_BIN_WIDTH NATURAL 16
+set_parameter_property DEF_BIN_WIDTH DISPLAY_NAME "Default Bin Width"
 set_parameter_property DEF_BIN_WIDTH HDL_PARAMETER true
-add_parameter AVS_ADDR_WIDTH NATURAL 8
-set_parameter_property AVS_ADDR_WIDTH HDL_PARAMETER true
+add_parameter UPDATE_KEY_REPRESENTATION STRING UNSIGNED
+set_parameter_property UPDATE_KEY_REPRESENTATION DISPLAY_NAME "Key Representation"
+set_parameter_property UPDATE_KEY_REPRESENTATION HDL_PARAMETER true
+add_parameter SAR_TICK_WIDTH NATURAL 32
+set_parameter_property SAR_TICK_WIDTH DISPLAY_NAME "Boundary Resolution"
+set_parameter_property SAR_TICK_WIDTH HDL_PARAMETER true
+add_parameter SAR_KEY_WIDTH NATURAL 16
+set_parameter_property SAR_KEY_WIDTH DISPLAY_NAME "Max Key Width"
+set_parameter_property SAR_KEY_WIDTH HDL_PARAMETER true
 add_parameter N_PORTS NATURAL 8
+set_parameter_property N_PORTS DISPLAY_NAME "Number of Ingress Ports"
 set_parameter_property N_PORTS HDL_PARAMETER true
 add_parameter CHANNELS_PER_PORT NATURAL 32
+set_parameter_property CHANNELS_PER_PORT DISPLAY_NAME "Channels per Port"
 set_parameter_property CHANNELS_PER_PORT HDL_PARAMETER true
 add_parameter COAL_QUEUE_DEPTH NATURAL 256
+set_parameter_property COAL_QUEUE_DEPTH DISPLAY_NAME "Coalescing Queue Depth"
 set_parameter_property COAL_QUEUE_DEPTH HDL_PARAMETER true
 add_parameter ENABLE_PINGPONG BOOLEAN true
+set_parameter_property ENABLE_PINGPONG DISPLAY_NAME "Enable Ping-Pong Rate Mode"
 set_parameter_property ENABLE_PINGPONG HDL_PARAMETER true
 add_parameter DEF_INTERVAL_CLOCKS NATURAL 125000000
+set_parameter_property DEF_INTERVAL_CLOCKS DISPLAY_NAME "Default Interval (clocks)"
 set_parameter_property DEF_INTERVAL_CLOCKS HDL_PARAMETER true
+add_parameter UPDATE_KEY_BIT_HI NATURAL 29
+set_parameter_property UPDATE_KEY_BIT_HI DISPLAY_NAME "Update Key MSB"
+set_parameter_property UPDATE_KEY_BIT_HI HDL_PARAMETER true
+add_parameter UPDATE_KEY_BIT_LO NATURAL 17
+set_parameter_property UPDATE_KEY_BIT_LO DISPLAY_NAME "Update Key LSB"
+set_parameter_property UPDATE_KEY_BIT_LO HDL_PARAMETER true
+add_parameter FILTER_KEY_BIT_HI NATURAL 38
+set_parameter_property FILTER_KEY_BIT_HI DISPLAY_NAME "Filter Key MSB"
+set_parameter_property FILTER_KEY_BIT_HI HDL_PARAMETER true
+add_parameter FILTER_KEY_BIT_LO NATURAL 35
+set_parameter_property FILTER_KEY_BIT_LO DISPLAY_NAME "Filter Key LSB"
+set_parameter_property FILTER_KEY_BIT_LO HDL_PARAMETER true
 add_parameter AVST_DATA_WIDTH NATURAL 39
+set_parameter_property AVST_DATA_WIDTH DISPLAY_NAME "AVST Data Width"
 set_parameter_property AVST_DATA_WIDTH HDL_PARAMETER true
 add_parameter AVST_CHANNEL_WIDTH NATURAL 4
+set_parameter_property AVST_CHANNEL_WIDTH DISPLAY_NAME "AVST Channel Width"
 set_parameter_property AVST_CHANNEL_WIDTH HDL_PARAMETER true
+add_parameter AVS_ADDR_WIDTH NATURAL 8
+set_parameter_property AVS_ADDR_WIDTH DISPLAY_NAME "Histogram Address Width"
+set_parameter_property AVS_ADDR_WIDTH HDL_PARAMETER true
 add_parameter N_DEBUG_INTERFACE NATURAL 6
+set_parameter_property N_DEBUG_INTERFACE DISPLAY_NAME "Debug Interfaces"
 set_parameter_property N_DEBUG_INTERFACE HDL_PARAMETER true
+add_parameter DEBUG NATURAL 0
+set_parameter_property DEBUG DISPLAY_NAME "Debug Level"
+set_parameter_property DEBUG HDL_PARAMETER true
 add_parameter VERSION_MAJOR NATURAL 26
+set_parameter_property VERSION_MAJOR DISPLAY_NAME "Version Major"
 set_parameter_property VERSION_MAJOR HDL_PARAMETER true
 add_parameter VERSION_MINOR NATURAL 0
+set_parameter_property VERSION_MINOR DISPLAY_NAME "Version Minor"
 set_parameter_property VERSION_MINOR HDL_PARAMETER true
 add_parameter VERSION_PATCH NATURAL 0
+set_parameter_property VERSION_PATCH DISPLAY_NAME "Version Patch"
 set_parameter_property VERSION_PATCH HDL_PARAMETER true
 add_parameter BUILD NATURAL 0
+set_parameter_property BUILD DISPLAY_NAME "Build Stamp"
 set_parameter_property BUILD HDL_PARAMETER true
 add_parameter SNOOP_EN BOOLEAN true
+set_parameter_property SNOOP_EN DISPLAY_NAME "Enable Snooping"
 set_parameter_property SNOOP_EN HDL_PARAMETER true
 add_parameter ENABLE_PACKET BOOLEAN true
+set_parameter_property ENABLE_PACKET DISPLAY_NAME "Packet Support"
 set_parameter_property ENABLE_PACKET HDL_PARAMETER true
-add_parameter DEBUG NATURAL 0
-set_parameter_property DEBUG HDL_PARAMETER true
+add_parameter M10K_BINS_DERIVED NATURAL 2
+set_parameter_property M10K_BINS_DERIVED HDL_PARAMETER false
+set_parameter_property M10K_BINS_DERIVED DERIVED true
+set_parameter_property M10K_BINS_DERIVED VISIBLE false
+add_parameter M10K_COAL_DERIVED NATURAL 1
+set_parameter_property M10K_COAL_DERIVED HDL_PARAMETER false
+set_parameter_property M10K_COAL_DERIVED DERIVED true
+set_parameter_property M10K_COAL_DERIVED VISIBLE false
+add_parameter M10K_TOTAL_DERIVED NATURAL 3
+set_parameter_property M10K_TOTAL_DERIVED HDL_PARAMETER false
+set_parameter_property M10K_TOTAL_DERIVED DERIVED true
+set_parameter_property M10K_TOTAL_DERIVED VISIBLE false
+add_parameter DSP_COUNT_DERIVED NATURAL 0
+set_parameter_property DSP_COUNT_DERIVED HDL_PARAMETER false
+set_parameter_property DSP_COUNT_DERIVED DERIVED true
+set_parameter_property DSP_COUNT_DERIVED VISIBLE false
+add_parameter EST_ALM_DERIVED NATURAL 710
+set_parameter_property EST_ALM_DERIVED HDL_PARAMETER false
+set_parameter_property EST_ALM_DERIVED DERIVED true
+set_parameter_property EST_ALM_DERIVED VISIBLE false
 
 add_interface clock clock sink
 add_interface_port clock i_clk clk Input 1
@@ -109,6 +156,7 @@ set_interface_property hist_bin explicitAddressSpan 0
 set_interface_property hist_bin linewrapBursts false
 set_interface_property hist_bin maximumPendingReadTransactions 1
 set_interface_property hist_bin maximumPendingWriteTransactions 1
+set_interface_property hist_bin readWaitTime 0
 add_interface_port hist_bin avs_hist_bin_address address Input AVS_ADDR_WIDTH
 add_interface_port hist_bin avs_hist_bin_read read Input 1
 add_interface_port hist_bin avs_hist_bin_write write Input 1
@@ -132,6 +180,7 @@ set_interface_property csr linewrapBursts false
 set_interface_property csr maximumPendingReadTransactions 0
 set_interface_property csr maximumPendingWriteTransactions 0
 set_interface_property csr readLatency 1
+set_interface_property csr readWaitTime 0
 add_interface_port csr avs_csr_address address Input 4
 add_interface_port csr avs_csr_read read Input 1
 add_interface_port csr avs_csr_write write Input 1
@@ -334,9 +383,21 @@ proc elaborate {} {
     for {set idx 1} {$idx <= 6} {incr idx} {
         set_interface_property debug_$idx ENABLED [expr {$n_debug >= $idx ? "true" : "false"}]
     }
+
+    set_parameter_value M10K_BINS_DERIVED 2
+    set_parameter_value M10K_COAL_DERIVED 1
+    set_parameter_value M10K_TOTAL_DERIVED 3
+    set_parameter_value DSP_COUNT_DERIVED 0
+    set_parameter_value EST_ALM_DERIVED 710
 }
 
 proc validate {} {
+    set_parameter_value M10K_BINS_DERIVED 2
+    set_parameter_value M10K_COAL_DERIVED 1
+    set_parameter_value M10K_TOTAL_DERIVED 3
+    set_parameter_value DSP_COUNT_DERIVED 0
+    set_parameter_value EST_ALM_DERIVED 710
+
     if {[get_parameter_value SAR_TICK_WIDTH] < [get_parameter_value SAR_KEY_WIDTH]} {
         send_message error "SAR_TICK_WIDTH must be greater than or equal to SAR_KEY_WIDTH."
     }
