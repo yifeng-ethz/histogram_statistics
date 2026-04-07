@@ -16,6 +16,8 @@ set_module_property EDITABLE true
 set_module_property REPORT_TO_TALKBACK false
 set_module_property ALLOW_GREYBOX_GENERATION false
 set_module_property REPORT_HIERARCHY false
+set_module_property ELABORATION_CALLBACK elaborate
+set_module_property VALIDATION_CALLBACK validate
 
 add_fileset QUARTUS_SYNTH QUARTUS_SYNTH "" ""
 set_fileset_property QUARTUS_SYNTH TOP_LEVEL histogram_statistics_v2
@@ -107,14 +109,14 @@ set_interface_property hist_bin explicitAddressSpan 0
 set_interface_property hist_bin linewrapBursts false
 set_interface_property hist_bin maximumPendingReadTransactions 1
 set_interface_property hist_bin maximumPendingWriteTransactions 1
-add_interface_port hist_bin avs_hist_bin_address address Input avs_addr_width
+add_interface_port hist_bin avs_hist_bin_address address Input AVS_ADDR_WIDTH
 add_interface_port hist_bin avs_hist_bin_read read Input 1
 add_interface_port hist_bin avs_hist_bin_write write Input 1
 add_interface_port hist_bin avs_hist_bin_writedata writedata Input 32
 add_interface_port hist_bin avs_hist_bin_readdata readdata Output 32
 add_interface_port hist_bin avs_hist_bin_readdatavalid readdatavalid Output 1
 add_interface_port hist_bin avs_hist_bin_waitrequest waitrequest Output 1
-add_interface_port hist_bin avs_hist_bin_burstcount burstcount Input avs_addr_width
+add_interface_port hist_bin avs_hist_bin_burstcount burstcount Input AVS_ADDR_WIDTH
 add_interface_port hist_bin avs_hist_bin_response response Output 2
 add_interface_port hist_bin avs_hist_bin_writeresponsevalid writeresponsevalid Output 1
 
@@ -149,119 +151,119 @@ add_interface_port ctrl asi_ctrl_ready ready Output 1
 add_interface hist_fill_in avalon_streaming end
 set_interface_property hist_fill_in associatedClock clock
 set_interface_property hist_fill_in associatedReset reset
-set_interface_property hist_fill_in dataBitsPerSymbol avst_data_width
+set_interface_property hist_fill_in dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property hist_fill_in maxChannel 15
 set_interface_property hist_fill_in readyLatency 0
 add_interface_port hist_fill_in asi_hist_fill_in_valid valid Input 1
 add_interface_port hist_fill_in asi_hist_fill_in_ready ready Output 1
-add_interface_port hist_fill_in asi_hist_fill_in_data data Input avst_data_width
+add_interface_port hist_fill_in asi_hist_fill_in_data data Input AVST_DATA_WIDTH
 add_interface_port hist_fill_in asi_hist_fill_in_startofpacket startofpacket Input 1
 add_interface_port hist_fill_in asi_hist_fill_in_endofpacket endofpacket Input 1
-add_interface_port hist_fill_in asi_hist_fill_in_channel channel Input avst_channel_width
+add_interface_port hist_fill_in asi_hist_fill_in_channel channel Input AVST_CHANNEL_WIDTH
 
 add_interface fill_in_1 avalon_streaming end
 set_interface_property fill_in_1 associatedClock clock
 set_interface_property fill_in_1 associatedReset reset
-set_interface_property fill_in_1 dataBitsPerSymbol avst_data_width
+set_interface_property fill_in_1 dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property fill_in_1 maxChannel 15
 set_interface_property fill_in_1 readyLatency 0
 add_interface_port fill_in_1 asi_fill_in_1_valid valid Input 1
 add_interface_port fill_in_1 asi_fill_in_1_ready ready Output 1
-add_interface_port fill_in_1 asi_fill_in_1_data data Input avst_data_width
+add_interface_port fill_in_1 asi_fill_in_1_data data Input AVST_DATA_WIDTH
 add_interface_port fill_in_1 asi_fill_in_1_startofpacket startofpacket Input 1
 add_interface_port fill_in_1 asi_fill_in_1_endofpacket endofpacket Input 1
-add_interface_port fill_in_1 asi_fill_in_1_channel channel Input avst_channel_width
+add_interface_port fill_in_1 asi_fill_in_1_channel channel Input AVST_CHANNEL_WIDTH
 
 add_interface fill_in_2 avalon_streaming end
 set_interface_property fill_in_2 associatedClock clock
 set_interface_property fill_in_2 associatedReset reset
-set_interface_property fill_in_2 dataBitsPerSymbol avst_data_width
+set_interface_property fill_in_2 dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property fill_in_2 maxChannel 15
 set_interface_property fill_in_2 readyLatency 0
 add_interface_port fill_in_2 asi_fill_in_2_valid valid Input 1
 add_interface_port fill_in_2 asi_fill_in_2_ready ready Output 1
-add_interface_port fill_in_2 asi_fill_in_2_data data Input avst_data_width
+add_interface_port fill_in_2 asi_fill_in_2_data data Input AVST_DATA_WIDTH
 add_interface_port fill_in_2 asi_fill_in_2_startofpacket startofpacket Input 1
 add_interface_port fill_in_2 asi_fill_in_2_endofpacket endofpacket Input 1
-add_interface_port fill_in_2 asi_fill_in_2_channel channel Input avst_channel_width
+add_interface_port fill_in_2 asi_fill_in_2_channel channel Input AVST_CHANNEL_WIDTH
 
 add_interface fill_in_3 avalon_streaming end
 set_interface_property fill_in_3 associatedClock clock
 set_interface_property fill_in_3 associatedReset reset
-set_interface_property fill_in_3 dataBitsPerSymbol avst_data_width
+set_interface_property fill_in_3 dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property fill_in_3 maxChannel 15
 set_interface_property fill_in_3 readyLatency 0
 add_interface_port fill_in_3 asi_fill_in_3_valid valid Input 1
 add_interface_port fill_in_3 asi_fill_in_3_ready ready Output 1
-add_interface_port fill_in_3 asi_fill_in_3_data data Input avst_data_width
+add_interface_port fill_in_3 asi_fill_in_3_data data Input AVST_DATA_WIDTH
 add_interface_port fill_in_3 asi_fill_in_3_startofpacket startofpacket Input 1
 add_interface_port fill_in_3 asi_fill_in_3_endofpacket endofpacket Input 1
-add_interface_port fill_in_3 asi_fill_in_3_channel channel Input avst_channel_width
+add_interface_port fill_in_3 asi_fill_in_3_channel channel Input AVST_CHANNEL_WIDTH
 
 add_interface fill_in_4 avalon_streaming end
 set_interface_property fill_in_4 associatedClock clock
 set_interface_property fill_in_4 associatedReset reset
-set_interface_property fill_in_4 dataBitsPerSymbol avst_data_width
+set_interface_property fill_in_4 dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property fill_in_4 maxChannel 15
 set_interface_property fill_in_4 readyLatency 0
 add_interface_port fill_in_4 asi_fill_in_4_valid valid Input 1
 add_interface_port fill_in_4 asi_fill_in_4_ready ready Output 1
-add_interface_port fill_in_4 asi_fill_in_4_data data Input avst_data_width
+add_interface_port fill_in_4 asi_fill_in_4_data data Input AVST_DATA_WIDTH
 add_interface_port fill_in_4 asi_fill_in_4_startofpacket startofpacket Input 1
 add_interface_port fill_in_4 asi_fill_in_4_endofpacket endofpacket Input 1
-add_interface_port fill_in_4 asi_fill_in_4_channel channel Input avst_channel_width
+add_interface_port fill_in_4 asi_fill_in_4_channel channel Input AVST_CHANNEL_WIDTH
 
 add_interface fill_in_5 avalon_streaming end
 set_interface_property fill_in_5 associatedClock clock
 set_interface_property fill_in_5 associatedReset reset
-set_interface_property fill_in_5 dataBitsPerSymbol avst_data_width
+set_interface_property fill_in_5 dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property fill_in_5 maxChannel 15
 set_interface_property fill_in_5 readyLatency 0
 add_interface_port fill_in_5 asi_fill_in_5_valid valid Input 1
 add_interface_port fill_in_5 asi_fill_in_5_ready ready Output 1
-add_interface_port fill_in_5 asi_fill_in_5_data data Input avst_data_width
+add_interface_port fill_in_5 asi_fill_in_5_data data Input AVST_DATA_WIDTH
 add_interface_port fill_in_5 asi_fill_in_5_startofpacket startofpacket Input 1
 add_interface_port fill_in_5 asi_fill_in_5_endofpacket endofpacket Input 1
-add_interface_port fill_in_5 asi_fill_in_5_channel channel Input avst_channel_width
+add_interface_port fill_in_5 asi_fill_in_5_channel channel Input AVST_CHANNEL_WIDTH
 
 add_interface fill_in_6 avalon_streaming end
 set_interface_property fill_in_6 associatedClock clock
 set_interface_property fill_in_6 associatedReset reset
-set_interface_property fill_in_6 dataBitsPerSymbol avst_data_width
+set_interface_property fill_in_6 dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property fill_in_6 maxChannel 15
 set_interface_property fill_in_6 readyLatency 0
 add_interface_port fill_in_6 asi_fill_in_6_valid valid Input 1
 add_interface_port fill_in_6 asi_fill_in_6_ready ready Output 1
-add_interface_port fill_in_6 asi_fill_in_6_data data Input avst_data_width
+add_interface_port fill_in_6 asi_fill_in_6_data data Input AVST_DATA_WIDTH
 add_interface_port fill_in_6 asi_fill_in_6_startofpacket startofpacket Input 1
 add_interface_port fill_in_6 asi_fill_in_6_endofpacket endofpacket Input 1
-add_interface_port fill_in_6 asi_fill_in_6_channel channel Input avst_channel_width
+add_interface_port fill_in_6 asi_fill_in_6_channel channel Input AVST_CHANNEL_WIDTH
 
 add_interface fill_in_7 avalon_streaming end
 set_interface_property fill_in_7 associatedClock clock
 set_interface_property fill_in_7 associatedReset reset
-set_interface_property fill_in_7 dataBitsPerSymbol avst_data_width
+set_interface_property fill_in_7 dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property fill_in_7 maxChannel 15
 set_interface_property fill_in_7 readyLatency 0
 add_interface_port fill_in_7 asi_fill_in_7_valid valid Input 1
 add_interface_port fill_in_7 asi_fill_in_7_ready ready Output 1
-add_interface_port fill_in_7 asi_fill_in_7_data data Input avst_data_width
+add_interface_port fill_in_7 asi_fill_in_7_data data Input AVST_DATA_WIDTH
 add_interface_port fill_in_7 asi_fill_in_7_startofpacket startofpacket Input 1
 add_interface_port fill_in_7 asi_fill_in_7_endofpacket endofpacket Input 1
-add_interface_port fill_in_7 asi_fill_in_7_channel channel Input avst_channel_width
+add_interface_port fill_in_7 asi_fill_in_7_channel channel Input AVST_CHANNEL_WIDTH
 
 add_interface fill_out avalon_streaming start
 set_interface_property fill_out associatedClock clock
 set_interface_property fill_out associatedReset reset
-set_interface_property fill_out dataBitsPerSymbol avst_data_width
+set_interface_property fill_out dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property fill_out maxChannel 15
 set_interface_property fill_out readyLatency 0
 add_interface_port fill_out aso_hist_fill_out_valid valid Output 1
 add_interface_port fill_out aso_hist_fill_out_ready ready Input 1
-add_interface_port fill_out aso_hist_fill_out_data data Output avst_data_width
+add_interface_port fill_out aso_hist_fill_out_data data Output AVST_DATA_WIDTH
 add_interface_port fill_out aso_hist_fill_out_startofpacket startofpacket Output 1
 add_interface_port fill_out aso_hist_fill_out_endofpacket endofpacket Output 1
-add_interface_port fill_out aso_hist_fill_out_channel channel Output avst_channel_width
+add_interface_port fill_out aso_hist_fill_out_channel channel Output AVST_CHANNEL_WIDTH
 
 add_interface debug_1 avalon_streaming end
 set_interface_property debug_1 associatedClock clock
@@ -304,3 +306,39 @@ set_interface_property debug_6 associatedReset reset
 set_interface_property debug_6 dataBitsPerSymbol 16
 add_interface_port debug_6 asi_debug_6_valid valid Input 1
 add_interface_port debug_6 asi_debug_6_data data Input 16
+
+proc bool_param {name} {
+    return [expr {[string equal -nocase [get_parameter_value $name] "true"] ? 1 : 0}]
+}
+
+proc set_optional_stream {ifname enable data_w ch_w} {
+    set_interface_property $ifname ENABLED [expr {$enable ? "true" : "false"}]
+    if {$enable} {
+        set_interface_property $ifname dataBitsPerSymbol $data_w
+        set_interface_property $ifname maxChannel [expr {(1 << $ch_w) - 1}]
+    }
+}
+
+proc elaborate {} {
+    set data_w [get_parameter_value AVST_DATA_WIDTH]
+    set chan_w [get_parameter_value AVST_CHANNEL_WIDTH]
+    set n_ports [get_parameter_value N_PORTS]
+    set n_debug [get_parameter_value N_DEBUG_INTERFACE]
+
+    set_optional_stream hist_fill_in 1 $data_w $chan_w
+    for {set idx 1} {$idx <= 7} {incr idx} {
+        set_optional_stream fill_in_$idx [expr {$n_ports > $idx}] $data_w $chan_w
+    }
+    set_optional_stream fill_out [bool_param ENABLE_PACKET] $data_w $chan_w
+
+    for {set idx 1} {$idx <= 6} {incr idx} {
+        set_interface_property debug_$idx ENABLED [expr {$n_debug >= $idx ? "true" : "false"}]
+    }
+}
+
+proc validate {} {
+    if {[get_parameter_value SAR_TICK_WIDTH] < [get_parameter_value SAR_KEY_WIDTH]} {
+        send_message error "SAR_TICK_WIDTH must be greater than or equal to SAR_KEY_WIDTH."
+    }
+    elaborate
+}
