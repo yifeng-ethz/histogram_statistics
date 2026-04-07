@@ -340,5 +340,4 @@ proc validate {} {
     if {[get_parameter_value SAR_TICK_WIDTH] < [get_parameter_value SAR_KEY_WIDTH]} {
         send_message error "SAR_TICK_WIDTH must be greater than or equal to SAR_KEY_WIDTH."
     }
-    elaborate
 }
