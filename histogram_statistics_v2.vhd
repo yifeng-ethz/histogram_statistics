@@ -1,6 +1,17 @@
 -- File name: histogram_statistics_v2.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
 -- =======================================
+-- Revision: 1.2
+--		Date: Apr 9, 2026
+--		Change: Decouple build_key from filter_pass_v gating in ingress_comb
+--		        to break cfg_filter_key_low → ingress_stage_key timing path
+--		        (-2.554 ns at 137.5 MHz standalone). Key is always computed;
+--		        only write_req is gated by filter result.
+-- Revision: 1.1
+--		Date: Apr 9, 2026
+--		Change: Register measure_clear_pulse to break timing path from
+--		        AVMM interconnect address decode to queue_hit_bin
+--		        (-0.472 ns violation at 125 MHz pll_sclk domain).
 -- Revision: 1.0 (file created)
 --		Date: Mar 20, 2026
 -- =========
@@ -248,7 +259,8 @@ architecture rtl of histogram_statistics_v2 is
     signal flush_addr           : bin_index_t;
     signal interval_pulse       : std_logic;
     signal clear_pulse          : std_logic;
-    signal measure_clear_pulse  : std_logic;
+    signal measure_clear_comb   : std_logic;
+    signal measure_clear_pulse  : std_logic := '0';
 
     signal csr_mode             : std_logic_vector(3 downto 0) := (others => '0');
     signal csr_key_unsigned     : std_logic := bool_to_sl(UPDATE_KEY_REPRESENTATION /= "SIGNED");
@@ -449,8 +461,16 @@ begin
     avs_hist_bin_readdatavalid      <= hist_readdatavalid;
     avs_csr_readdata                <= csr_readdata_reg;
 
-    clear_pulse         <= bool_to_sl((avs_hist_bin_write = '1') and (avs_hist_bin_writedata = x"00000000"));
-    measure_clear_pulse <= clear_pulse or i_interval_reset;
+    clear_pulse        <= bool_to_sl((avs_hist_bin_write = '1') and (avs_hist_bin_writedata = x"00000000"));
+    measure_clear_comb <= clear_pulse or i_interval_reset;
+
+    -- register measure_clear to break timing from AVMM interconnect address decode
+    measure_clear_reg : process (i_clk)
+    begin
+        if rising_edge(i_clk) then
+            measure_clear_pulse <= measure_clear_comb;
+        end if;
+    end process measure_clear_reg;
 
     hist_writeresp_reg : process (i_clk)
     begin
@@ -548,6 +568,16 @@ begin
                             data_word  => debug_data_v
                         );
                     else
+                        -- Compute key unconditionally (don't gate by filter_pass)
+                        -- to break timing from cfg_filter_key_low → ingress_stage_key.
+                        -- Key value is don't-care when write_req = '0'.
+                        ingress_key_next(idx) <= build_key(
+                            data_word    => port_data(idx),
+                            key_hi       => cfg_update_key_high,
+                            key_lo       => cfg_update_key_low,
+                            key_unsigned => cfg_key_unsigned
+                        );
+
                         filter_pass_v := match_filter(
                             data_word      => port_data(idx),
                             filter_enable  => cfg_filter_enable,
@@ -556,15 +586,8 @@ begin
                             filter_lo      => cfg_filter_key_low,
                             filter_key     => cfg_filter_key
                         );
-
                         if filter_pass_v then
                             ingress_write_req(idx) <= '1';
-                            ingress_key_next(idx) <= build_key(
-                                data_word    => port_data(idx),
-                                key_hi       => cfg_update_key_high,
-                                key_lo       => cfg_update_key_low,
-                                key_unsigned => cfg_key_unsigned
-                            );
                         end if;
                     end if;
                 end if;

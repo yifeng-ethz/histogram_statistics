@@ -1,0 +1,12 @@
+# Questa work libraries
+work_*/
+*/work_*/
+
+# Simulation transcripts and logs
+transcript
+tr_db.log
+
+# Quartus incremental DB
+db/
+incremental_db/
+output_files/
