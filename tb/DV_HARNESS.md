@@ -374,15 +374,15 @@ $(WORK)/_vmake: ...
     $(VMAP) $(WORK) $(WORK)
     $(VMAP) lpm $(INTEL_LIBS)/220model
     # VHDL sources
-    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/histogram_statistics_v2_pkg.vhd
-    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/true_dual_port_ram_single_clock.vhd
-    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/alt_dpram/alt_dpram_true.vhd
-    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/hit_fifo.vhd
-    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/rr_arbiter.vhd
-    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/bin_divider.vhd
-    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/coalescing_queue.vhd
-    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/pingpong_sram.vhd
-    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/histogram_statistics_v2.vhd
+    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/histogram_statistics_v2_pkg.vhd
+    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/true_dual_port_ram_single_clock.vhd
+    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/alt_dpram/alt_dpram_true.vhd
+    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/hit_fifo.vhd
+    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/rr_arbiter.vhd
+    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/bin_divider.vhd
+    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/coalescing_queue.vhd
+    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/pingpong_sram.vhd
+    $(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/histogram_statistics_v2.vhd
     # UVM package
     $(VLOG) -work $(WORK) -sv $(UVM_HOME)/src/uvm_pkg.sv +incdir+$(UVM_HOME)/src
     # Testbench

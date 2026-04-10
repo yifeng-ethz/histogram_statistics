@@ -185,14 +185,14 @@ add_fileset QUARTUS_SYNTH QUARTUS_SYNTH "" ""
 set_fileset_property QUARTUS_SYNTH TOP_LEVEL histogram_statistics_v2
 set_fileset_property QUARTUS_SYNTH ENABLE_RELATIVE_INCLUDE_PATHS false
 set_fileset_property QUARTUS_SYNTH ENABLE_FILE_OVERWRITE_MODE false
-add_fileset_file histogram_statistics_v2.vhd VHDL PATH histogram_statistics_v2.vhd TOP_LEVEL_FILE
-add_fileset_file histogram_statistics_v2_pkg.vhd VHDL PATH histogram_statistics_v2_pkg.vhd
-add_fileset_file hit_fifo.vhd VHDL PATH hit_fifo.vhd
-add_fileset_file coalescing_queue.vhd VHDL PATH coalescing_queue.vhd
-add_fileset_file rr_arbiter.vhd VHDL PATH rr_arbiter.vhd
-add_fileset_file bin_divider.vhd VHDL PATH bin_divider.vhd
-add_fileset_file true_dual_port_ram_single_clock.vhd VHDL PATH true_dual_port_ram_single_clock.vhd
-add_fileset_file pingpong_sram.vhd VHDL PATH pingpong_sram.vhd
+add_fileset_file histogram_statistics_v2.vhd VHDL PATH rtl/histogram_statistics_v2.vhd TOP_LEVEL_FILE
+add_fileset_file histogram_statistics_v2_pkg.vhd VHDL PATH rtl/histogram_statistics_v2_pkg.vhd
+add_fileset_file hit_fifo.vhd VHDL PATH rtl/hit_fifo.vhd
+add_fileset_file coalescing_queue.vhd VHDL PATH rtl/coalescing_queue.vhd
+add_fileset_file rr_arbiter.vhd VHDL PATH rtl/rr_arbiter.vhd
+add_fileset_file bin_divider.vhd VHDL PATH rtl/bin_divider.vhd
+add_fileset_file true_dual_port_ram_single_clock.vhd VHDL PATH rtl/true_dual_port_ram_single_clock.vhd
+add_fileset_file pingpong_sram.vhd VHDL PATH rtl/pingpong_sram.vhd
 
 # --- parameters -------------------------------------------------------------------
 
@@ -455,7 +455,7 @@ add_display_item $TAB_IDENTITY "Delivered Profile" GROUP
 add_display_item $TAB_IDENTITY "Versioning" GROUP
 add_display_item $TAB_IDENTITY "Debug" GROUP
 
-add_html_text "Delivered Profile" profile_html "<html><b>Catalog revision</b><br/>This release is packaged as <b>26.1.0.0410</b>. It retains the established <b>hist_fill_in</b>, <b>fill_in_N</b>, <b>fill_out</b>, <b>csr</b>, <b>hist_bin</b>, and <b>ctrl</b> interface names so existing Platform Designer systems can be upgraded in place.<br/><br/><b>Runtime visibility</b><br/>Software reads the VERSION register at CSR word <b>13</b> (0x0D): VERSION[31:24]=MAJOR, [23:16]=MINOR, [15:12]=PATCH, [11:0]=BUILD.</html>"
+add_html_text "Delivered Profile" profile_html {<html><b>Catalog revision</b><br/>This release is packaged as <b>26.1.0.0410</b>. It retains the established <b>hist_fill_in</b>, <b>fill_in_N</b>, <b>fill_out</b>, <b>csr</b>, <b>hist_bin</b>, and <b>ctrl</b> interface names so existing Platform Designer systems can be upgraded in place.<br/><br/><b>Runtime visibility</b><br/>Software reads the VERSION register at CSR word <b>13</b> (0x0D): VERSION[31:24]=MAJOR, [23:16]=MINOR, [15:12]=PATCH, [11:0]=BUILD.</html>}
 add_html_text "Versioning" versioning_html {<html><b>VERSION encoding</b><br/>CSR word <b>13</b> (0x0D) is read-only.<br/>VERSION[31:24] = MAJOR, VERSION[23:16] = MINOR, VERSION[15:12] = PATCH, VERSION[11:0] = BUILD.</html>}
 add_display_item "Versioning" VERSION_MAJOR parameter
 add_display_item "Versioning" VERSION_MINOR parameter

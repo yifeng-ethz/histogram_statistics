@@ -42,10 +42,10 @@ add_fileset QUARTUS_SYNTH QUARTUS_SYNTH "" ""
 set_fileset_property QUARTUS_SYNTH TOP_LEVEL histogram_statistics
 set_fileset_property QUARTUS_SYNTH ENABLE_RELATIVE_INCLUDE_PATHS false
 set_fileset_property QUARTUS_SYNTH ENABLE_FILE_OVERWRITE_MODE false
-add_fileset_file histogram_statistics.vhd VHDL PATH histogram_statistics.vhd TOP_LEVEL_FILE
-add_fileset_file shift_reg_with_dsp.vhd VHDL PATH shift_reg_with_dsp.vhd
-add_fileset_file b2o_encoder.v VERILOG PATH b2o_encoder.v
-add_fileset_file alt_dpram_true.vhd VHDL PATH alt_dpram/alt_dpram_true.vhd
+add_fileset_file histogram_statistics.vhd VHDL PATH rtl/histogram_statistics.vhd TOP_LEVEL_FILE
+add_fileset_file shift_reg_with_dsp.vhd VHDL PATH rtl/shift_reg_with_dsp.vhd
+add_fileset_file b2o_encoder.v VERILOG PATH rtl/b2o_encoder.v
+add_fileset_file alt_dpram_true.vhd VHDL PATH rtl/alt_dpram/alt_dpram_true.vhd
 
 
 # 

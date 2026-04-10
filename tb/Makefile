@@ -25,30 +25,30 @@ SEED ?= 42
 
 compile: $(WORK)/_vmake
 
-$(WORK)/_vmake: $(IP_SRC)/histogram_statistics_v2_pkg.vhd \
-                $(IP_SRC)/histogram_statistics_v2.vhd \
-                $(IP_SRC)/bin_divider.vhd \
-                $(IP_SRC)/coalescing_queue.vhd \
-                $(IP_SRC)/hit_fifo.vhd \
-                $(IP_SRC)/rr_arbiter.vhd \
-                $(IP_SRC)/pingpong_sram.vhd \
-                $(IP_SRC)/true_dual_port_ram_single_clock.vhd \
-                $(IP_SRC)/alt_dpram/alt_dpram_true.vhd \
+$(WORK)/_vmake: $(IP_SRC)/rtl/histogram_statistics_v2_pkg.vhd \
+                $(IP_SRC)/rtl/histogram_statistics_v2.vhd \
+                $(IP_SRC)/rtl/bin_divider.vhd \
+                $(IP_SRC)/rtl/coalescing_queue.vhd \
+                $(IP_SRC)/rtl/hit_fifo.vhd \
+                $(IP_SRC)/rtl/rr_arbiter.vhd \
+                $(IP_SRC)/rtl/pingpong_sram.vhd \
+                $(IP_SRC)/rtl/true_dual_port_ram_single_clock.vhd \
+                $(IP_SRC)/rtl/alt_dpram/alt_dpram_true.vhd \
                 tb_histogram_statistics_v2.sv
 	@echo "═══ Compiling histogram_statistics_v2 standalone testbench ═══"
 	rm -rf $(WORK)
 	$(VLIB) $(WORK)
 	$(VMAP) $(WORK) $(WORK)
 	$(VMAP) lpm $(INTEL_LIBS)/220model
-	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/histogram_statistics_v2_pkg.vhd
-	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/true_dual_port_ram_single_clock.vhd
-	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/alt_dpram/alt_dpram_true.vhd
-	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/hit_fifo.vhd
-	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rr_arbiter.vhd
-	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/bin_divider.vhd
-	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/coalescing_queue.vhd
-	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/pingpong_sram.vhd
-	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/histogram_statistics_v2.vhd
+	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/histogram_statistics_v2_pkg.vhd
+	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/true_dual_port_ram_single_clock.vhd
+	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/alt_dpram/alt_dpram_true.vhd
+	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/hit_fifo.vhd
+	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/rr_arbiter.vhd
+	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/bin_divider.vhd
+	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/coalescing_queue.vhd
+	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/pingpong_sram.vhd
+	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/histogram_statistics_v2.vhd
 	$(VLOG) -work $(WORK) -sv tb_histogram_statistics_v2.sv
 	@touch $@
 

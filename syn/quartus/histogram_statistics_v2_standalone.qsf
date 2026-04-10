@@ -11,17 +11,17 @@ set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
 
 set_instance_assignment -name VIRTUAL_PIN ON -to *
 
-set_global_assignment -name VHDL_FILE ../../histogram_statistics_v2_pkg.vhd
-set_global_assignment -name VHDL_FILE ../../bin_divider.vhd
-set_global_assignment -name VHDL_FILE ../../coalescing_queue.vhd
-set_global_assignment -name VHDL_FILE ../../hit_fifo.vhd
-set_global_assignment -name VHDL_FILE ../../rr_arbiter.vhd
-set_global_assignment -name VHDL_FILE ../../pingpong_sram.vhd
-set_global_assignment -name VHDL_FILE ../../shift_reg_with_dsp.vhd
-set_global_assignment -name VHDL_FILE ../../true_dual_port_ram_single_clock.vhd
-set_global_assignment -name VHDL_FILE ../../alt_dpram/alt_dpram_true.vhd
-set_global_assignment -name QIP_FILE  ../../alt_dpram/alt_dpram_true.qip
-set_global_assignment -name VHDL_FILE ../../histogram_statistics_v2.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/histogram_statistics_v2_pkg.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/bin_divider.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/coalescing_queue.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/hit_fifo.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/rr_arbiter.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/pingpong_sram.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/shift_reg_with_dsp.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/true_dual_port_ram_single_clock.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/alt_dpram/alt_dpram_true.vhd
+set_global_assignment -name QIP_FILE  ../../rtl/alt_dpram/alt_dpram_true.qip
+set_global_assignment -name VHDL_FILE ../../rtl/histogram_statistics_v2.vhd
 
 set_global_assignment -name SDC_FILE histogram_statistics_v2_standalone.sdc
 
