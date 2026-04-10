@@ -1,16 +1,13 @@
-# TCL File Generated for restored Histogram Statistics v2 source IP
-# 26.0.0321 - restore histogram_statistics_v2 from feb_system_v2 generated RTL
-
 package require -exact qsys 16.1
 
-set_module_property DESCRIPTION "Multi-port coalescing histogram with pipelined bin index and ping-pong rate readout. Drop-in replacement for per-ASIC channel rate counter arrays."
 set_module_property NAME histogram_statistics_v2
-set_module_property VERSION 26.0.321
-set_module_property INTERNAL false
-set_module_property OPAQUE_ADDRESS_MAP true
+set_module_property DISPLAY_NAME "Histogram Statistics Mu3E IP"
+set_module_property VERSION 26.1.0.0410
+set_module_property DESCRIPTION "Multi-port coalescing histogram with pipelined bin index and ping-pong rate readout. Drop-in replacement for per-ASIC channel rate counter arrays."
 set_module_property GROUP "Mu3e Data Plane/Debug"
 set_module_property AUTHOR "Yifeng Wang"
-set_module_property DISPLAY_NAME "Histogram Statistics v2 Mu3e IP"
+set_module_property INTERNAL false
+set_module_property OPAQUE_ADDRESS_MAP true
 set_module_property INSTANTIATE_IN_SYSTEM_MODULE true
 set_module_property EDITABLE true
 set_module_property REPORT_TO_TALKBACK false
@@ -18,6 +15,171 @@ set_module_property ALLOW_GREYBOX_GENERATION false
 set_module_property REPORT_HIERARCHY false
 set_module_property ELABORATION_CALLBACK elaborate
 set_module_property VALIDATION_CALLBACK validate
+
+# --- helper procs ----------------------------------------------------------------
+
+proc add_html_text {group_name item_name html_text} {
+    add_display_item $group_name $item_name TEXT ""
+    set_display_item_property $item_name DISPLAY_HINT html
+    set_display_item_property $item_name TEXT $html_text
+}
+
+proc bool_param {name} {
+    return [expr {[string equal -nocase [get_parameter_value $name] "true"] ? 1 : 0}]
+}
+
+proc set_optional_stream {ifname enable data_w ch_w} {
+    set_interface_property $ifname ENABLED [expr {$enable ? "true" : "false"}]
+    if {$enable} {
+        set_interface_property $ifname dataBitsPerSymbol $data_w
+        set_interface_property $ifname maxChannel [expr {(1 << $ch_w) - 1}]
+    }
+}
+
+# --- constants --------------------------------------------------------------------
+
+set CSR_ADDR_W_CONST             4
+set RUN_CONTROL_WIDTH_CONST      9
+set VERSION_MAJOR_DEFAULT_CONST  26
+set VERSION_MINOR_DEFAULT_CONST  1
+set VERSION_PATCH_DEFAULT_CONST  0
+set BUILD_DEFAULT_CONST          410
+
+# --- CSR register map (documentation) --------------------------------------------
+
+set CSR_TABLE_HTML {<html><table border="1" width="100%">
+<tr><th>Word</th><th>Byte</th><th>Name</th><th>Access</th><th>Description</th></tr>
+<tr><td>0x00</td><td>0x000</td><td>CONTROL</td><td>RW</td><td>Bit 0 <b>soft_reset</b>, bits [7:4] <b>mode</b>, bit 8 <b>key_unsigned</b>, bit 12 <b>filter_enable</b>, bit 13 <b>filter_reject</b>, bit 24 <b>error</b> (RO), bits [31:28] <b>error_info</b> (RO).</td></tr>
+<tr><td>0x01</td><td>0x004</td><td>LEFT_BOUND</td><td>RW</td><td>Signed left boundary of the histogram range.</td></tr>
+<tr><td>0x02</td><td>0x008</td><td>RIGHT_BOUND</td><td>RW</td><td>Signed right boundary of the histogram range.</td></tr>
+<tr><td>0x03</td><td>0x00C</td><td>BIN_WIDTH</td><td>RW</td><td>Bin width in key-space units (lower 16 bits).</td></tr>
+<tr><td>0x04</td><td>0x010</td><td>KEY_LOC</td><td>RW</td><td>Packed bit-slice locations: [31:24] filter_key_high, [23:16] filter_key_low, [15:8] update_key_high, [7:0] update_key_low.</td></tr>
+<tr><td>0x05</td><td>0x014</td><td>KEY_VALUE</td><td>RW</td><td>Packed runtime key overrides: [31:16] filter_key, [15:0] update_key.</td></tr>
+<tr><td>0x06</td><td>0x018</td><td>UNDERFLOW_COUNT</td><td>RO</td><td>Count of keys mapping below the left boundary.</td></tr>
+<tr><td>0x07</td><td>0x01C</td><td>OVERFLOW_COUNT</td><td>RO</td><td>Count of keys mapping above the right boundary.</td></tr>
+<tr><td>0x08</td><td>0x020</td><td>INTERVAL_CFG</td><td>RW</td><td>Ping-pong interval timer configuration in clock cycles.</td></tr>
+<tr><td>0x09</td><td>0x024</td><td>BANK_STATUS</td><td>RO</td><td>Ping-pong bank swap and readout status.</td></tr>
+<tr><td>0x0A</td><td>0x028</td><td>PORT_STATUS</td><td>RO</td><td>Per-port ingress pipeline status flags.</td></tr>
+<tr><td>0x0B</td><td>0x02C</td><td>TOTAL_HITS</td><td>RO</td><td>Total accepted hit count across all ports.</td></tr>
+<tr><td>0x0C</td><td>0x030</td><td>DROPPED_HITS</td><td>RO</td><td>Total dropped hits due to queue overflow.</td></tr>
+<tr><td>0x0D</td><td>0x034</td><td>VERSION</td><td>RO</td><td>VERSION[31:24]=MAJOR, [23:16]=MINOR, [15:12]=PATCH, [11:0]=BUILD.</td></tr>
+<tr><td>0x0E</td><td>0x038</td><td>COAL_STATUS</td><td>RO</td><td>Coalescing queue occupancy and status.</td></tr>
+<tr><td>0x0F</td><td>0x03C</td><td>SCRATCH</td><td>RW</td><td>General-purpose scratch register for integration testing.</td></tr>
+</table></html>}
+
+# --- derived-value computation ----------------------------------------------------
+
+proc compute_derived_values {} {
+    set n_bins         [get_parameter_value N_BINS]
+    set max_count_bits [get_parameter_value MAX_COUNT_BITS]
+    set coal_depth     [get_parameter_value COAL_QUEUE_DEPTH]
+    set enable_pp      [get_parameter_value ENABLE_PINGPONG]
+    set n_ports        [get_parameter_value N_PORTS]
+
+    # M10K for bins: each true-dpram pair hosts up to 512 x 20 bits
+    set m10k_pairs_bins   [expr {int(ceil(double($n_bins) / 512.0))}]
+    set m10k_width_factor [expr {int(ceil(double($max_count_bits) / 20.0))}]
+    set m10k_bins_base    [expr {$m10k_pairs_bins * $m10k_width_factor * 2}]
+    if {[string equal -nocase $enable_pp "true"]} {
+        set m10k_bins [expr {$m10k_bins_base * 2}]
+    } else {
+        set m10k_bins $m10k_bins_base
+    }
+
+    # M10K for coalescing queue
+    set m10k_coal [expr {int(ceil(double($coal_depth) / 512.0)) * 2}]
+
+    set m10k_total [expr {$m10k_bins + $m10k_coal}]
+    set est_alm    [expr {350 + $n_ports * 45}]
+
+    set_parameter_value M10K_BINS_DERIVED  $m10k_bins
+    set_parameter_value M10K_COAL_DERIVED  $m10k_coal
+    set_parameter_value M10K_TOTAL_DERIVED $m10k_total
+    set_parameter_value DSP_COUNT_DERIVED  0
+    set_parameter_value EST_ALM_DERIVED    $est_alm
+
+    catch {
+        set_display_item_property sizing_html TEXT "<html><b>Resource estimate</b><br/>Histogram bins M10K: <b>${m10k_bins}</b><br/>Coalescing queue M10K: <b>${m10k_coal}</b><br/>Total M10K: <b>${m10k_total}</b><br/>Estimated ALMs: ~<b>${est_alm}</b><br/>DSP blocks: <b>0</b></html>"
+    }
+    catch {
+        set pp_status "disabled"
+        if {[string equal -nocase $enable_pp "true"]} {
+            set pp_status "enabled"
+        }
+        set_display_item_property runtime_html TEXT "<html><b>Runtime behaviour</b><br/>Active ingress ports: <b>${n_ports}</b><br/>Coalescing queue depth: <b>${coal_depth}</b> entries<br/>Ping-pong rate readout: <b>${pp_status}</b></html>"
+    }
+}
+
+# --- validate / elaborate ---------------------------------------------------------
+
+proc validate {} {
+    compute_derived_values
+
+    set sar_tick  [get_parameter_value SAR_TICK_WIDTH]
+    set sar_key   [get_parameter_value SAR_KEY_WIDTH]
+    set key_hi    [get_parameter_value UPDATE_KEY_BIT_HI]
+    set key_lo    [get_parameter_value UPDATE_KEY_BIT_LO]
+    set flt_hi    [get_parameter_value FILTER_KEY_BIT_HI]
+    set flt_lo    [get_parameter_value FILTER_KEY_BIT_LO]
+    set avst_w    [get_parameter_value AVST_DATA_WIDTH]
+    set max_cnt   [get_parameter_value MAX_COUNT_BITS]
+    set ver_maj   [get_parameter_value VERSION_MAJOR]
+    set ver_min   [get_parameter_value VERSION_MINOR]
+    set ver_pat   [get_parameter_value VERSION_PATCH]
+    set build_val [get_parameter_value BUILD]
+
+    if {$sar_tick < $sar_key} {
+        send_message error "SAR_TICK_WIDTH must be >= SAR_KEY_WIDTH."
+    }
+    if {$key_hi < $key_lo} {
+        send_message error "UPDATE_KEY_BIT_HI must be >= UPDATE_KEY_BIT_LO."
+    }
+    if {$flt_hi < $flt_lo} {
+        send_message error "FILTER_KEY_BIT_HI must be >= FILTER_KEY_BIT_LO."
+    }
+    if {$key_hi >= $avst_w} {
+        send_message error "UPDATE_KEY_BIT_HI must be < AVST_DATA_WIDTH."
+    }
+    if {$flt_hi >= $avst_w} {
+        send_message error "FILTER_KEY_BIT_HI must be < AVST_DATA_WIDTH."
+    }
+    if {$max_cnt < 1 || $max_cnt > 72} {
+        send_message error "MAX_COUNT_BITS must stay in the range 1..72."
+    }
+    if {$ver_maj < 0 || $ver_maj > 255} {
+        send_message error "VERSION_MAJOR must stay in the range 0..255."
+    }
+    if {$ver_min < 0 || $ver_min > 255} {
+        send_message error "VERSION_MINOR must stay in the range 0..255."
+    }
+    if {$ver_pat < 0 || $ver_pat > 15} {
+        send_message error "VERSION_PATCH must stay in the range 0..15."
+    }
+    if {$build_val < 0 || $build_val > 4095} {
+        send_message error "BUILD must stay in the range 0..4095."
+    }
+}
+
+proc elaborate {} {
+    compute_derived_values
+
+    set data_w  [get_parameter_value AVST_DATA_WIDTH]
+    set chan_w  [get_parameter_value AVST_CHANNEL_WIDTH]
+    set n_ports [get_parameter_value N_PORTS]
+    set n_debug [get_parameter_value N_DEBUG_INTERFACE]
+
+    set_optional_stream hist_fill_in 1 $data_w $chan_w
+    for {set idx 1} {$idx <= 7} {incr idx} {
+        set_optional_stream fill_in_$idx [expr {$n_ports > $idx}] $data_w $chan_w
+    }
+    set_optional_stream fill_out [bool_param ENABLE_PACKET] $data_w $chan_w
+
+    for {set idx 1} {$idx <= 6} {incr idx} {
+        set_interface_property debug_$idx ENABLED [expr {$n_debug >= $idx ? "true" : "false"}]
+    }
+}
+
+# --- file sets --------------------------------------------------------------------
 
 add_fileset QUARTUS_SYNTH QUARTUS_SYNTH "" ""
 set_fileset_property QUARTUS_SYNTH TOP_LEVEL histogram_statistics_v2
@@ -32,117 +194,308 @@ add_fileset_file bin_divider.vhd VHDL PATH bin_divider.vhd
 add_fileset_file true_dual_port_ram_single_clock.vhd VHDL PATH true_dual_port_ram_single_clock.vhd
 add_fileset_file pingpong_sram.vhd VHDL PATH pingpong_sram.vhd
 
+# --- parameters -------------------------------------------------------------------
+
+# -- Histogram configuration --
+
 add_parameter N_BINS NATURAL 256
 set_parameter_property N_BINS DISPLAY_NAME "Number of Bins"
+set_parameter_property N_BINS UNITS None
+set_parameter_property N_BINS ALLOWED_RANGES 1:2048
 set_parameter_property N_BINS HDL_PARAMETER true
+set_parameter_property N_BINS DESCRIPTION "Number of bins in the histogram. More bins require more M10K and more cycles to flush. Two M10K (one true dual-port RAM) host up to 512 bins."
+
 add_parameter MAX_COUNT_BITS NATURAL 32
-set_parameter_property MAX_COUNT_BITS DISPLAY_NAME "Max Count Bits"
+set_parameter_property MAX_COUNT_BITS DISPLAY_NAME "Bin Counter Width"
+set_parameter_property MAX_COUNT_BITS UNITS Bits
+set_parameter_property MAX_COUNT_BITS ALLOWED_RANGES 1:72
 set_parameter_property MAX_COUNT_BITS HDL_PARAMETER true
+set_parameter_property MAX_COUNT_BITS DESCRIPTION "Width of each bin counter. Two M10K support up to 40 bits; four M10K support up to 72 bits. Overflow protection triggers when the counter saturates."
+
 add_parameter DEF_LEFT_BOUND INTEGER -1000
 set_parameter_property DEF_LEFT_BOUND DISPLAY_NAME "Default Left Bound"
+set_parameter_property DEF_LEFT_BOUND UNITS None
+set_parameter_property DEF_LEFT_BOUND ALLOWED_RANGES -2147483648:2147483647
 set_parameter_property DEF_LEFT_BOUND HDL_PARAMETER true
+set_parameter_property DEF_LEFT_BOUND DESCRIPTION "Power-on default signed left boundary of the histogram range. Overridable at runtime through CSR word 1."
+
 add_parameter DEF_BIN_WIDTH NATURAL 16
 set_parameter_property DEF_BIN_WIDTH DISPLAY_NAME "Default Bin Width"
+set_parameter_property DEF_BIN_WIDTH UNITS None
+set_parameter_property DEF_BIN_WIDTH ALLOWED_RANGES 1:2147483647
 set_parameter_property DEF_BIN_WIDTH HDL_PARAMETER true
-add_parameter UPDATE_KEY_REPRESENTATION STRING UNSIGNED
-set_parameter_property UPDATE_KEY_REPRESENTATION DISPLAY_NAME "Key Representation"
-set_parameter_property UPDATE_KEY_REPRESENTATION HDL_PARAMETER true
-add_parameter SAR_TICK_WIDTH NATURAL 32
-set_parameter_property SAR_TICK_WIDTH DISPLAY_NAME "Boundary Resolution"
-set_parameter_property SAR_TICK_WIDTH HDL_PARAMETER true
-add_parameter SAR_KEY_WIDTH NATURAL 16
-set_parameter_property SAR_KEY_WIDTH DISPLAY_NAME "Max Key Width"
-set_parameter_property SAR_KEY_WIDTH HDL_PARAMETER true
-add_parameter N_PORTS NATURAL 8
-set_parameter_property N_PORTS DISPLAY_NAME "Number of Ingress Ports"
-set_parameter_property N_PORTS HDL_PARAMETER true
-add_parameter CHANNELS_PER_PORT NATURAL 32
-set_parameter_property CHANNELS_PER_PORT DISPLAY_NAME "Channels per Port"
-set_parameter_property CHANNELS_PER_PORT HDL_PARAMETER true
-add_parameter COAL_QUEUE_DEPTH NATURAL 256
-set_parameter_property COAL_QUEUE_DEPTH DISPLAY_NAME "Coalescing Queue Depth"
-set_parameter_property COAL_QUEUE_DEPTH HDL_PARAMETER true
-add_parameter ENABLE_PINGPONG BOOLEAN true
-set_parameter_property ENABLE_PINGPONG DISPLAY_NAME "Enable Ping-Pong Rate Mode"
-set_parameter_property ENABLE_PINGPONG HDL_PARAMETER true
-add_parameter DEF_INTERVAL_CLOCKS NATURAL 125000000
-set_parameter_property DEF_INTERVAL_CLOCKS DISPLAY_NAME "Default Interval (clocks)"
-set_parameter_property DEF_INTERVAL_CLOCKS HDL_PARAMETER true
+set_parameter_property DEF_BIN_WIDTH DESCRIPTION "Power-on default bin width in key-space units. Overridable at runtime through CSR word 3."
+
+# -- Key extraction --
+
 add_parameter UPDATE_KEY_BIT_HI NATURAL 29
 set_parameter_property UPDATE_KEY_BIT_HI DISPLAY_NAME "Update Key MSB"
+set_parameter_property UPDATE_KEY_BIT_HI UNITS None
+set_parameter_property UPDATE_KEY_BIT_HI ALLOWED_RANGES 0:255
 set_parameter_property UPDATE_KEY_BIT_HI HDL_PARAMETER true
+set_parameter_property UPDATE_KEY_BIT_HI DESCRIPTION "Bit position of the MSB of the update key extracted from the snooped data stream."
+
 add_parameter UPDATE_KEY_BIT_LO NATURAL 17
 set_parameter_property UPDATE_KEY_BIT_LO DISPLAY_NAME "Update Key LSB"
+set_parameter_property UPDATE_KEY_BIT_LO UNITS None
+set_parameter_property UPDATE_KEY_BIT_LO ALLOWED_RANGES 0:255
 set_parameter_property UPDATE_KEY_BIT_LO HDL_PARAMETER true
+set_parameter_property UPDATE_KEY_BIT_LO DESCRIPTION "Bit position of the LSB of the update key extracted from the snooped data stream."
+
+add_parameter UPDATE_KEY_REPRESENTATION STRING UNSIGNED
+set_parameter_property UPDATE_KEY_REPRESENTATION DISPLAY_NAME "Key Representation"
+set_parameter_property UPDATE_KEY_REPRESENTATION UNITS None
+set_parameter_property UPDATE_KEY_REPRESENTATION ALLOWED_RANGES {"UNSIGNED" "SIGNED"}
+set_parameter_property UPDATE_KEY_REPRESENTATION HDL_PARAMETER true
+set_parameter_property UPDATE_KEY_REPRESENTATION DESCRIPTION "Data type of the update key. SIGNED uses two's complement."
+
 add_parameter FILTER_KEY_BIT_HI NATURAL 38
 set_parameter_property FILTER_KEY_BIT_HI DISPLAY_NAME "Filter Key MSB"
+set_parameter_property FILTER_KEY_BIT_HI UNITS None
+set_parameter_property FILTER_KEY_BIT_HI ALLOWED_RANGES 0:255
 set_parameter_property FILTER_KEY_BIT_HI HDL_PARAMETER true
+set_parameter_property FILTER_KEY_BIT_HI DESCRIPTION "Bit position of the MSB of the filter key in the snooped data stream."
+
 add_parameter FILTER_KEY_BIT_LO NATURAL 35
 set_parameter_property FILTER_KEY_BIT_LO DISPLAY_NAME "Filter Key LSB"
+set_parameter_property FILTER_KEY_BIT_LO UNITS None
+set_parameter_property FILTER_KEY_BIT_LO ALLOWED_RANGES 0:255
 set_parameter_property FILTER_KEY_BIT_LO HDL_PARAMETER true
+set_parameter_property FILTER_KEY_BIT_LO DESCRIPTION "Bit position of the LSB of the filter key in the snooped data stream."
+
+add_parameter SAR_TICK_WIDTH NATURAL 32
+set_parameter_property SAR_TICK_WIDTH DISPLAY_NAME "Boundary Resolution"
+set_parameter_property SAR_TICK_WIDTH UNITS Bits
+set_parameter_property SAR_TICK_WIDTH ALLOWED_RANGES 1:127
+set_parameter_property SAR_TICK_WIDTH HDL_PARAMETER true
+set_parameter_property SAR_TICK_WIDTH DESCRIPTION "SAR quantizer tick width controlling bin boundary resolution. Must be >= SAR_KEY_WIDTH."
+
+add_parameter SAR_KEY_WIDTH NATURAL 16
+set_parameter_property SAR_KEY_WIDTH DISPLAY_NAME "Max Key Width"
+set_parameter_property SAR_KEY_WIDTH UNITS Bits
+set_parameter_property SAR_KEY_WIDTH ALLOWED_RANGES 1:127
+set_parameter_property SAR_KEY_WIDTH HDL_PARAMETER true
+set_parameter_property SAR_KEY_WIDTH DESCRIPTION "Maximum width of the update and filter key. Increase to 32 or higher for wider key fields; may require tuning the key-getter pipeline."
+
+# -- Ingress --
+
+add_parameter N_PORTS NATURAL 8
+set_parameter_property N_PORTS DISPLAY_NAME "Number of Ingress Ports"
+set_parameter_property N_PORTS UNITS None
+set_parameter_property N_PORTS ALLOWED_RANGES {1 2 4 8}
+set_parameter_property N_PORTS HDL_PARAMETER true
+set_parameter_property N_PORTS DESCRIPTION "Number of Avalon-ST ingress ports. Ports beyond N_PORTS are disabled by the elaboration callback."
+
+add_parameter CHANNELS_PER_PORT NATURAL 32
+set_parameter_property CHANNELS_PER_PORT DISPLAY_NAME "Channels per Port"
+set_parameter_property CHANNELS_PER_PORT UNITS None
+set_parameter_property CHANNELS_PER_PORT ALLOWED_RANGES 1:256
+set_parameter_property CHANNELS_PER_PORT HDL_PARAMETER true
+set_parameter_property CHANNELS_PER_PORT DESCRIPTION "Maximum channel count per ingress port."
+
+add_parameter COAL_QUEUE_DEPTH NATURAL 256
+set_parameter_property COAL_QUEUE_DEPTH DISPLAY_NAME "Coalescing Queue Depth"
+set_parameter_property COAL_QUEUE_DEPTH UNITS None
+set_parameter_property COAL_QUEUE_DEPTH ALLOWED_RANGES {16 32 64 128 256 512}
+set_parameter_property COAL_QUEUE_DEPTH HDL_PARAMETER true
+set_parameter_property COAL_QUEUE_DEPTH DESCRIPTION "Shared coalescing FIFO depth. Concurrent bin updates from all ports are serialized through this queue before reaching the histogram SRAM."
+
 add_parameter AVST_DATA_WIDTH NATURAL 39
 set_parameter_property AVST_DATA_WIDTH DISPLAY_NAME "AVST Data Width"
+set_parameter_property AVST_DATA_WIDTH UNITS Bits
+set_parameter_property AVST_DATA_WIDTH ALLOWED_RANGES 1:512
 set_parameter_property AVST_DATA_WIDTH HDL_PARAMETER true
+set_parameter_property AVST_DATA_WIDTH DESCRIPTION "Bit width of the Avalon-ST data bus on ingress and passthrough interfaces."
+
 add_parameter AVST_CHANNEL_WIDTH NATURAL 4
 set_parameter_property AVST_CHANNEL_WIDTH DISPLAY_NAME "AVST Channel Width"
+set_parameter_property AVST_CHANNEL_WIDTH UNITS Bits
+set_parameter_property AVST_CHANNEL_WIDTH ALLOWED_RANGES 1:8
 set_parameter_property AVST_CHANNEL_WIDTH HDL_PARAMETER true
-add_parameter AVS_ADDR_WIDTH NATURAL 8
-set_parameter_property AVS_ADDR_WIDTH DISPLAY_NAME "Histogram Address Width"
-set_parameter_property AVS_ADDR_WIDTH HDL_PARAMETER true
-add_parameter N_DEBUG_INTERFACE NATURAL 6
-set_parameter_property N_DEBUG_INTERFACE DISPLAY_NAME "Debug Interfaces"
-set_parameter_property N_DEBUG_INTERFACE HDL_PARAMETER true
-add_parameter DEBUG NATURAL 0
-set_parameter_property DEBUG DISPLAY_NAME "Debug Level"
-set_parameter_property DEBUG HDL_PARAMETER true
-add_parameter VERSION_MAJOR NATURAL 26
-set_parameter_property VERSION_MAJOR DISPLAY_NAME "Version Major"
-set_parameter_property VERSION_MAJOR HDL_PARAMETER true
-add_parameter VERSION_MINOR NATURAL 0
-set_parameter_property VERSION_MINOR DISPLAY_NAME "Version Minor"
-set_parameter_property VERSION_MINOR HDL_PARAMETER true
-add_parameter VERSION_PATCH NATURAL 0
-set_parameter_property VERSION_PATCH DISPLAY_NAME "Version Patch"
-set_parameter_property VERSION_PATCH HDL_PARAMETER true
-add_parameter BUILD NATURAL 0
-set_parameter_property BUILD DISPLAY_NAME "Build Stamp"
-set_parameter_property BUILD HDL_PARAMETER true
+set_parameter_property AVST_CHANNEL_WIDTH DESCRIPTION "Bit width of the Avalon-ST channel signal."
+
+# -- Ping-pong / interval --
+
+add_parameter ENABLE_PINGPONG BOOLEAN true
+set_parameter_property ENABLE_PINGPONG DISPLAY_NAME "Enable Ping-Pong Rate Mode"
+set_parameter_property ENABLE_PINGPONG UNITS None
+set_parameter_property ENABLE_PINGPONG HDL_PARAMETER true
+set_parameter_property ENABLE_PINGPONG DESCRIPTION "Enable dual-bank ping-pong SRAM with periodic automatic bank swap. When disabled, a single bank is used and the interval timer has no effect."
+
+add_parameter DEF_INTERVAL_CLOCKS NATURAL 125000000
+set_parameter_property DEF_INTERVAL_CLOCKS DISPLAY_NAME "Default Interval (clocks)"
+set_parameter_property DEF_INTERVAL_CLOCKS UNITS None
+set_parameter_property DEF_INTERVAL_CLOCKS ALLOWED_RANGES 0:2147483647
+set_parameter_property DEF_INTERVAL_CLOCKS HDL_PARAMETER true
+set_parameter_property DEF_INTERVAL_CLOCKS DESCRIPTION "Power-on default ping-pong interval in clock cycles. 125000000 = 1 second at 125 MHz. Overridable at runtime through CSR word 8."
+
+# -- Pass-through / snooping --
+
 add_parameter SNOOP_EN BOOLEAN true
 set_parameter_property SNOOP_EN DISPLAY_NAME "Enable Snooping"
+set_parameter_property SNOOP_EN UNITS None
 set_parameter_property SNOOP_EN HDL_PARAMETER true
+set_parameter_property SNOOP_EN DESCRIPTION "When enabled, the primary ingress stream is forwarded to the fill_out source with zero added latency."
+
 add_parameter ENABLE_PACKET BOOLEAN true
 set_parameter_property ENABLE_PACKET DISPLAY_NAME "Packet Support"
+set_parameter_property ENABLE_PACKET UNITS None
 set_parameter_property ENABLE_PACKET HDL_PARAMETER true
-add_parameter M10K_BINS_DERIVED NATURAL 2
-set_parameter_property M10K_BINS_DERIVED HDL_PARAMETER false
-set_parameter_property M10K_BINS_DERIVED DERIVED true
-set_parameter_property M10K_BINS_DERIVED VISIBLE false
-add_parameter M10K_COAL_DERIVED NATURAL 1
-set_parameter_property M10K_COAL_DERIVED HDL_PARAMETER false
-set_parameter_property M10K_COAL_DERIVED DERIVED true
-set_parameter_property M10K_COAL_DERIVED VISIBLE false
-add_parameter M10K_TOTAL_DERIVED NATURAL 3
-set_parameter_property M10K_TOTAL_DERIVED HDL_PARAMETER false
-set_parameter_property M10K_TOTAL_DERIVED DERIVED true
-set_parameter_property M10K_TOTAL_DERIVED VISIBLE false
-add_parameter DSP_COUNT_DERIVED NATURAL 0
-set_parameter_property DSP_COUNT_DERIVED HDL_PARAMETER false
-set_parameter_property DSP_COUNT_DERIVED DERIVED true
-set_parameter_property DSP_COUNT_DERIVED VISIBLE false
-add_parameter EST_ALM_DERIVED NATURAL 710
-set_parameter_property EST_ALM_DERIVED HDL_PARAMETER false
-set_parameter_property EST_ALM_DERIVED DERIVED true
-set_parameter_property EST_ALM_DERIVED VISIBLE false
+set_parameter_property ENABLE_PACKET DESCRIPTION "Enable start-of-packet / end-of-packet signalling on the passthrough path."
 
-add_interface clock clock sink
+# -- Memory-mapped --
+
+add_parameter AVS_ADDR_WIDTH NATURAL 8
+set_parameter_property AVS_ADDR_WIDTH DISPLAY_NAME "Histogram Address Width"
+set_parameter_property AVS_ADDR_WIDTH UNITS Bits
+set_parameter_property AVS_ADDR_WIDTH ALLOWED_RANGES 1:16
+set_parameter_property AVS_ADDR_WIDTH HDL_PARAMETER true
+set_parameter_property AVS_ADDR_WIDTH DESCRIPTION "Address width for the Avalon-MM histogram-bin readout slave. Must cover at least N_BINS words."
+
+# -- Debug --
+
+add_parameter N_DEBUG_INTERFACE NATURAL 6
+set_parameter_property N_DEBUG_INTERFACE DISPLAY_NAME "Debug Interfaces"
+set_parameter_property N_DEBUG_INTERFACE UNITS None
+set_parameter_property N_DEBUG_INTERFACE ALLOWED_RANGES 0:6
+set_parameter_property N_DEBUG_INTERFACE HDL_PARAMETER true
+set_parameter_property N_DEBUG_INTERFACE DESCRIPTION "Number of 16-bit debug Avalon-ST sinks enabled by the elaboration callback. The RTL supports up to 6."
+
+add_parameter DEBUG NATURAL 0
+set_parameter_property DEBUG DISPLAY_NAME "Debug Level"
+set_parameter_property DEBUG UNITS None
+set_parameter_property DEBUG ALLOWED_RANGES 0:2
+set_parameter_property DEBUG HDL_PARAMETER true
+set_parameter_property DEBUG DESCRIPTION "Debug level. 0 disables optional debug, 1 keeps synthesizable debug, 2 enables simulation-only debug."
+
+# -- Versioning --
+
+add_parameter VERSION_MAJOR NATURAL $VERSION_MAJOR_DEFAULT_CONST
+set_parameter_property VERSION_MAJOR DISPLAY_NAME "Version Major"
+set_parameter_property VERSION_MAJOR UNITS None
+set_parameter_property VERSION_MAJOR ALLOWED_RANGES 0:255
+set_parameter_property VERSION_MAJOR HDL_PARAMETER true
+
+add_parameter VERSION_MINOR NATURAL $VERSION_MINOR_DEFAULT_CONST
+set_parameter_property VERSION_MINOR DISPLAY_NAME "Version Minor"
+set_parameter_property VERSION_MINOR UNITS None
+set_parameter_property VERSION_MINOR ALLOWED_RANGES 0:255
+set_parameter_property VERSION_MINOR HDL_PARAMETER true
+
+add_parameter VERSION_PATCH NATURAL $VERSION_PATCH_DEFAULT_CONST
+set_parameter_property VERSION_PATCH DISPLAY_NAME "Version Patch"
+set_parameter_property VERSION_PATCH UNITS None
+set_parameter_property VERSION_PATCH ALLOWED_RANGES 0:15
+set_parameter_property VERSION_PATCH HDL_PARAMETER true
+
+add_parameter BUILD NATURAL $BUILD_DEFAULT_CONST
+set_parameter_property BUILD DISPLAY_NAME "Build Stamp"
+set_parameter_property BUILD UNITS None
+set_parameter_property BUILD ALLOWED_RANGES 0:4095
+set_parameter_property BUILD HDL_PARAMETER true
+set_parameter_property BUILD DESCRIPTION {12-bit build stamp packed into VERSION[11:0].}
+
+# -- Derived (hidden) --
+
+foreach derived_name {M10K_BINS_DERIVED M10K_COAL_DERIVED M10K_TOTAL_DERIVED DSP_COUNT_DERIVED EST_ALM_DERIVED} {
+    add_parameter $derived_name NATURAL 0
+    set_parameter_property $derived_name HDL_PARAMETER false
+    set_parameter_property $derived_name DERIVED true
+    set_parameter_property $derived_name VISIBLE false
+}
+
+# --- GUI layout -------------------------------------------------------------------
+
+set TAB_CONFIGURATION "Configuration"
+set TAB_IDENTITY      "Identity"
+set TAB_INTERFACES    "Interfaces"
+set TAB_REGMAP        "Register Map"
+
+add_display_item "" $TAB_CONFIGURATION GROUP tab
+add_display_item $TAB_CONFIGURATION "Overview" GROUP
+add_display_item $TAB_CONFIGURATION "Histogram Sizing" GROUP
+add_display_item $TAB_CONFIGURATION "Key Extraction" GROUP
+add_display_item $TAB_CONFIGURATION "Ingress" GROUP
+add_display_item $TAB_CONFIGURATION "Ping-Pong / Interval" GROUP
+add_display_item $TAB_CONFIGURATION "Resources" GROUP
+
+add_html_text "Overview" overview_html "<html><b>Function</b><br/>Multi-port coalescing histogram with pipelined bin index and ping-pong rate readout. Accepts up to 8 Avalon-ST ingress ports, extracts a configurable key field, maps keys to bin indices via a SAR-style divider, coalesces concurrent updates through a shared queue, and stores counts in dual-bank M10K SRAM with automatic interval-based bank swap.<br/><br/><b>Data path</b><br/>ingress &rarr; hit_fifo (per port) &rarr; rr_arbiter &rarr; bin_divider &rarr; coalescing_queue &rarr; pingpong_sram<br/><br/><b>Clocking</b><br/>All interfaces run inside a single synchronous domain. The optional <b>interval_reset</b> sink triggers a manual bank swap when the periodic timer is not used.</html>"
+
+add_display_item "Histogram Sizing" N_BINS parameter
+add_display_item "Histogram Sizing" MAX_COUNT_BITS parameter
+add_display_item "Histogram Sizing" DEF_LEFT_BOUND parameter
+add_display_item "Histogram Sizing" DEF_BIN_WIDTH parameter
+add_html_text "Histogram Sizing" sizing_html "<html><b>Resource estimate</b><br/>Updated by the validation callback.</html>"
+
+add_display_item "Key Extraction" UPDATE_KEY_BIT_HI parameter
+add_display_item "Key Extraction" UPDATE_KEY_BIT_LO parameter
+add_display_item "Key Extraction" UPDATE_KEY_REPRESENTATION parameter
+add_display_item "Key Extraction" FILTER_KEY_BIT_HI parameter
+add_display_item "Key Extraction" FILTER_KEY_BIT_LO parameter
+add_display_item "Key Extraction" SAR_TICK_WIDTH parameter
+add_display_item "Key Extraction" SAR_KEY_WIDTH parameter
+
+add_display_item "Ingress" N_PORTS parameter
+add_display_item "Ingress" CHANNELS_PER_PORT parameter
+add_display_item "Ingress" COAL_QUEUE_DEPTH parameter
+add_display_item "Ingress" AVST_DATA_WIDTH parameter
+add_display_item "Ingress" AVST_CHANNEL_WIDTH parameter
+
+add_display_item "Ping-Pong / Interval" ENABLE_PINGPONG parameter
+add_display_item "Ping-Pong / Interval" DEF_INTERVAL_CLOCKS parameter
+add_display_item "Ping-Pong / Interval" SNOOP_EN parameter
+add_display_item "Ping-Pong / Interval" ENABLE_PACKET parameter
+add_display_item "Ping-Pong / Interval" AVS_ADDR_WIDTH parameter
+add_html_text "Ping-Pong / Interval" runtime_html "<html><b>Runtime behaviour</b><br/>Updated by the validation callback.</html>"
+
+add_html_text "Resources" resources_html "<html><b>Integration notes</b><br/>1. The CSR aperture is fixed at <b>16</b> words (4-bit address), with control, histogram bounds, key configuration, and status counters.<br/>2. The <b>hist_bin</b> Avalon-MM slave provides burst-capable readout of the histogram SRAM with word-addressed access.<br/>3. The coalescing queue serializes concurrent bin updates from all ingress ports before they reach the histogram SRAM, preventing read-modify-write hazards.</html>"
+
+add_display_item "" $TAB_IDENTITY GROUP tab
+add_display_item $TAB_IDENTITY "Delivered Profile" GROUP
+add_display_item $TAB_IDENTITY "Versioning" GROUP
+add_display_item $TAB_IDENTITY "Debug" GROUP
+
+add_html_text "Delivered Profile" profile_html "<html><b>Catalog revision</b><br/>This release is packaged as <b>26.1.0.0410</b>. It retains the established <b>hist_fill_in</b>, <b>fill_in_N</b>, <b>fill_out</b>, <b>csr</b>, <b>hist_bin</b>, and <b>ctrl</b> interface names so existing Platform Designer systems can be upgraded in place.<br/><br/><b>Runtime visibility</b><br/>Software reads the VERSION register at CSR word <b>13</b> (0x0D): VERSION[31:24]=MAJOR, [23:16]=MINOR, [15:12]=PATCH, [11:0]=BUILD.</html>"
+add_html_text "Versioning" versioning_html {<html><b>VERSION encoding</b><br/>CSR word <b>13</b> (0x0D) is read-only.<br/>VERSION[31:24] = MAJOR, VERSION[23:16] = MINOR, VERSION[15:12] = PATCH, VERSION[11:0] = BUILD.</html>}
+add_display_item "Versioning" VERSION_MAJOR parameter
+add_display_item "Versioning" VERSION_MINOR parameter
+add_display_item "Versioning" VERSION_PATCH parameter
+add_display_item "Versioning" BUILD parameter
+add_html_text "Debug" debug_html "<html><b>Debug control</b><br/>The RTL exports up to 6 optional 16-bit Avalon-ST debug sinks controlled by the <b>N_DEBUG_INTERFACE</b> and <b>DEBUG</b> parameters below.</html>"
+add_display_item "Debug" N_DEBUG_INTERFACE parameter
+add_display_item "Debug" DEBUG parameter
+
+add_display_item "" $TAB_INTERFACES GROUP tab
+add_display_item $TAB_INTERFACES "Clock / Reset" GROUP
+add_display_item $TAB_INTERFACES "Data Path" GROUP
+add_display_item $TAB_INTERFACES "Control Path" GROUP
+add_display_item $TAB_INTERFACES "Monitoring" GROUP
+
+add_html_text "Clock / Reset" clock_html "<html><b>clock</b> and <b>reset</b><br/>Single synchronous clock/reset domain for the full histogram datapath and CSR logic.<br/><br/><b>interval_reset</b><br/>Optional reset sink that triggers a manual ping-pong bank swap independently of the periodic timer.</html>"
+add_html_text "Data Path" datapath_html "<html><b>hist_fill_in</b><br/>Primary Avalon-ST sink carrying the data stream to be histogrammed.<br/><br/><b>fill_in_1..7</b><br/>Additional Avalon-ST sinks enabled when N_PORTS &gt; 1. Each port has an independent hit FIFO feeding the round-robin arbiter.<br/><br/><b>fill_out</b><br/>Passthrough Avalon-ST source that forwards the primary ingress stream with zero added latency when snooping is enabled.</html>"
+add_html_text "Control Path" control_html "<html><b>csr</b><br/>Word-addressed Avalon-MM CSR window with 16 registers (4-bit address). Provides runtime configuration of histogram bounds, bin width, key locations, filter control, and status readback.<br/><br/><b>hist_bin</b><br/>Burst-capable Avalon-MM slave for histogram bin readout. Address width is configurable.<br/><br/><b>ctrl</b><br/>9-bit Avalon-ST run-control sink.</html>"
+add_html_text "Monitoring" monitor_html "<html><b>debug_1..6</b><br/>Optional 16-bit Avalon-ST debug sinks for integration-time signal monitoring. The number of active debug interfaces is controlled by <b>N_DEBUG_INTERFACE</b>.</html>"
+
+add_display_item "" $TAB_REGMAP GROUP tab
+add_display_item $TAB_REGMAP "CSR Window" GROUP
+add_html_text "CSR Window" csr_table_html $CSR_TABLE_HTML
+
+# --- interfaces -------------------------------------------------------------------
+
+add_interface clock clock end
+set_interface_property clock clockRate 0
+set_interface_property clock ENABLED true
 add_interface_port clock i_clk clk Input 1
 
-add_interface reset reset sink
+add_interface reset reset end
 set_interface_property reset associatedClock clock
+set_interface_property reset synchronousEdges DEASSERT
+set_interface_property reset ENABLED true
 add_interface_port reset i_rst reset Input 1
 
-add_interface interval_reset reset sink
+add_interface interval_reset reset end
 set_interface_property interval_reset associatedClock clock
+set_interface_property interval_reset ENABLED true
 add_interface_port interval_reset i_interval_reset reset Input 1
 
 add_interface hist_bin avalon end
@@ -153,10 +506,16 @@ set_interface_property hist_bin bitsPerSymbol 8
 set_interface_property hist_bin burstOnBurstBoundariesOnly false
 set_interface_property hist_bin burstcountUnits WORDS
 set_interface_property hist_bin explicitAddressSpan 0
+set_interface_property hist_bin holdTime 0
 set_interface_property hist_bin linewrapBursts false
 set_interface_property hist_bin maximumPendingReadTransactions 1
 set_interface_property hist_bin maximumPendingWriteTransactions 1
+set_interface_property hist_bin readLatency 0
 set_interface_property hist_bin readWaitTime 0
+set_interface_property hist_bin setupTime 0
+set_interface_property hist_bin timingUnits Cycles
+set_interface_property hist_bin writeWaitTime 0
+set_interface_property hist_bin ENABLED true
 add_interface_port hist_bin avs_hist_bin_address address Input AVS_ADDR_WIDTH
 add_interface_port hist_bin avs_hist_bin_read read Input 1
 add_interface_port hist_bin avs_hist_bin_write write Input 1
@@ -167,6 +526,10 @@ add_interface_port hist_bin avs_hist_bin_waitrequest waitrequest Output 1
 add_interface_port hist_bin avs_hist_bin_burstcount burstcount Input AVS_ADDR_WIDTH
 add_interface_port hist_bin avs_hist_bin_response response Output 2
 add_interface_port hist_bin avs_hist_bin_writeresponsevalid writeresponsevalid Output 1
+set_interface_assignment hist_bin embeddedsw.configuration.isFlash 0
+set_interface_assignment hist_bin embeddedsw.configuration.isMemoryDevice 0
+set_interface_assignment hist_bin embeddedsw.configuration.isNonVolatileStorage 0
+set_interface_assignment hist_bin embeddedsw.configuration.isPrintableDevice 0
 
 add_interface csr avalon end
 set_interface_property csr addressUnits WORDS
@@ -176,24 +539,37 @@ set_interface_property csr bitsPerSymbol 8
 set_interface_property csr burstOnBurstBoundariesOnly false
 set_interface_property csr burstcountUnits WORDS
 set_interface_property csr explicitAddressSpan 0
+set_interface_property csr holdTime 0
 set_interface_property csr linewrapBursts false
 set_interface_property csr maximumPendingReadTransactions 0
 set_interface_property csr maximumPendingWriteTransactions 0
 set_interface_property csr readLatency 1
 set_interface_property csr readWaitTime 0
-add_interface_port csr avs_csr_address address Input 4
+set_interface_property csr setupTime 0
+set_interface_property csr timingUnits Cycles
+set_interface_property csr writeWaitTime 0
+set_interface_property csr ENABLED true
+add_interface_port csr avs_csr_address address Input $CSR_ADDR_W_CONST
 add_interface_port csr avs_csr_read read Input 1
 add_interface_port csr avs_csr_write write Input 1
 add_interface_port csr avs_csr_writedata writedata Input 32
 add_interface_port csr avs_csr_readdata readdata Output 32
 add_interface_port csr avs_csr_waitrequest waitrequest Output 1
+set_interface_assignment csr embeddedsw.configuration.isFlash 0
+set_interface_assignment csr embeddedsw.configuration.isMemoryDevice 0
+set_interface_assignment csr embeddedsw.configuration.isNonVolatileStorage 0
+set_interface_assignment csr embeddedsw.configuration.isPrintableDevice 0
 
 add_interface ctrl avalon_streaming end
 set_interface_property ctrl associatedClock clock
 set_interface_property ctrl associatedReset reset
-set_interface_property ctrl dataBitsPerSymbol 9
+set_interface_property ctrl dataBitsPerSymbol $RUN_CONTROL_WIDTH_CONST
+set_interface_property ctrl errorDescriptor ""
+set_interface_property ctrl firstSymbolInHighOrderBits true
+set_interface_property ctrl maxChannel 0
 set_interface_property ctrl readyLatency 0
-add_interface_port ctrl asi_ctrl_data data Input 9
+set_interface_property ctrl ENABLED true
+add_interface_port ctrl asi_ctrl_data data Input $RUN_CONTROL_WIDTH_CONST
 add_interface_port ctrl asi_ctrl_valid valid Input 1
 add_interface_port ctrl asi_ctrl_ready ready Output 1
 
@@ -203,6 +579,7 @@ set_interface_property hist_fill_in associatedReset reset
 set_interface_property hist_fill_in dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property hist_fill_in maxChannel 15
 set_interface_property hist_fill_in readyLatency 0
+set_interface_property hist_fill_in ENABLED true
 add_interface_port hist_fill_in asi_hist_fill_in_valid valid Input 1
 add_interface_port hist_fill_in asi_hist_fill_in_ready ready Output 1
 add_interface_port hist_fill_in asi_hist_fill_in_data data Input AVST_DATA_WIDTH
@@ -210,96 +587,22 @@ add_interface_port hist_fill_in asi_hist_fill_in_startofpacket startofpacket Inp
 add_interface_port hist_fill_in asi_hist_fill_in_endofpacket endofpacket Input 1
 add_interface_port hist_fill_in asi_hist_fill_in_channel channel Input AVST_CHANNEL_WIDTH
 
-add_interface fill_in_1 avalon_streaming end
-set_interface_property fill_in_1 associatedClock clock
-set_interface_property fill_in_1 associatedReset reset
-set_interface_property fill_in_1 dataBitsPerSymbol AVST_DATA_WIDTH
-set_interface_property fill_in_1 maxChannel 15
-set_interface_property fill_in_1 readyLatency 0
-add_interface_port fill_in_1 asi_fill_in_1_valid valid Input 1
-add_interface_port fill_in_1 asi_fill_in_1_ready ready Output 1
-add_interface_port fill_in_1 asi_fill_in_1_data data Input AVST_DATA_WIDTH
-add_interface_port fill_in_1 asi_fill_in_1_startofpacket startofpacket Input 1
-add_interface_port fill_in_1 asi_fill_in_1_endofpacket endofpacket Input 1
-add_interface_port fill_in_1 asi_fill_in_1_channel channel Input AVST_CHANNEL_WIDTH
-
-add_interface fill_in_2 avalon_streaming end
-set_interface_property fill_in_2 associatedClock clock
-set_interface_property fill_in_2 associatedReset reset
-set_interface_property fill_in_2 dataBitsPerSymbol AVST_DATA_WIDTH
-set_interface_property fill_in_2 maxChannel 15
-set_interface_property fill_in_2 readyLatency 0
-add_interface_port fill_in_2 asi_fill_in_2_valid valid Input 1
-add_interface_port fill_in_2 asi_fill_in_2_ready ready Output 1
-add_interface_port fill_in_2 asi_fill_in_2_data data Input AVST_DATA_WIDTH
-add_interface_port fill_in_2 asi_fill_in_2_startofpacket startofpacket Input 1
-add_interface_port fill_in_2 asi_fill_in_2_endofpacket endofpacket Input 1
-add_interface_port fill_in_2 asi_fill_in_2_channel channel Input AVST_CHANNEL_WIDTH
-
-add_interface fill_in_3 avalon_streaming end
-set_interface_property fill_in_3 associatedClock clock
-set_interface_property fill_in_3 associatedReset reset
-set_interface_property fill_in_3 dataBitsPerSymbol AVST_DATA_WIDTH
-set_interface_property fill_in_3 maxChannel 15
-set_interface_property fill_in_3 readyLatency 0
-add_interface_port fill_in_3 asi_fill_in_3_valid valid Input 1
-add_interface_port fill_in_3 asi_fill_in_3_ready ready Output 1
-add_interface_port fill_in_3 asi_fill_in_3_data data Input AVST_DATA_WIDTH
-add_interface_port fill_in_3 asi_fill_in_3_startofpacket startofpacket Input 1
-add_interface_port fill_in_3 asi_fill_in_3_endofpacket endofpacket Input 1
-add_interface_port fill_in_3 asi_fill_in_3_channel channel Input AVST_CHANNEL_WIDTH
-
-add_interface fill_in_4 avalon_streaming end
-set_interface_property fill_in_4 associatedClock clock
-set_interface_property fill_in_4 associatedReset reset
-set_interface_property fill_in_4 dataBitsPerSymbol AVST_DATA_WIDTH
-set_interface_property fill_in_4 maxChannel 15
-set_interface_property fill_in_4 readyLatency 0
-add_interface_port fill_in_4 asi_fill_in_4_valid valid Input 1
-add_interface_port fill_in_4 asi_fill_in_4_ready ready Output 1
-add_interface_port fill_in_4 asi_fill_in_4_data data Input AVST_DATA_WIDTH
-add_interface_port fill_in_4 asi_fill_in_4_startofpacket startofpacket Input 1
-add_interface_port fill_in_4 asi_fill_in_4_endofpacket endofpacket Input 1
-add_interface_port fill_in_4 asi_fill_in_4_channel channel Input AVST_CHANNEL_WIDTH
-
-add_interface fill_in_5 avalon_streaming end
-set_interface_property fill_in_5 associatedClock clock
-set_interface_property fill_in_5 associatedReset reset
-set_interface_property fill_in_5 dataBitsPerSymbol AVST_DATA_WIDTH
-set_interface_property fill_in_5 maxChannel 15
-set_interface_property fill_in_5 readyLatency 0
-add_interface_port fill_in_5 asi_fill_in_5_valid valid Input 1
-add_interface_port fill_in_5 asi_fill_in_5_ready ready Output 1
-add_interface_port fill_in_5 asi_fill_in_5_data data Input AVST_DATA_WIDTH
-add_interface_port fill_in_5 asi_fill_in_5_startofpacket startofpacket Input 1
-add_interface_port fill_in_5 asi_fill_in_5_endofpacket endofpacket Input 1
-add_interface_port fill_in_5 asi_fill_in_5_channel channel Input AVST_CHANNEL_WIDTH
-
-add_interface fill_in_6 avalon_streaming end
-set_interface_property fill_in_6 associatedClock clock
-set_interface_property fill_in_6 associatedReset reset
-set_interface_property fill_in_6 dataBitsPerSymbol AVST_DATA_WIDTH
-set_interface_property fill_in_6 maxChannel 15
-set_interface_property fill_in_6 readyLatency 0
-add_interface_port fill_in_6 asi_fill_in_6_valid valid Input 1
-add_interface_port fill_in_6 asi_fill_in_6_ready ready Output 1
-add_interface_port fill_in_6 asi_fill_in_6_data data Input AVST_DATA_WIDTH
-add_interface_port fill_in_6 asi_fill_in_6_startofpacket startofpacket Input 1
-add_interface_port fill_in_6 asi_fill_in_6_endofpacket endofpacket Input 1
-add_interface_port fill_in_6 asi_fill_in_6_channel channel Input AVST_CHANNEL_WIDTH
-
-add_interface fill_in_7 avalon_streaming end
-set_interface_property fill_in_7 associatedClock clock
-set_interface_property fill_in_7 associatedReset reset
-set_interface_property fill_in_7 dataBitsPerSymbol AVST_DATA_WIDTH
-set_interface_property fill_in_7 maxChannel 15
-set_interface_property fill_in_7 readyLatency 0
-add_interface_port fill_in_7 asi_fill_in_7_valid valid Input 1
-add_interface_port fill_in_7 asi_fill_in_7_ready ready Output 1
-add_interface_port fill_in_7 asi_fill_in_7_data data Input AVST_DATA_WIDTH
-add_interface_port fill_in_7 asi_fill_in_7_startofpacket startofpacket Input 1
-add_interface_port fill_in_7 asi_fill_in_7_endofpacket endofpacket Input 1
-add_interface_port fill_in_7 asi_fill_in_7_channel channel Input AVST_CHANNEL_WIDTH
+for {set idx 1} {$idx <= 7} {incr idx} {
+    set ifname "fill_in_${idx}"
+    add_interface $ifname avalon_streaming end
+    set_interface_property $ifname associatedClock clock
+    set_interface_property $ifname associatedReset reset
+    set_interface_property $ifname dataBitsPerSymbol AVST_DATA_WIDTH
+    set_interface_property $ifname maxChannel 15
+    set_interface_property $ifname readyLatency 0
+    set_interface_property $ifname ENABLED true
+    add_interface_port $ifname "asi_${ifname}_valid" valid Input 1
+    add_interface_port $ifname "asi_${ifname}_ready" ready Output 1
+    add_interface_port $ifname "asi_${ifname}_data" data Input AVST_DATA_WIDTH
+    add_interface_port $ifname "asi_${ifname}_startofpacket" startofpacket Input 1
+    add_interface_port $ifname "asi_${ifname}_endofpacket" endofpacket Input 1
+    add_interface_port $ifname "asi_${ifname}_channel" channel Input AVST_CHANNEL_WIDTH
+}
 
 add_interface fill_out avalon_streaming start
 set_interface_property fill_out associatedClock clock
@@ -307,6 +610,7 @@ set_interface_property fill_out associatedReset reset
 set_interface_property fill_out dataBitsPerSymbol AVST_DATA_WIDTH
 set_interface_property fill_out maxChannel 15
 set_interface_property fill_out readyLatency 0
+set_interface_property fill_out ENABLED true
 add_interface_port fill_out aso_hist_fill_out_valid valid Output 1
 add_interface_port fill_out aso_hist_fill_out_ready ready Input 1
 add_interface_port fill_out aso_hist_fill_out_data data Output AVST_DATA_WIDTH
@@ -314,91 +618,17 @@ add_interface_port fill_out aso_hist_fill_out_startofpacket startofpacket Output
 add_interface_port fill_out aso_hist_fill_out_endofpacket endofpacket Output 1
 add_interface_port fill_out aso_hist_fill_out_channel channel Output AVST_CHANNEL_WIDTH
 
-add_interface debug_1 avalon_streaming end
-set_interface_property debug_1 associatedClock clock
-set_interface_property debug_1 associatedReset reset
-set_interface_property debug_1 dataBitsPerSymbol 16
-add_interface_port debug_1 asi_debug_1_valid valid Input 1
-add_interface_port debug_1 asi_debug_1_data data Input 16
-
-add_interface debug_2 avalon_streaming end
-set_interface_property debug_2 associatedClock clock
-set_interface_property debug_2 associatedReset reset
-set_interface_property debug_2 dataBitsPerSymbol 16
-add_interface_port debug_2 asi_debug_2_valid valid Input 1
-add_interface_port debug_2 asi_debug_2_data data Input 16
-
-add_interface debug_3 avalon_streaming end
-set_interface_property debug_3 associatedClock clock
-set_interface_property debug_3 associatedReset reset
-set_interface_property debug_3 dataBitsPerSymbol 16
-add_interface_port debug_3 asi_debug_3_valid valid Input 1
-add_interface_port debug_3 asi_debug_3_data data Input 16
-
-add_interface debug_4 avalon_streaming end
-set_interface_property debug_4 associatedClock clock
-set_interface_property debug_4 associatedReset reset
-set_interface_property debug_4 dataBitsPerSymbol 16
-add_interface_port debug_4 asi_debug_4_valid valid Input 1
-add_interface_port debug_4 asi_debug_4_data data Input 16
-
-add_interface debug_5 avalon_streaming end
-set_interface_property debug_5 associatedClock clock
-set_interface_property debug_5 associatedReset reset
-set_interface_property debug_5 dataBitsPerSymbol 16
-add_interface_port debug_5 asi_debug_5_valid valid Input 1
-add_interface_port debug_5 asi_debug_5_data data Input 16
-
-add_interface debug_6 avalon_streaming end
-set_interface_property debug_6 associatedClock clock
-set_interface_property debug_6 associatedReset reset
-set_interface_property debug_6 dataBitsPerSymbol 16
-add_interface_port debug_6 asi_debug_6_valid valid Input 1
-add_interface_port debug_6 asi_debug_6_data data Input 16
-
-proc bool_param {name} {
-    return [expr {[string equal -nocase [get_parameter_value $name] "true"] ? 1 : 0}]
+for {set idx 1} {$idx <= 6} {incr idx} {
+    set ifname "debug_${idx}"
+    add_interface $ifname avalon_streaming end
+    set_interface_property $ifname associatedClock clock
+    set_interface_property $ifname associatedReset reset
+    set_interface_property $ifname dataBitsPerSymbol 16
+    set_interface_property $ifname readyLatency 0
+    set_interface_property $ifname ENABLED true
+    add_interface_port $ifname "asi_${ifname}_valid" valid Input 1
+    add_interface_port $ifname "asi_${ifname}_data" data Input 16
 }
 
-proc set_optional_stream {ifname enable data_w ch_w} {
-    set_interface_property $ifname ENABLED [expr {$enable ? "true" : "false"}]
-    if {$enable} {
-        set_interface_property $ifname dataBitsPerSymbol $data_w
-        set_interface_property $ifname maxChannel [expr {(1 << $ch_w) - 1}]
-    }
-}
-
-proc elaborate {} {
-    set data_w [get_parameter_value AVST_DATA_WIDTH]
-    set chan_w [get_parameter_value AVST_CHANNEL_WIDTH]
-    set n_ports [get_parameter_value N_PORTS]
-    set n_debug [get_parameter_value N_DEBUG_INTERFACE]
-
-    set_optional_stream hist_fill_in 1 $data_w $chan_w
-    for {set idx 1} {$idx <= 7} {incr idx} {
-        set_optional_stream fill_in_$idx [expr {$n_ports > $idx}] $data_w $chan_w
-    }
-    set_optional_stream fill_out [bool_param ENABLE_PACKET] $data_w $chan_w
-
-    for {set idx 1} {$idx <= 6} {incr idx} {
-        set_interface_property debug_$idx ENABLED [expr {$n_debug >= $idx ? "true" : "false"}]
-    }
-
-    set_parameter_value M10K_BINS_DERIVED 2
-    set_parameter_value M10K_COAL_DERIVED 1
-    set_parameter_value M10K_TOTAL_DERIVED 3
-    set_parameter_value DSP_COUNT_DERIVED 0
-    set_parameter_value EST_ALM_DERIVED 710
-}
-
-proc validate {} {
-    set_parameter_value M10K_BINS_DERIVED 2
-    set_parameter_value M10K_COAL_DERIVED 1
-    set_parameter_value M10K_TOTAL_DERIVED 3
-    set_parameter_value DSP_COUNT_DERIVED 0
-    set_parameter_value EST_ALM_DERIVED 710
-
-    if {[get_parameter_value SAR_TICK_WIDTH] < [get_parameter_value SAR_KEY_WIDTH]} {
-        send_message error "SAR_TICK_WIDTH must be greater than or equal to SAR_KEY_WIDTH."
-    }
-}
+# Presets are provided via the sibling .qprs file:
+#   histogram_statistics_v2_presets.qprs

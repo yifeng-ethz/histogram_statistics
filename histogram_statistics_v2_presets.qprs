@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ip><presets version="18.1">
+	<preset name="Default" kind="histogram_statistics_v2" version="All" description="Delivered default. 256 bins with 32-bit counters, 8 ingress ports, 256-deep coalescing queue, ping-pong rate readout enabled at 1 s interval (125 MHz).">
+		<parameter name="N_BINS" value="256" />
+		<parameter name="MAX_COUNT_BITS" value="32" />
+		<parameter name="DEF_LEFT_BOUND" value="-1000" />
+		<parameter name="DEF_BIN_WIDTH" value="16" />
+		<parameter name="UPDATE_KEY_BIT_HI" value="29" />
+		<parameter name="UPDATE_KEY_BIT_LO" value="17" />
+		<parameter name="UPDATE_KEY_REPRESENTATION" value="UNSIGNED" />
+		<parameter name="FILTER_KEY_BIT_HI" value="38" />
+		<parameter name="FILTER_KEY_BIT_LO" value="35" />
+		<parameter name="SAR_TICK_WIDTH" value="32" />
+		<parameter name="SAR_KEY_WIDTH" value="16" />
+		<parameter name="N_PORTS" value="8" />
+		<parameter name="CHANNELS_PER_PORT" value="32" />
+		<parameter name="COAL_QUEUE_DEPTH" value="256" />
+		<parameter name="ENABLE_PINGPONG" value="true" />
+		<parameter name="DEF_INTERVAL_CLOCKS" value="125000000" />
+		<parameter name="AVST_DATA_WIDTH" value="39" />
+		<parameter name="AVST_CHANNEL_WIDTH" value="4" />
+		<parameter name="SNOOP_EN" value="true" />
+		<parameter name="ENABLE_PACKET" value="true" />
+		<parameter name="AVS_ADDR_WIDTH" value="8" />
+		<parameter name="N_DEBUG_INTERFACE" value="6" />
+		<parameter name="DEBUG" value="0" />
+	</preset>
+	<preset name="Minimal" kind="histogram_statistics_v2" version="All" description="Lightweight configuration. No periodic self-timer reset (ping-pong disabled), minimal 16-entry coalescing queue, single ingress port. Use for low-resource or single-channel monitoring.">
+		<parameter name="N_BINS" value="64" />
+		<parameter name="MAX_COUNT_BITS" value="32" />
+		<parameter name="DEF_LEFT_BOUND" value="-1000" />
+		<parameter name="DEF_BIN_WIDTH" value="16" />
+		<parameter name="UPDATE_KEY_BIT_HI" value="29" />
+		<parameter name="UPDATE_KEY_BIT_LO" value="17" />
+		<parameter name="UPDATE_KEY_REPRESENTATION" value="UNSIGNED" />
+		<parameter name="FILTER_KEY_BIT_HI" value="38" />
+		<parameter name="FILTER_KEY_BIT_LO" value="35" />
+		<parameter name="SAR_TICK_WIDTH" value="32" />
+		<parameter name="SAR_KEY_WIDTH" value="16" />
+		<parameter name="N_PORTS" value="1" />
+		<parameter name="CHANNELS_PER_PORT" value="32" />
+		<parameter name="COAL_QUEUE_DEPTH" value="16" />
+		<parameter name="ENABLE_PINGPONG" value="false" />
+		<parameter name="DEF_INTERVAL_CLOCKS" value="0" />
+		<parameter name="AVST_DATA_WIDTH" value="39" />
+		<parameter name="AVST_CHANNEL_WIDTH" value="4" />
+		<parameter name="SNOOP_EN" value="true" />
+		<parameter name="ENABLE_PACKET" value="true" />
+		<parameter name="AVS_ADDR_WIDTH" value="8" />
+		<parameter name="N_DEBUG_INTERFACE" value="6" />
+		<parameter name="DEBUG" value="0" />
+	</preset>
+	<preset name="Large" kind="histogram_statistics_v2" version="All" description="High-resolution configuration. 1024 bins with 40-bit counters for extended dynamic range. Use for fine-grained rate profiling or wide key-space histograms.">
+		<parameter name="N_BINS" value="1024" />
+		<parameter name="MAX_COUNT_BITS" value="40" />
+		<parameter name="DEF_LEFT_BOUND" value="-1000" />
+		<parameter name="DEF_BIN_WIDTH" value="16" />
+		<parameter name="UPDATE_KEY_BIT_HI" value="29" />
+		<parameter name="UPDATE_KEY_BIT_LO" value="17" />
+		<parameter name="UPDATE_KEY_REPRESENTATION" value="UNSIGNED" />
+		<parameter name="FILTER_KEY_BIT_HI" value="38" />
+		<parameter name="FILTER_KEY_BIT_LO" value="35" />
+		<parameter name="SAR_TICK_WIDTH" value="32" />
+		<parameter name="SAR_KEY_WIDTH" value="16" />
+		<parameter name="N_PORTS" value="8" />
+		<parameter name="CHANNELS_PER_PORT" value="32" />
+		<parameter name="COAL_QUEUE_DEPTH" value="256" />
+		<parameter name="ENABLE_PINGPONG" value="true" />
+		<parameter name="DEF_INTERVAL_CLOCKS" value="125000000" />
+		<parameter name="AVST_DATA_WIDTH" value="39" />
+		<parameter name="AVST_CHANNEL_WIDTH" value="4" />
+		<parameter name="SNOOP_EN" value="true" />
+		<parameter name="ENABLE_PACKET" value="true" />
+		<parameter name="AVS_ADDR_WIDTH" value="10" />
+		<parameter name="N_DEBUG_INTERFACE" value="6" />
+		<parameter name="DEBUG" value="0" />
+	</preset>
+</presets></ip>
