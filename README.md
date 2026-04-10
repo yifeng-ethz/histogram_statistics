@@ -226,20 +226,11 @@ header.
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-**To capture screenshots in Platform Designer:**
+**Platform Designer system view** -- IP Catalog entry under *Mu3e Data Plane*,
+System Contents with `hist_0` instance, and the parameter editor showing
+Configuration, Identity, Interfaces, and Register Map tabs:
 
-1. Open the Quartus project containing this IP
-2. Launch Platform Designer (Tools > Platform Designer)
-3. Double-click the `histogram_statistics_v2` instance (or Add > Mu3e Data Path > Modules)
-4. Screenshot each of the four tabs: **Configuration**, **Identity**, **Interfaces**, **Register Map**
-5. Save screenshots to `doc/` (e.g. `doc/pd_configuration.png`) and reference them below
-
-<!-- Add screenshots here after manual capture, e.g.:
-![Configuration Tab](doc/pd_configuration.png)
-![Identity Tab](doc/pd_identity.png)
-![Interfaces Tab](doc/pd_interfaces.png)
-![Register Map Tab](doc/pd_register_map.png)
--->
+![Platform Designer — Configuration tab](doc/pd_configuration.png)
 
 ---
 
