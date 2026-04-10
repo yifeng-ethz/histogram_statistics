@@ -232,9 +232,14 @@ header.
 2. Launch Platform Designer (Tools > Platform Designer)
 3. Double-click the `histogram_statistics_v2` instance (or Add > Mu3e Data Path > Modules)
 4. Screenshot each of the four tabs: **Configuration**, **Identity**, **Interfaces**, **Register Map**
-5. Save screenshots to `doc/` and reference them here
+5. Save screenshots to `doc/` (e.g. `doc/pd_configuration.png`) and reference them below
 
-![Platform Designer system view](doc/pd_system_view.png)
+<!-- Add screenshots here after manual capture, e.g.:
+![Configuration Tab](doc/pd_configuration.png)
+![Identity Tab](doc/pd_identity.png)
+![Interfaces Tab](doc/pd_interfaces.png)
+![Register Map Tab](doc/pd_register_map.png)
+-->
 
 ---
 
