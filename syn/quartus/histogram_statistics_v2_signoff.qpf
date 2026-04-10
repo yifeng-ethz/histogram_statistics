@@ -1,0 +1,4 @@
+QUARTUS_VERSION = "18.1"
+DATE = "10:00:00  April 09, 2026"
+
+PROJECT_REVISION = "histogram_statistics_v2_standalone"

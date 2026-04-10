@@ -1,3 +1,7 @@
 *.*~
 *.bak
 greybox_tmp/
+syn/quartus/db/
+syn/quartus/incremental_db/
+syn/quartus/output_files/
+syn/quartus/*.qws
