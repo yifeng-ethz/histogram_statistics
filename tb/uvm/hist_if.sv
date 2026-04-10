@@ -1,4 +1,4 @@
-interface hist_csr_if #(int ADDR_W = 4) (input logic clk);
+interface hist_csr_if #(int ADDR_W = 5) (input logic clk);
   logic [31:0]          readdata;
   logic                 read;
   logic [ADDR_W-1:0]    address;

@@ -1,8 +1,8 @@
 class hist_prof_sok_test extends hist_base_test;
   `uvm_component_utils(hist_prof_sok_test)
 
-  localparam bit [3:0] CSR_TOTAL_HITS = 4'd11;
-  localparam bit [3:0] CSR_DROPPED    = 4'd12;
+  localparam bit [4:0] CSR_TOTAL_HITS = 5'd13;
+  localparam bit [4:0] CSR_DROPPED    = 5'd14;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -93,7 +93,7 @@ class hist_prof_sok_test extends hist_base_test;
     for (int i = 0; i < 100; i++) begin
       send_fill_word(0, make_fill_word(i % 256));
       if (i % 10 == 0)
-        csr_read(4'd11, val);  // Read total_hits periodically
+        csr_read(5'd13, val);  // Read total_hits periodically
     end
     wait_pipeline_drain(512);
     csr_read(CSR_TOTAL_HITS, total);

@@ -2,8 +2,8 @@ class hist_single_hit_test extends hist_base_test;
   `uvm_component_utils(hist_single_hit_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG = 1024;
-  localparam bit [3:0]    HS_CSR_UNDERFLOW_ADDR = 4'd6;
-  localparam bit [3:0]    HS_CSR_OVERFLOW_ADDR  = 4'd7;
+  localparam bit [4:0]    HS_CSR_UNDERFLOW_ADDR = 5'd8;
+  localparam bit [4:0]    HS_CSR_OVERFLOW_ADDR  = 5'd9;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -23,15 +23,15 @@ class hist_single_hit_test extends hist_base_test;
       `uvm_fatal(get_type_name(), $sformatf("interval_cfg must be >= %0d, got %0d", HS_TEST_INTERVAL_CFG, interval_cfg))
     end
 
-    csr_write(4'd1, $unsigned(left_bound));
-    csr_write(4'd3, bin_width[31:0]);
-    csr_write(4'd8, interval_cfg[31:0]);
+    csr_write(5'd3, $unsigned(left_bound));
+    csr_write(5'd5, bin_width[31:0]);
+    csr_write(5'd10, interval_cfg[31:0]);
 
     control_word       = 32'h0000_0001;
     control_word[8]    = key_unsigned;
     control_word[12]   = filter_enable;
     control_word[13]   = filter_reject;
-    csr_write(4'd0, control_word);
+    csr_write(5'd2, control_word);
 
     repeat (8) @(cfg.probe_vif.mon_cb);
   endtask
@@ -89,7 +89,7 @@ class hist_single_hit_test extends hist_base_test;
 
   local task automatic check_csr(
     input string    case_id,
-    input bit [3:0] address,
+    input bit [4:0] address,
     input bit [31:0] expected_value,
     input string    csr_name
   );

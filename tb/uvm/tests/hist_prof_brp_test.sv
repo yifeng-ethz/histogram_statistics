@@ -190,7 +190,7 @@ class hist_prof_brp_test extends hist_base_test;
     wait_bank_swap();
     // Issue burst read then CSR read
     bin_burst_read(8'd0, 8'd20, burst_data);
-    csr_read(4'd15, csr_val);  // Read scratch
+    csr_read(5'd17, csr_val);  // Read scratch
     if (burst_data.size() !== 20)
       `uvm_error("P088", $sformatf("burst returned %0d words (expected 20)", burst_data.size()))
     `uvm_info("P088", $sformatf("burst=%0d words, scratch=0x%08h", burst_data.size(), csr_val), UVM_LOW)

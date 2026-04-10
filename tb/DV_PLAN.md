@@ -36,7 +36,7 @@ ingress_comb → ingress_stage_reg → hit_fifo (×8) → rr_arbiter
 
 | Interface | Type | Width | Description |
 |-----------|------|-------|-------------|
-| `avs_csr` | AVMM slave | 4-bit addr, 32-bit data | CSR register file (16 registers) |
+| `avs_csr` | AVMM slave | 5-bit addr, 32-bit data | CSR register file (17 registers, standard identity header at words 0-1) |
 | `avs_hist_bin` | AVMM slave | 8-bit addr, 32-bit data | Histogram bin readout (burst capable) + measure_clear |
 | `asi_hist_fill_in` | AVST sink | 39-bit data, 4-bit channel | Port 0 ingress (with snoop passthrough) |
 | `asi_fill_in_1..7` | AVST sink | 39-bit data, 4-bit channel | Ports 1-7 ingress |
@@ -52,22 +52,23 @@ ingress_comb → ingress_stage_reg → hit_fifo (×8) → rr_arbiter
 
 | Addr | Name | R/W | Description |
 |------|------|-----|-------------|
-| 0 | CONTROL | RW | [0] apply, [1] apply_pending (RO), [7:4] mode, [8] key_unsigned, [12] filter_enable, [13] filter_reject, [24] error (RO), [31:28] error_info (RO) |
-| 1 | LEFT_BOUND | RW | Signed 32-bit left histogram bound |
-| 2 | RIGHT_BOUND | RW | Signed 32-bit right bound (auto-computed if bin_width != 0) |
-| 3 | BIN_WIDTH | RW | [15:0] unsigned bin width (0 = use direct bounds) |
-| 4 | KEY_FILTER_BITS | RW | [7:0] update_key_lo, [15:8] update_key_hi, [23:16] filter_key_lo, [31:24] filter_key_hi |
-| 5 | KEY_FILTER_VAL | RW | [15:0] update_key, [31:16] filter_key |
-| 6 | UNDERFLOW_CNT | R | 32-bit underflow counter (saturating, reset on interval/clear) |
-| 7 | OVERFLOW_CNT | R | 32-bit overflow counter (saturating, reset on interval/clear) |
-| 8 | INTERVAL_CFG | RW | 32-bit interval clock count for ping-pong bank swap |
-| 9 | BANK_STATUS | R | [0] active_bank, [1] flushing, [15:8] flush_addr |
-| 10 | PORT_STATUS | R | [7:0] per-port FIFO empty, [23:16] max FIFO fill level |
-| 11 | TOTAL_HITS | R | 32-bit total accepted hits (saturating, reset on interval/clear) |
-| 12 | DROPPED_HITS | R | 32-bit dropped hits (saturating, reset on interval/clear) |
-| 13 | VERSION | R | [31:24] major, [23:16] minor, [15:12] patch, [11:0] build |
-| 14 | COAL_STATUS | R | [7:0] queue_occupancy, [15:8] occupancy_max, [31:16] overflow_count |
-| 15 | SCRATCH | RW | Scratch register |
+| 0 | UID | R | Software-visible IP identifier. Default ASCII "HIST" (0x48495354). |
+| 1 | META | RW/R | Read-multiplexed metadata. Write selector: 0=VERSION, 1=DATE, 2=GIT, 3=INSTANCE_ID. |
+| 2 | CONTROL | RW | [0] apply, [1] apply_pending (RO), [7:4] mode, [8] key_unsigned, [12] filter_enable, [13] filter_reject, [24] error (RO), [31:28] error_info (RO) |
+| 3 | LEFT_BOUND | RW | Signed 32-bit left histogram bound |
+| 4 | RIGHT_BOUND | RW | Signed 32-bit right bound (auto-computed if bin_width != 0) |
+| 5 | BIN_WIDTH | RW | [15:0] unsigned bin width (0 = use direct bounds) |
+| 6 | KEY_FILTER_BITS | RW | [7:0] update_key_lo, [15:8] update_key_hi, [23:16] filter_key_lo, [31:24] filter_key_hi |
+| 7 | KEY_FILTER_VAL | RW | [15:0] update_key, [31:16] filter_key |
+| 8 | UNDERFLOW_CNT | R | 32-bit underflow counter (saturating, reset on interval/clear) |
+| 9 | OVERFLOW_CNT | R | 32-bit overflow counter (saturating, reset on interval/clear) |
+| 10 | INTERVAL_CFG | RW | 32-bit interval clock count for ping-pong bank swap |
+| 11 | BANK_STATUS | R | [0] active_bank, [1] flushing, [15:8] flush_addr |
+| 12 | PORT_STATUS | R | [7:0] per-port FIFO empty, [23:16] max FIFO fill level |
+| 13 | TOTAL_HITS | R | 32-bit total accepted hits (saturating, reset on interval/clear) |
+| 14 | DROPPED_HITS | R | 32-bit dropped hits (saturating, reset on interval/clear) |
+| 15 | COAL_STATUS | R | [7:0] queue_occupancy, [15:8] occupancy_max, [31:16] overflow_count |
+| 16 | SCRATCH | RW | Scratch register |
 
 ---
 
@@ -80,7 +81,7 @@ ingress_comb → ingress_stage_reg → hit_fifo (×8) → rr_arbiter
 | F03 | Filter pass/reject | match_filter() in ingress_comb | total_hits vs dropped_hits |
 | F04 | Key extraction | build_key() signed/unsigned paths | ingress_stage_key probe |
 | F05 | Bin divider mapping | bin_divider restoring division pipeline | per-bin readback |
-| F06 | Underflow/overflow | bin_divider boundary checks | CSR 6, 7 |
+| F06 | Underflow/overflow | bin_divider boundary checks | CSR 8, 9 |
 | F07 | Ping-pong bank swap | pingpong_sram timer-driven swap | bank_status CSR, bin data |
 | F08 | Coalescing queue | coalescing_queue same-bin merge | per-bin count accuracy |
 | F09 | FIFO backpressure | hit_fifo full → drop_pulse | dropped_hits CSR |
@@ -95,6 +96,9 @@ ingress_comb → ingress_stage_reg → hit_fifo (×8) → rr_arbiter
 | F18 | Interval reset | i_interval_reset → measure_clear_comb → measure_clear_pulse | full pipeline flush |
 | F19 | Coalescing queue overflow | queue_room_c = 0 → overflow_count increment | COAL_STATUS CSR |
 | F20 | Kick counter saturation | kick_ram entry at KICK_MAX (255) → no further increment | correct bin count |
+| F21 | Identity header (UID) | csr_read_comb word 0 returns IP_UID generic | CSR word 0 readback = 0x48495354 |
+| F22 | Identity header (META mux) | csr_meta_sel selects VERSION/DATE/GIT/INSTANCE_ID | CSR word 1 readback cycles through 4 pages |
+| F23 | UID immutability | Write to word 0 is ignored (read-only) | CSR word 0 unchanged after write |
 
 ---
 

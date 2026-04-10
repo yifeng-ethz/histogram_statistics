@@ -155,18 +155,18 @@ class hist_coverage extends uvm_component;
     end
 
     case (txn.address)
-      4'd0: begin
+      5'd2: begin
         cov_mode          = txn.writedata[7:4];
         cov_key_unsigned  = txn.writedata[8];
         cov_filter_enable = txn.writedata[12];
         cov_filter_reject = txn.writedata[13];
         sample_config();
       end
-      4'd1: begin
+      5'd3: begin
         cov_left_bound = int'($signed(txn.writedata));
         sample_config();
       end
-      4'd3: begin
+      5'd5: begin
         cov_bin_width = txn.writedata[15:0];
         sample_config();
       end

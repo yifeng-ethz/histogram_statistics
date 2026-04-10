@@ -2,13 +2,13 @@ class hist_cfg_test extends hist_base_test;
   `uvm_component_utils(hist_cfg_test)
 
   localparam int unsigned HS_MIN_INTERVAL_CFG        = 1024;
-  localparam bit [3:0]    HS_CSR_CONTROL_ADDR        = 4'd0;
-  localparam bit [3:0]    HS_CSR_LEFT_BOUND_ADDR     = 4'd1;
-  localparam bit [3:0]    HS_CSR_RIGHT_BOUND_ADDR    = 4'd2;
-  localparam bit [3:0]    HS_CSR_BIN_WIDTH_ADDR      = 4'd3;
-  localparam bit [3:0]    HS_CSR_KEY_FILTER_VAL_ADDR = 4'd5;
-  localparam bit [3:0]    HS_CSR_OVERFLOW_CNT_ADDR   = 4'd7;
-  localparam bit [3:0]    HS_CSR_INTERVAL_CFG_ADDR   = 4'd8;
+  localparam bit [4:0]    HS_CSR_CONTROL_ADDR        = 5'd2;
+  localparam bit [4:0]    HS_CSR_LEFT_BOUND_ADDR     = 5'd3;
+  localparam bit [4:0]    HS_CSR_RIGHT_BOUND_ADDR    = 5'd4;
+  localparam bit [4:0]    HS_CSR_BIN_WIDTH_ADDR      = 5'd5;
+  localparam bit [4:0]    HS_CSR_KEY_FILTER_VAL_ADDR = 5'd7;
+  localparam bit [4:0]    HS_CSR_OVERFLOW_CNT_ADDR   = 5'd9;
+  localparam bit [4:0]    HS_CSR_INTERVAL_CFG_ADDR   = 5'd10;
 
   localparam bit [31:0]   HS_CONTROL_APPLY_PENDING_MASK = 32'h0000_0002;
   localparam bit [31:0]   HS_CONTROL_ERROR_MASK         = 32'h0100_0000;
@@ -20,7 +20,7 @@ class hist_cfg_test extends hist_base_test;
 
   local task automatic check_csr_equal(
     input string     case_id,
-    input bit [3:0]  address,
+    input bit [4:0]  address,
     input bit [31:0] expected_value,
     input string     csr_name
   );
@@ -34,7 +34,7 @@ class hist_cfg_test extends hist_base_test;
 
   local task automatic check_csr_mask(
     input string     case_id,
-    input bit [3:0]  address,
+    input bit [4:0]  address,
     input bit [31:0] mask,
     input bit [31:0] expected_value,
     input string     csr_name

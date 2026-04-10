@@ -28,7 +28,7 @@ module tb_top;
   logic i_rst;
   logic i_interval_reset;
 
-  hist_csr_if #(4) csr_if(i_clk);
+  hist_csr_if #(5) csr_if(i_clk);
   hist_bin_if #(AVS_ADDR_WIDTH) bin_if(i_clk);
   hist_fill_if #(AVST_DATA_WIDTH, AVST_CHANNEL_WIDTH) fill_if [N_PORTS](i_clk);
   hist_snoop_if #(AVST_DATA_WIDTH, AVST_CHANNEL_WIDTH) snoop_if(i_clk);

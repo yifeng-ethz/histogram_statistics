@@ -40,6 +40,7 @@ $(WORK)/_vmake: $(IP_SRC)/rtl/histogram_statistics_v2_pkg.vhd \
 	$(VLIB) $(WORK)
 	$(VMAP) $(WORK) $(WORK)
 	$(VMAP) lpm $(INTEL_LIBS)/220model
+	$(VMAP) altera_mf $(INTEL_LIBS)/altera_mf
 	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/histogram_statistics_v2_pkg.vhd
 	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/true_dual_port_ram_single_clock.vhd
 	$(VCOM) -work $(WORK) -2008 $(IP_SRC)/rtl/alt_dpram/alt_dpram_true.vhd

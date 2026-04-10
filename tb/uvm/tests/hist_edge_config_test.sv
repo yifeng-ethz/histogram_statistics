@@ -2,14 +2,14 @@ class hist_edge_config_test extends hist_base_test;
   `uvm_component_utils(hist_edge_config_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG = 8192;
-  localparam bit [3:0] CSR_CONTROL     = 4'd0;
-  localparam bit [3:0] CSR_LEFT_BOUND  = 4'd1;
-  localparam bit [3:0] CSR_RIGHT_BOUND = 4'd2;
-  localparam bit [3:0] CSR_BIN_WIDTH   = 4'd3;
-  localparam bit [3:0] CSR_KEY_BITS    = 4'd4;
-  localparam bit [3:0] CSR_KEY_VAL     = 4'd5;
-  localparam bit [3:0] CSR_INTERVAL    = 4'd8;
-  localparam bit [3:0] CSR_TOTAL_HITS  = 4'd11;
+  localparam bit [4:0] CSR_CONTROL     = 5'd2;
+  localparam bit [4:0] CSR_LEFT_BOUND  = 5'd3;
+  localparam bit [4:0] CSR_RIGHT_BOUND = 5'd4;
+  localparam bit [4:0] CSR_BIN_WIDTH   = 5'd5;
+  localparam bit [4:0] CSR_KEY_BITS    = 5'd6;
+  localparam bit [4:0] CSR_KEY_VAL     = 5'd7;
+  localparam bit [4:0] CSR_INTERVAL    = 5'd10;
+  localparam bit [4:0] CSR_TOTAL_HITS  = 5'd13;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -31,7 +31,7 @@ class hist_edge_config_test extends hist_base_test;
 
   local task automatic check_csr(
     input string     case_id,
-    input bit [3:0]  address,
+    input bit [4:0]  address,
     input bit [31:0] expected,
     input string     name
   );

@@ -37,22 +37,23 @@ module tb_histogram_statistics_v2;
   // ════════════════════════════════════════════════════════════════
   // CSR address constants
   // ════════════════════════════════════════════════════════════════
-  localparam int unsigned CSR_CONTROL       = 0;
-  localparam int unsigned CSR_LEFT_BOUND    = 1;
-  localparam int unsigned CSR_RIGHT_BOUND   = 2;
-  localparam int unsigned CSR_BIN_WIDTH     = 3;
-  localparam int unsigned CSR_KEY_FILTER    = 4;
-  localparam int unsigned CSR_KEY_FILTER_V  = 5;
-  localparam int unsigned CSR_UNDERFLOW     = 6;
-  localparam int unsigned CSR_OVERFLOW      = 7;
-  localparam int unsigned CSR_INTERVAL      = 8;
-  localparam int unsigned CSR_BANK_STATUS   = 9;
-  localparam int unsigned CSR_PORT_STATUS   = 10;
-  localparam int unsigned CSR_TOTAL_HITS    = 11;
-  localparam int unsigned CSR_DROPPED_HITS  = 12;
-  localparam int unsigned CSR_VERSION       = 13;
-  localparam int unsigned CSR_COAL_STATUS   = 14;
-  localparam int unsigned CSR_SCRATCH       = 15;
+  localparam int unsigned CSR_UID            = 0;
+  localparam int unsigned CSR_META           = 1;
+  localparam int unsigned CSR_CONTROL        = 2;
+  localparam int unsigned CSR_LEFT_BOUND     = 3;
+  localparam int unsigned CSR_RIGHT_BOUND    = 4;
+  localparam int unsigned CSR_BIN_WIDTH      = 5;
+  localparam int unsigned CSR_KEY_FILTER     = 6;
+  localparam int unsigned CSR_KEY_FILTER_V   = 7;
+  localparam int unsigned CSR_UNDERFLOW      = 8;
+  localparam int unsigned CSR_OVERFLOW       = 9;
+  localparam int unsigned CSR_INTERVAL       = 10;
+  localparam int unsigned CSR_BANK_STATUS    = 11;
+  localparam int unsigned CSR_PORT_STATUS    = 12;
+  localparam int unsigned CSR_TOTAL_HITS     = 13;
+  localparam int unsigned CSR_DROPPED_HITS   = 14;
+  localparam int unsigned CSR_COAL_STATUS    = 15;
+  localparam int unsigned CSR_SCRATCH        = 16;
 
   // ════════════════════════════════════════════════════════════════
   // Clock and reset
@@ -68,7 +69,7 @@ module tb_histogram_statistics_v2;
   // ════════════════════════════════════════════════════════════════
   logic [31:0] csr_readdata;
   logic        csr_read;
-  logic  [3:0] csr_address;
+  logic  [4:0] csr_address;
   logic        csr_waitrequest;
   logic        csr_write;
   logic [31:0] csr_writedata;
@@ -312,7 +313,7 @@ module tb_histogram_statistics_v2;
   // ════════════════════════════════════════════════════════════════
   task automatic csr_write32(input int unsigned addr, input logic [31:0] data);
     @(posedge i_clk);
-    csr_address   <= addr[3:0];
+    csr_address   <= addr[4:0];
     csr_writedata <= data;
     csr_write     <= 1'b1;
     csr_read      <= 1'b0;
@@ -324,7 +325,7 @@ module tb_histogram_statistics_v2;
 
   task automatic csr_read32(input int unsigned addr, output logic [31:0] data);
     @(posedge i_clk);
-    csr_address <= addr[3:0];
+    csr_address <= addr[4:0];
     csr_read    <= 1'b1;
     csr_write   <= 1'b0;
     @(posedge i_clk);
@@ -688,20 +689,44 @@ module tb_histogram_statistics_v2;
   endtask
 
   // ════════════════════════════════════════════════════════════════
-  // TEST: B04_version
+  // TEST: B04_identity_header
   // ════════════════════════════════════════════════════════════════
   task automatic test_B04_version();
     logic [31:0] rd;
     logic [31:0] expected;
 
-    $display("═══ B04_version ═══");
-    expected = {8'd26, 8'd0, 4'd0, 12'd0};  // major=26, minor=0, patch=0, build=0
-    csr_read32(CSR_VERSION, rd);
-    if (rd == expected) begin
-      $display("PASS B04: version=0x%08h", rd);
+    $display("═══ B04_identity_header ═══");
+
+    // Check UID (word 0) = ASCII "HIST" = 0x48495354
+    csr_read32(CSR_UID, rd);
+    if (rd == 32'h4849_5354) begin
+      $display("PASS B04a: UID=0x%08h (HIST)", rd);
       pass_count++;
     end else begin
-      $display("FAIL B04: version=0x%08h expected=0x%08h", rd, expected);
+      $display("FAIL B04a: UID=0x%08h expected=0x48495354", rd);
+      error_count++;
+    end
+
+    // Check META page 0 = VERSION
+    csr_write32(CSR_META, 32'd0);
+    csr_read32(CSR_META, rd);
+    expected = {8'd26, 8'd0, 4'd0, 12'd0};  // major=26, minor=0, patch=0, build=0
+    if (rd == expected) begin
+      $display("PASS B04b: META[VERSION]=0x%08h", rd);
+      pass_count++;
+    end else begin
+      $display("FAIL B04b: META[VERSION]=0x%08h expected=0x%08h", rd, expected);
+      error_count++;
+    end
+
+    // Check META page 1 = DATE
+    csr_write32(CSR_META, 32'd1);
+    csr_read32(CSR_META, rd);
+    if (rd == 32'd20260410) begin
+      $display("PASS B04c: META[DATE]=0x%08h (%0d)", rd, rd);
+      pass_count++;
+    end else begin
+      $display("FAIL B04c: META[DATE]=0x%08h expected=%0d", rd, 20260410);
       error_count++;
     end
   endtask

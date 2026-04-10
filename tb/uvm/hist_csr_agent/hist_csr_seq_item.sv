@@ -8,12 +8,12 @@ class hist_csr_seq_item extends uvm_sequence_item;
   `uvm_object_utils(hist_csr_seq_item)
 
   rand bit        is_write;
-  rand bit [3:0]  address;
+  rand bit [4:0]  address;
   rand bit [31:0] writedata;
   bit [31:0]      readdata;
 
   constraint c_address {
-    address inside {[4'h0:4'hf]};
+    address inside {[5'h00:5'h10]};
   }
 
   function new(string name = "hist_csr_seq_item");

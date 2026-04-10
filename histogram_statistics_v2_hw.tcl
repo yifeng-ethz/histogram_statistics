@@ -38,33 +38,38 @@ proc set_optional_stream {ifname enable data_w ch_w} {
 
 # --- constants --------------------------------------------------------------------
 
-set CSR_ADDR_W_CONST             4
+set CSR_ADDR_W_CONST             5
 set RUN_CONTROL_WIDTH_CONST      9
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  1
 set VERSION_PATCH_DEFAULT_CONST  0
 set BUILD_DEFAULT_CONST          410
+set IP_UID_DEFAULT_CONST         1212765012
+set VERSION_DATE_DEFAULT_CONST   20260410
+set VERSION_GIT_DEFAULT_CONST    0
+set INSTANCE_ID_DEFAULT_CONST    0
 
 # --- CSR register map (documentation) --------------------------------------------
 
 set CSR_TABLE_HTML {<html><table border="1" width="100%">
 <tr><th>Word</th><th>Byte</th><th>Name</th><th>Access</th><th>Description</th></tr>
-<tr><td>0x00</td><td>0x000</td><td>CONTROL</td><td>RW</td><td>Bit 0 <b>soft_reset</b>, bits [7:4] <b>mode</b>, bit 8 <b>key_unsigned</b>, bit 12 <b>filter_enable</b>, bit 13 <b>filter_reject</b>, bit 24 <b>error</b> (RO), bits [31:28] <b>error_info</b> (RO).</td></tr>
-<tr><td>0x01</td><td>0x004</td><td>LEFT_BOUND</td><td>RW</td><td>Signed left boundary of the histogram range.</td></tr>
-<tr><td>0x02</td><td>0x008</td><td>RIGHT_BOUND</td><td>RW</td><td>Signed right boundary of the histogram range.</td></tr>
-<tr><td>0x03</td><td>0x00C</td><td>BIN_WIDTH</td><td>RW</td><td>Bin width in key-space units (lower 16 bits).</td></tr>
-<tr><td>0x04</td><td>0x010</td><td>KEY_LOC</td><td>RW</td><td>Packed bit-slice locations: [31:24] filter_key_high, [23:16] filter_key_low, [15:8] update_key_high, [7:0] update_key_low.</td></tr>
-<tr><td>0x05</td><td>0x014</td><td>KEY_VALUE</td><td>RW</td><td>Packed runtime key overrides: [31:16] filter_key, [15:0] update_key.</td></tr>
-<tr><td>0x06</td><td>0x018</td><td>UNDERFLOW_COUNT</td><td>RO</td><td>Count of keys mapping below the left boundary.</td></tr>
-<tr><td>0x07</td><td>0x01C</td><td>OVERFLOW_COUNT</td><td>RO</td><td>Count of keys mapping above the right boundary.</td></tr>
-<tr><td>0x08</td><td>0x020</td><td>INTERVAL_CFG</td><td>RW</td><td>Ping-pong interval timer configuration in clock cycles.</td></tr>
-<tr><td>0x09</td><td>0x024</td><td>BANK_STATUS</td><td>RO</td><td>Ping-pong bank swap and readout status.</td></tr>
-<tr><td>0x0A</td><td>0x028</td><td>PORT_STATUS</td><td>RO</td><td>Per-port ingress pipeline status flags.</td></tr>
-<tr><td>0x0B</td><td>0x02C</td><td>TOTAL_HITS</td><td>RO</td><td>Total accepted hit count across all ports.</td></tr>
-<tr><td>0x0C</td><td>0x030</td><td>DROPPED_HITS</td><td>RO</td><td>Total dropped hits due to queue overflow.</td></tr>
-<tr><td>0x0D</td><td>0x034</td><td>VERSION</td><td>RO</td><td>VERSION[31:24]=MAJOR, [23:16]=MINOR, [15:12]=PATCH, [11:0]=BUILD.</td></tr>
-<tr><td>0x0E</td><td>0x038</td><td>COAL_STATUS</td><td>RO</td><td>Coalescing queue occupancy and status.</td></tr>
-<tr><td>0x0F</td><td>0x03C</td><td>SCRATCH</td><td>RW</td><td>General-purpose scratch register for integration testing.</td></tr>
+<tr><td>0x00</td><td>0x000</td><td>UID</td><td>RO</td><td>Software-visible IP identifier. Default ASCII <b>HIST</b> (0x48495354).</td></tr>
+<tr><td>0x01</td><td>0x004</td><td>META</td><td>RW/RO</td><td>Read-multiplexed metadata word. Write <b>0</b>=VERSION, <b>1</b>=DATE, <b>2</b>=GIT, <b>3</b>=INSTANCE_ID. VERSION is packed as MAJOR[31:24], MINOR[23:16], PATCH[15:12], BUILD[11:0].</td></tr>
+<tr><td>0x02</td><td>0x008</td><td>CONTROL</td><td>RW</td><td>Bit 0 <b>soft_reset</b>, bits [7:4] <b>mode</b>, bit 8 <b>key_unsigned</b>, bit 12 <b>filter_enable</b>, bit 13 <b>filter_reject</b>, bit 24 <b>error</b> (RO), bits [31:28] <b>error_info</b> (RO).</td></tr>
+<tr><td>0x03</td><td>0x00C</td><td>LEFT_BOUND</td><td>RW</td><td>Signed left boundary of the histogram range.</td></tr>
+<tr><td>0x04</td><td>0x010</td><td>RIGHT_BOUND</td><td>RW</td><td>Signed right boundary of the histogram range.</td></tr>
+<tr><td>0x05</td><td>0x014</td><td>BIN_WIDTH</td><td>RW</td><td>Bin width in key-space units (lower 16 bits).</td></tr>
+<tr><td>0x06</td><td>0x018</td><td>KEY_LOC</td><td>RW</td><td>Packed bit-slice locations: [31:24] filter_key_high, [23:16] filter_key_low, [15:8] update_key_high, [7:0] update_key_low.</td></tr>
+<tr><td>0x07</td><td>0x01C</td><td>KEY_VALUE</td><td>RW</td><td>Packed runtime key overrides: [31:16] filter_key, [15:0] update_key.</td></tr>
+<tr><td>0x08</td><td>0x020</td><td>UNDERFLOW_COUNT</td><td>RO</td><td>Count of keys mapping below the left boundary.</td></tr>
+<tr><td>0x09</td><td>0x024</td><td>OVERFLOW_COUNT</td><td>RO</td><td>Count of keys mapping above the right boundary.</td></tr>
+<tr><td>0x0A</td><td>0x028</td><td>INTERVAL_CFG</td><td>RW</td><td>Ping-pong interval timer configuration in clock cycles.</td></tr>
+<tr><td>0x0B</td><td>0x02C</td><td>BANK_STATUS</td><td>RO</td><td>Ping-pong bank swap and readout status.</td></tr>
+<tr><td>0x0C</td><td>0x030</td><td>PORT_STATUS</td><td>RO</td><td>Per-port ingress pipeline status flags.</td></tr>
+<tr><td>0x0D</td><td>0x034</td><td>TOTAL_HITS</td><td>RO</td><td>Total accepted hit count across all ports.</td></tr>
+<tr><td>0x0E</td><td>0x038</td><td>DROPPED_HITS</td><td>RO</td><td>Total dropped hits due to queue overflow.</td></tr>
+<tr><td>0x0F</td><td>0x03C</td><td>COAL_STATUS</td><td>RO</td><td>Coalescing queue occupancy and status.</td></tr>
+<tr><td>0x10</td><td>0x040</td><td>SCRATCH</td><td>RW</td><td>General-purpose scratch register for integration testing.</td></tr>
 </table></html>}
 
 # --- derived-value computation ----------------------------------------------------
@@ -127,6 +132,10 @@ proc validate {} {
     set ver_min   [get_parameter_value VERSION_MINOR]
     set ver_pat   [get_parameter_value VERSION_PATCH]
     set build_val [get_parameter_value BUILD]
+    set ip_uid_value    [get_parameter_value IP_UID]
+    set version_date    [get_parameter_value VERSION_DATE]
+    set version_git     [get_parameter_value VERSION_GIT]
+    set instance_id     [get_parameter_value INSTANCE_ID]
 
     if {$sar_tick < $sar_key} {
         send_message error "SAR_TICK_WIDTH must be >= SAR_KEY_WIDTH."
@@ -157,6 +166,18 @@ proc validate {} {
     }
     if {$build_val < 0 || $build_val > 4095} {
         send_message error "BUILD must stay in the range 0..4095."
+    }
+    if {$ip_uid_value < 0 || $ip_uid_value > 2147483647} {
+        send_message error "IP_UID must stay in the signed 31-bit Platform Designer integer range."
+    }
+    if {$version_date < 0 || $version_date > 2147483647} {
+        send_message error "VERSION_DATE must stay in the signed 31-bit Platform Designer integer range."
+    }
+    if {$version_git < 0 || $version_git > 2147483647} {
+        send_message error "VERSION_GIT must stay in the signed 31-bit Platform Designer integer range."
+    }
+    if {$instance_id < 0 || $instance_id > 2147483647} {
+        send_message error "INSTANCE_ID must stay in the signed 31-bit Platform Designer integer range."
     }
 }
 
@@ -395,6 +416,38 @@ set_parameter_property BUILD ALLOWED_RANGES 0:4095
 set_parameter_property BUILD HDL_PARAMETER true
 set_parameter_property BUILD DESCRIPTION {12-bit build stamp packed into VERSION[11:0].}
 
+# -- Identity header --
+
+add_parameter IP_UID NATURAL $IP_UID_DEFAULT_CONST
+set_parameter_property IP_UID DISPLAY_NAME "UID"
+set_parameter_property IP_UID UNITS None
+set_parameter_property IP_UID ALLOWED_RANGES 0:2147483647
+set_parameter_property IP_UID HDL_PARAMETER true
+set_parameter_property IP_UID DISPLAY_HINT hexadecimal
+set_parameter_property IP_UID DESCRIPTION {Software-visible IP identifier at CSR word 0. Default corresponds to ASCII "HIST" (0x48495354).}
+
+add_parameter VERSION_DATE NATURAL $VERSION_DATE_DEFAULT_CONST
+set_parameter_property VERSION_DATE DISPLAY_NAME "Version Date"
+set_parameter_property VERSION_DATE UNITS None
+set_parameter_property VERSION_DATE ALLOWED_RANGES 0:2147483647
+set_parameter_property VERSION_DATE HDL_PARAMETER true
+set_parameter_property VERSION_DATE DESCRIPTION {YYYYMMDD provenance word exposed through META when software writes selector 1.}
+
+add_parameter VERSION_GIT NATURAL $VERSION_GIT_DEFAULT_CONST
+set_parameter_property VERSION_GIT DISPLAY_NAME "Git Stamp"
+set_parameter_property VERSION_GIT UNITS None
+set_parameter_property VERSION_GIT ALLOWED_RANGES 0:2147483647
+set_parameter_property VERSION_GIT HDL_PARAMETER true
+set_parameter_property VERSION_GIT DISPLAY_HINT hexadecimal
+set_parameter_property VERSION_GIT DESCRIPTION {Truncated build git hash exposed through META when software writes selector 2.}
+
+add_parameter INSTANCE_ID NATURAL $INSTANCE_ID_DEFAULT_CONST
+set_parameter_property INSTANCE_ID DISPLAY_NAME "Instance ID"
+set_parameter_property INSTANCE_ID UNITS None
+set_parameter_property INSTANCE_ID ALLOWED_RANGES 0:2147483647
+set_parameter_property INSTANCE_ID HDL_PARAMETER true
+set_parameter_property INSTANCE_ID DESCRIPTION {Integration-time instance identifier exposed through META when software writes selector 3.}
+
 # -- Derived (hidden) --
 
 foreach derived_name {M10K_BINS_DERIVED M10K_COAL_DERIVED M10K_TOTAL_DERIVED DSP_COUNT_DERIVED EST_ALM_DERIVED} {
@@ -448,19 +501,23 @@ add_display_item "Ping-Pong / Interval" ENABLE_PACKET parameter
 add_display_item "Ping-Pong / Interval" AVS_ADDR_WIDTH parameter
 add_html_text "Ping-Pong / Interval" runtime_html "<html><b>Runtime behaviour</b><br/>Updated by the validation callback.</html>"
 
-add_html_text "Resources" resources_html "<html><b>Integration notes</b><br/>1. The CSR aperture is fixed at <b>16</b> words (4-bit address), with control, histogram bounds, key configuration, and status counters.<br/>2. The <b>hist_bin</b> Avalon-MM slave provides burst-capable readout of the histogram SRAM with word-addressed access.<br/>3. The coalescing queue serializes concurrent bin updates from all ingress ports before they reach the histogram SRAM, preventing read-modify-write hazards.</html>"
+add_html_text "Resources" resources_html "<html><b>Integration notes</b><br/>1. The CSR aperture is <b>17</b> words (5-bit address). Words 0-1 are the standard identity header (UID + META). Words 2-16 hold control, histogram bounds, key configuration, status counters, and scratch.<br/>2. The <b>hist_bin</b> Avalon-MM slave provides burst-capable readout of the histogram SRAM with word-addressed access.<br/>3. The coalescing queue serializes concurrent bin updates from all ingress ports before they reach the histogram SRAM, preventing read-modify-write hazards.</html>"
 
 add_display_item "" $TAB_IDENTITY GROUP tab
 add_display_item $TAB_IDENTITY "Delivered Profile" GROUP
 add_display_item $TAB_IDENTITY "Versioning" GROUP
 add_display_item $TAB_IDENTITY "Debug" GROUP
 
-add_html_text "Delivered Profile" profile_html {<html><b>Catalog revision</b><br/>This release is packaged as <b>26.1.0.0410</b>. It retains the established <b>hist_fill_in</b>, <b>fill_in_N</b>, <b>fill_out</b>, <b>csr</b>, <b>hist_bin</b>, and <b>ctrl</b> interface names so existing Platform Designer systems can be upgraded in place.<br/><br/><b>Runtime visibility</b><br/>Software reads the VERSION register at CSR word <b>13</b> (0x0D): VERSION[31:24]=MAJOR, [23:16]=MINOR, [15:12]=PATCH, [11:0]=BUILD.</html>}
-add_html_text "Versioning" versioning_html {<html><b>VERSION encoding</b><br/>CSR word <b>13</b> (0x0D) is read-only.<br/>VERSION[31:24] = MAJOR, VERSION[23:16] = MINOR, VERSION[15:12] = PATCH, VERSION[11:0] = BUILD.</html>}
+add_html_text "Delivered Profile" profile_html {<html><b>Catalog revision</b><br/>This release is packaged as <b>26.1.0.0410</b>.<br/><br/><b>Common identity header</b><br/>Word <b>0</b> is <b>UID</b> (default ASCII "HIST").<br/>Word <b>1</b> is <b>META</b>: write 0=VERSION, 1=DATE, 2=GIT, 3=INSTANCE_ID.<br/>Software can blind-scan the CSR window through UID at word 0 and the META mux at word 1.</html>}
+add_html_text "Versioning" versioning_html {<html><b>VERSION encoding</b><br/>Accessible via META word 1 (write selector 0).<br/>VERSION[31:24] = MAJOR, VERSION[23:16] = MINOR, VERSION[15:12] = PATCH, VERSION[11:0] = BUILD.</html>}
 add_display_item "Versioning" VERSION_MAJOR parameter
 add_display_item "Versioning" VERSION_MINOR parameter
 add_display_item "Versioning" VERSION_PATCH parameter
 add_display_item "Versioning" BUILD parameter
+add_display_item "Versioning" IP_UID parameter
+add_display_item "Versioning" VERSION_DATE parameter
+add_display_item "Versioning" VERSION_GIT parameter
+add_display_item "Versioning" INSTANCE_ID parameter
 add_html_text "Debug" debug_html "<html><b>Debug control</b><br/>The RTL exports up to 6 optional 16-bit Avalon-ST debug sinks controlled by the <b>N_DEBUG_INTERFACE</b> and <b>DEBUG</b> parameters below.</html>"
 add_display_item "Debug" N_DEBUG_INTERFACE parameter
 add_display_item "Debug" DEBUG parameter
@@ -473,7 +530,7 @@ add_display_item $TAB_INTERFACES "Monitoring" GROUP
 
 add_html_text "Clock / Reset" clock_html "<html><b>clock</b> and <b>reset</b><br/>Single synchronous clock/reset domain for the full histogram datapath and CSR logic.<br/><br/><b>interval_reset</b><br/>Optional reset sink that triggers a manual ping-pong bank swap independently of the periodic timer.</html>"
 add_html_text "Data Path" datapath_html "<html><b>hist_fill_in</b><br/>Primary Avalon-ST sink carrying the data stream to be histogrammed.<br/><br/><b>fill_in_1..7</b><br/>Additional Avalon-ST sinks enabled when N_PORTS &gt; 1. Each port has an independent hit FIFO feeding the round-robin arbiter.<br/><br/><b>fill_out</b><br/>Passthrough Avalon-ST source that forwards the primary ingress stream with zero added latency when snooping is enabled.</html>"
-add_html_text "Control Path" control_html "<html><b>csr</b><br/>Word-addressed Avalon-MM CSR window with 16 registers (4-bit address). Provides runtime configuration of histogram bounds, bin width, key locations, filter control, and status readback.<br/><br/><b>hist_bin</b><br/>Burst-capable Avalon-MM slave for histogram bin readout. Address width is configurable.<br/><br/><b>ctrl</b><br/>9-bit Avalon-ST run-control sink.</html>"
+add_html_text "Control Path" control_html "<html><b>csr</b><br/>Word-addressed Avalon-MM CSR window with 17 registers (5-bit address). Words 0-1 provide the standard identity header (UID + META mux). Words 2-16 hold runtime configuration of histogram bounds, bin width, key locations, filter control, status readback, and scratch.<br/><br/><b>hist_bin</b><br/>Burst-capable Avalon-MM slave for histogram bin readout. Address width is configurable.<br/><br/><b>ctrl</b><br/>9-bit Avalon-ST run-control sink.</html>"
 add_html_text "Monitoring" monitor_html "<html><b>debug_1..6</b><br/>Optional 16-bit Avalon-ST debug sinks for integration-time signal monitoring. The number of active debug interfaces is controlled by <b>N_DEBUG_INTERFACE</b>.</html>"
 
 add_display_item "" $TAB_REGMAP GROUP tab

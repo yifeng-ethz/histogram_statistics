@@ -1,9 +1,9 @@
 class hist_prof_pps_test extends hist_base_test;
   `uvm_component_utils(hist_prof_pps_test)
 
-  localparam bit [3:0] CSR_TOTAL_HITS  = 4'd11;
-  localparam bit [3:0] CSR_DROPPED     = 4'd12;
-  localparam bit [3:0] CSR_BANK_STATUS = 4'd9;
+  localparam bit [4:0] CSR_TOTAL_HITS  = 5'd13;
+  localparam bit [4:0] CSR_DROPPED     = 5'd14;
+  localparam bit [4:0] CSR_BANK_STATUS = 5'd11;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);

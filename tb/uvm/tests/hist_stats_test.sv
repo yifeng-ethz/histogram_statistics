@@ -2,10 +2,10 @@ class hist_stats_test extends hist_base_test;
   `uvm_component_utils(hist_stats_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG = 8192;
-  localparam bit [3:0] CSR_UNDERFLOW    = 4'd6;
-  localparam bit [3:0] CSR_OVERFLOW     = 4'd7;
-  localparam bit [3:0] CSR_TOTAL_HITS   = 4'd11;
-  localparam bit [3:0] CSR_DROPPED_HITS = 4'd12;
+  localparam bit [4:0] CSR_UNDERFLOW    = 5'd8;
+  localparam bit [4:0] CSR_OVERFLOW     = 5'd9;
+  localparam bit [4:0] CSR_TOTAL_HITS   = 5'd13;
+  localparam bit [4:0] CSR_DROPPED_HITS = 5'd14;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -22,7 +22,7 @@ class hist_stats_test extends hist_base_test;
 
   local task automatic check_csr(
     input string    case_id,
-    input bit [3:0] address,
+    input bit [4:0] address,
     input bit [31:0] expected,
     input string    name
   );

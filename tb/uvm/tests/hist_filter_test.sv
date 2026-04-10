@@ -2,13 +2,13 @@ class hist_filter_test extends hist_base_test;
   `uvm_component_utils(hist_filter_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG      = 1024;
-  localparam bit [3:0]    HS_CSR_CONTROL_ADDR       = 4'd0;
-  localparam bit [3:0]    HS_CSR_LEFT_BOUND_ADDR    = 4'd1;
-  localparam bit [3:0]    HS_CSR_BIN_WIDTH_ADDR     = 4'd3;
-  localparam bit [3:0]    HS_CSR_KEY_FILTER_BITS_ADDR = 4'd4;
-  localparam bit [3:0]    HS_CSR_KEY_FILTER_VAL_ADDR  = 4'd5;
-  localparam bit [3:0]    HS_CSR_INTERVAL_CFG_ADDR  = 4'd8;
-  localparam bit [3:0]    HS_CSR_TOTAL_HITS_ADDR    = 4'd11;
+  localparam bit [4:0]    HS_CSR_CONTROL_ADDR       = 5'd2;
+  localparam bit [4:0]    HS_CSR_LEFT_BOUND_ADDR    = 5'd3;
+  localparam bit [4:0]    HS_CSR_BIN_WIDTH_ADDR     = 5'd5;
+  localparam bit [4:0]    HS_CSR_KEY_FILTER_BITS_ADDR = 5'd6;
+  localparam bit [4:0]    HS_CSR_KEY_FILTER_VAL_ADDR  = 5'd7;
+  localparam bit [4:0]    HS_CSR_INTERVAL_CFG_ADDR  = 5'd10;
+  localparam bit [4:0]    HS_CSR_TOTAL_HITS_ADDR    = 5'd13;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -114,7 +114,7 @@ class hist_filter_test extends hist_base_test;
 
   local task automatic check_csr(
     input string      case_id,
-    input bit [3:0]   address,
+    input bit [4:0]   address,
     input bit [31:0]  expected_value,
     input string      csr_name
   );

@@ -163,7 +163,7 @@ class hist_scoreboard extends uvm_scoreboard;
     bit commit_ok_v;
 
     case (txn.address)
-      4'd0: begin
+      5'd2: begin
         shadow_cfg.mode          = txn.writedata[7:4];
         shadow_cfg.key_unsigned  = txn.writedata[8];
         shadow_cfg.filter_enable = txn.writedata[12];
@@ -182,20 +182,20 @@ class hist_scoreboard extends uvm_scoreboard;
           end
         end
       end
-      4'd1: shadow_cfg.left_bound = int'($signed(txn.writedata));
-      4'd2: shadow_cfg.right_bound = int'($signed(txn.writedata));
-      4'd3: shadow_cfg.bin_width = txn.writedata[15:0];
-      4'd4: begin
+      5'd3: shadow_cfg.left_bound = int'($signed(txn.writedata));
+      5'd4: shadow_cfg.right_bound = int'($signed(txn.writedata));
+      5'd5: shadow_cfg.bin_width = txn.writedata[15:0];
+      5'd6: begin
         shadow_cfg.update_key_low  = txn.writedata[7:0];
         shadow_cfg.update_key_high = txn.writedata[15:8];
         shadow_cfg.filter_key_low  = txn.writedata[23:16];
         shadow_cfg.filter_key_high = txn.writedata[31:24];
       end
-      4'd5: begin
+      5'd7: begin
         shadow_cfg.update_key = txn.writedata[15:0];
         shadow_cfg.filter_key = txn.writedata[31:16];
       end
-      4'd8: shadow_cfg.interval_cfg = txn.writedata;
+      5'd10: shadow_cfg.interval_cfg = txn.writedata;
       default: begin
       end
     endcase
@@ -278,16 +278,16 @@ class hist_scoreboard extends uvm_scoreboard;
     end
 
     case (txn.address)
-      4'd6: if (txn.readdata !== ref_underflow_count) begin
+      5'd8: if (txn.readdata !== ref_underflow_count) begin
         `uvm_error("HIST_SCB", $sformatf("UNDERFLOW csr mismatch dut=%0d ref=%0d", txn.readdata, ref_underflow_count))
       end
-      4'd7: if (txn.readdata !== ref_overflow_count) begin
+      5'd9: if (txn.readdata !== ref_overflow_count) begin
         `uvm_error("HIST_SCB", $sformatf("OVERFLOW csr mismatch dut=%0d ref=%0d", txn.readdata, ref_overflow_count))
       end
-      4'd11: if (txn.readdata !== ref_total_hits) begin
+      5'd13: if (txn.readdata !== ref_total_hits) begin
         `uvm_error("HIST_SCB", $sformatf("TOTAL_HITS csr mismatch dut=%0d ref=%0d", txn.readdata, ref_total_hits))
       end
-      4'd12: if (txn.readdata !== ref_dropped_hits) begin
+      5'd14: if (txn.readdata !== ref_dropped_hits) begin
         `uvm_error("HIST_SCB", $sformatf("DROPPED_HITS csr mismatch dut=%0d ref=%0d", txn.readdata, ref_dropped_hits))
       end
       default: begin

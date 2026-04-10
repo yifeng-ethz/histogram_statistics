@@ -2,11 +2,11 @@ class hist_prof_ccl_test extends hist_base_test;
   `uvm_component_utils(hist_prof_ccl_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG = 16384;
-  localparam bit [3:0] CSR_CONTROL     = 4'd0;
-  localparam bit [3:0] CSR_LEFT_BOUND  = 4'd1;
-  localparam bit [3:0] CSR_RIGHT_BOUND = 4'd2;
-  localparam bit [3:0] CSR_BIN_WIDTH   = 4'd3;
-  localparam bit [3:0] CSR_TOTAL_HITS  = 4'd11;
+  localparam bit [4:0] CSR_CONTROL     = 5'd2;
+  localparam bit [4:0] CSR_LEFT_BOUND  = 5'd3;
+  localparam bit [4:0] CSR_RIGHT_BOUND = 5'd4;
+  localparam bit [4:0] CSR_BIN_WIDTH   = 5'd5;
+  localparam bit [4:0] CSR_TOTAL_HITS  = 5'd13;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);

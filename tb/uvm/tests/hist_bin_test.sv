@@ -2,8 +2,8 @@ class hist_bin_test extends hist_base_test;
   `uvm_component_utils(hist_bin_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG = 4096;
-  localparam bit [3:0] CSR_UNDERFLOW = 4'd6;
-  localparam bit [3:0] CSR_OVERFLOW  = 4'd7;
+  localparam bit [4:0] CSR_UNDERFLOW = 5'd8;
+  localparam bit [4:0] CSR_OVERFLOW  = 5'd9;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);

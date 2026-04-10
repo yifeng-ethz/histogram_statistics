@@ -1,7 +1,7 @@
 class hist_prof_mia_test extends hist_base_test;
   `uvm_component_utils(hist_prof_mia_test)
 
-  localparam bit [3:0] CSR_TOTAL_HITS = 4'd11;
+  localparam bit [4:0] CSR_TOTAL_HITS = 5'd13;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);

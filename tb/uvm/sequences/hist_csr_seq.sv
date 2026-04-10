@@ -1,7 +1,7 @@
 class hist_csr_write_seq extends uvm_sequence #(hist_csr_txn);
   `uvm_object_utils(hist_csr_write_seq)
 
-  rand bit [3:0]  address;
+  rand bit [4:0]  address;
   rand bit [31:0] writedata;
 
   function new(string name = "hist_csr_write_seq");
@@ -22,7 +22,7 @@ endclass
 class hist_csr_read_seq extends uvm_sequence #(hist_csr_txn);
   `uvm_object_utils(hist_csr_read_seq)
 
-  rand bit [3:0] address;
+  rand bit [4:0] address;
   bit [31:0]     readdata;
 
   function new(string name = "hist_csr_read_seq");

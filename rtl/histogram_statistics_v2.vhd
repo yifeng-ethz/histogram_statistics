@@ -69,6 +69,10 @@ entity histogram_statistics_v2 is
         VERSION_MINOR            : natural := 0;
         VERSION_PATCH            : natural := 0;
         BUILD                    : natural := 0;
+        IP_UID                   : natural := 1212765012;  -- ASCII "HIST" = 0x48495354
+        VERSION_DATE             : natural := 20260410;
+        VERSION_GIT              : natural := 0;
+        INSTANCE_ID              : natural := 0;
         SNOOP_EN                 : boolean := true;
         ENABLE_PACKET            : boolean := true;
         DEBUG                    : natural := 0
@@ -87,7 +91,7 @@ entity histogram_statistics_v2 is
 
         avs_csr_readdata                : out std_logic_vector(31 downto 0);
         avs_csr_read                    : in  std_logic;
-        avs_csr_address                 : in  std_logic_vector(3 downto 0);
+        avs_csr_address                 : in  std_logic_vector(4 downto 0);
         avs_csr_waitrequest             : out std_logic;
         avs_csr_write                   : in  std_logic;
         avs_csr_writedata               : in  std_logic_vector(31 downto 0);
@@ -283,6 +287,7 @@ architecture rtl of histogram_statistics_v2 is
     signal csr_dropped_hits     : unsigned(31 downto 0) := (others => '0');
     signal csr_interval_cfg     : unsigned(31 downto 0) := to_unsigned(DEF_INTERVAL_CLOCKS, 32);
     signal csr_scratch          : std_logic_vector(31 downto 0) := (others => '0');
+    signal csr_meta_sel         : std_logic_vector(1 downto 0)  := (others => '0');
     signal csr_bank_status      : std_logic_vector(31 downto 0) := (others => '0');
     signal csr_port_status      : std_logic_vector(31 downto 0) := (others => '0');
     signal csr_coal_status      : std_logic_vector(31 downto 0) := (others => '0');
@@ -1045,11 +1050,16 @@ begin
                 csr_filter_key      <= (others => '0');
                 csr_interval_cfg    <= to_unsigned(DEF_INTERVAL_CLOCKS, 32);
                 csr_scratch         <= (others => '0');
+                csr_meta_sel        <= (others => '0');
             else
                 cfg_apply_request <= '0';
                 if avs_csr_write = '1' then
                     case to_integer(unsigned(avs_csr_address)) is
-                        when 0 =>
+                        when 0 =>   -- UID: read-only, ignore writes
+                            null;
+                        when 1 =>   -- META: write selector for read-mux page
+                            csr_meta_sel <= avs_csr_writedata(1 downto 0);
+                        when 2 =>   -- CONTROL
                             csr_mode          <= avs_csr_writedata(7 downto 4);
                             csr_key_unsigned  <= avs_csr_writedata(8);
                             csr_filter_enable <= avs_csr_writedata(12);
@@ -1072,23 +1082,23 @@ begin
                                     cfg_apply_request <= '1';
                                 end if;
                             end if;
-                        when 1 =>
+                        when 3 =>   -- LEFT_BOUND
                             csr_left_bound <= resize(signed(avs_csr_writedata), SAR_TICK_WIDTH);
-                        when 2 =>
+                        when 4 =>   -- RIGHT_BOUND
                             csr_right_bound <= resize(signed(avs_csr_writedata), SAR_TICK_WIDTH);
-                        when 3 =>
+                        when 5 =>   -- BIN_WIDTH
                             csr_bin_width <= unsigned(avs_csr_writedata(15 downto 0));
-                        when 4 =>
+                        when 6 =>   -- KEY_LOC
                             csr_update_key_low  <= unsigned(avs_csr_writedata(7 downto 0));
                             csr_update_key_high <= unsigned(avs_csr_writedata(15 downto 8));
                             csr_filter_key_low  <= unsigned(avs_csr_writedata(23 downto 16));
                             csr_filter_key_high <= unsigned(avs_csr_writedata(31 downto 24));
-                        when 5 =>
+                        when 7 =>   -- KEY_VALUE
                             csr_update_key <= unsigned(avs_csr_writedata(SAR_KEY_WIDTH - 1 downto 0));
                             csr_filter_key <= resize(unsigned(avs_csr_writedata(31 downto 16)), csr_filter_key'length);
-                        when 8 =>
+                        when 10 =>  -- INTERVAL_CFG
                             csr_interval_cfg <= unsigned(avs_csr_writedata);
-                        when 15 =>
+                        when 16 =>  -- SCRATCH
                             csr_scratch <= avs_csr_writedata;
                         when others =>
                             null;
@@ -1101,6 +1111,7 @@ begin
     csr_read_comb : process (all)
         variable control_v       : std_logic_vector(31 downto 0);
         variable version_v       : std_logic_vector(31 downto 0);
+        variable meta_v          : std_logic_vector(31 downto 0);
     begin
         control_v := (others => '0');
         control_v(1)            := cfg_apply_pending;
@@ -1117,42 +1128,52 @@ begin
         version_v(15 downto 12) := std_logic_vector(to_unsigned(VERSION_PATCH, 4));
         version_v(11 downto 0)  := std_logic_vector(to_unsigned(BUILD, 12));
 
+        -- META read-mux: page selected by csr_meta_sel
+        case csr_meta_sel is
+            when "00"   => meta_v := version_v;
+            when "01"   => meta_v := std_logic_vector(to_unsigned(VERSION_DATE, 32));
+            when "10"   => meta_v := std_logic_vector(to_unsigned(VERSION_GIT, 32));
+            when others => meta_v := std_logic_vector(to_unsigned(INSTANCE_ID, 32));
+        end case;
+
         case to_integer(unsigned(avs_csr_address)) is
-            when 0 =>
+            when 0 =>   -- UID (RO)
+                csr_readdata_mux <= std_logic_vector(to_unsigned(IP_UID, 32));
+            when 1 =>   -- META (RO, page-selected)
+                csr_readdata_mux <= meta_v;
+            when 2 =>   -- CONTROL
                 csr_readdata_mux <= control_v;
-            when 1 =>
+            when 3 =>   -- LEFT_BOUND
                 csr_readdata_mux <= std_logic_vector(resize(csr_left_bound, 32));
-            when 2 =>
+            when 4 =>   -- RIGHT_BOUND
                 csr_readdata_mux <= std_logic_vector(resize(csr_right_bound, 32));
-            when 3 =>
+            when 5 =>   -- BIN_WIDTH
                 csr_readdata_mux <= x"0000" & std_logic_vector(csr_bin_width);
-            when 4 =>
+            when 6 =>   -- KEY_LOC
                 csr_readdata_mux <= std_logic_vector(csr_filter_key_high) &
                                    std_logic_vector(csr_filter_key_low) &
                                    std_logic_vector(csr_update_key_high) &
                                    std_logic_vector(csr_update_key_low);
-            when 5 =>
+            when 7 =>   -- KEY_VALUE
                 csr_readdata_mux <= std_logic_vector(resize(csr_filter_key, 16)) &
                                    std_logic_vector(resize(csr_update_key, 16));
-            when 6 =>
+            when 8 =>   -- UNDERFLOW_COUNT
                 csr_readdata_mux <= std_logic_vector(csr_underflow_count);
-            when 7 =>
+            when 9 =>   -- OVERFLOW_COUNT
                 csr_readdata_mux <= std_logic_vector(csr_overflow_count);
-            when 8 =>
+            when 10 =>  -- INTERVAL_CFG
                 csr_readdata_mux <= std_logic_vector(csr_interval_cfg);
-            when 9 =>
+            when 11 =>  -- BANK_STATUS
                 csr_readdata_mux <= csr_bank_status;
-            when 10 =>
+            when 12 =>  -- PORT_STATUS
                 csr_readdata_mux <= csr_port_status;
-            when 11 =>
+            when 13 =>  -- TOTAL_HITS
                 csr_readdata_mux <= std_logic_vector(csr_total_hits);
-            when 12 =>
+            when 14 =>  -- DROPPED_HITS
                 csr_readdata_mux <= std_logic_vector(csr_dropped_hits);
-            when 13 =>
-                csr_readdata_mux <= version_v;
-            when 14 =>
+            when 15 =>  -- COAL_STATUS
                 csr_readdata_mux <= csr_coal_status;
-            when 15 =>
+            when 16 =>  -- SCRATCH
                 csr_readdata_mux <= csr_scratch;
             when others =>
                 csr_readdata_mux <= (others => '0');

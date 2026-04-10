@@ -226,7 +226,7 @@ package hist_env_pkg;
 
   class hist_csr_txn extends uvm_sequence_item;
     rand bit         write;
-    rand bit [3:0]   address;
+    rand bit [4:0]   address;
     rand bit [31:0]  writedata;
     bit [31:0]       readdata;
 
@@ -667,7 +667,7 @@ package hist_env_pkg;
     task run_phase(uvm_phase phase);
       hist_csr_txn txn;
       bit          pending_read;
-      bit [3:0]    pending_addr;
+      bit [4:0]    pending_addr;
 
       pending_read = 1'b0;
       forever begin

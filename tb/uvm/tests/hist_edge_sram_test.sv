@@ -2,7 +2,7 @@ class hist_edge_sram_test extends hist_base_test;
   `uvm_component_utils(hist_edge_sram_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG = 8192;
-  localparam bit [3:0] CSR_BANK_STATUS = 4'd9;
+  localparam bit [4:0] CSR_BANK_STATUS = 5'd11;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);

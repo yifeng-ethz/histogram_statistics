@@ -2,7 +2,7 @@ class hist_edge_ingress_test extends hist_base_test;
   `uvm_component_utils(hist_edge_ingress_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG = 8192;
-  localparam bit [3:0] CSR_TOTAL_HITS = 4'd11;
+  localparam bit [4:0] CSR_TOTAL_HITS = 5'd13;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -59,8 +59,8 @@ class hist_edge_ingress_test extends hist_base_test;
       bits_word[31:24] = HS_DEF_FILTER_HI;
       value_word = '0;
       value_word[31:16] = 16'h0005;
-      csr_write(4'd4, bits_word);
-      csr_write(4'd5, value_word);
+      csr_write(5'd6, bits_word);
+      csr_write(5'd7, value_word);
     end
     program_histogram(.left_bound(0), .bin_width(16), .key_unsigned(1'b1),
                       .filter_enable(1'b1), .filter_reject(1'b0),

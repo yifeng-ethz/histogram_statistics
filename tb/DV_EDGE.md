@@ -182,24 +182,30 @@ The `stats_reg` process uses `sat_add` and `sat_inc` for 32-bit counters. Up to 
 
 ---
 
-## 8. CSR Access Boundaries (CSA) -- 12 cases
+## 8. CSR Access Boundaries (CSA) -- 18 cases
 
-CSR reads go through `csr_read_comb` (combinational mux) then `csr_read_reg` (registered). Writes are synchronous. These cases probe read-write ordering, latency, and address-space boundaries.
+CSR reads go through `csr_read_comb` (combinational mux) then `csr_read_reg` (registered). Writes are synchronous. Word 0 = UID (read-only ASCII "HIST"), word 1 = META mux (4 pages selected by write). These cases probe read-write ordering, latency, address-space boundaries, and the identity header.
 
 | ID | Scenario | Stimulus | Checker | RTL Ref |
 |----|----------|----------|---------|---------|
 | E111 | CSR read latency: data valid 1 cycle after avs_csr_read | Assert `avs_csr_read=1` on cycle T, sample `avs_csr_readdata` | Data valid on T+1 (registered output from `csr_read_reg`) | histogram_statistics_v2.vhd:1162-1171 |
-| E112 | CSR read during write to same address (address 1: left_bound) | `avs_csr_write=1` and `avs_csr_read=1` on same cycle, address=1 | Read returns old value (combinational mux samples csr_left_bound before write updates it); write updates register for next read | :1050,1076,1124 |
-| E113 | Back-to-back CSR reads to different addresses | Read address 6 on T, address 7 on T+1 | `readdata` on T+1 = underflow_count; `readdata` on T+2 = overflow_count; no stale data | :1162-1170 |
-| E114 | CSR read to address 13 (version register, read-only) | Read address 13 | Returns `{VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, BUILD}` packed correctly | :1114-1118,1152 |
-| E115 | CSR write to read-only address 13 (version) | Write to address 13 | No effect; version register unchanged (falls into `when others => null`) on non-writable addresses; address 13 not in write case | :1051-1094 |
-| E116 | CSR write to address 15 (scratch register) then read back | Write 0xCAFEBABE to address 15, read address 15 | Read returns 0xCAFEBABE; scratch register is pure read-write | :1092,1156 |
-| E117 | CSR address out of range (address 16 on 4-bit address bus, wraps to 0) | Address bus = 4 bits; address = binary 0000 after truncation | Reads control register at address 0 (unsigned interpretation of address) | :1120 |
-| E118 | CSR read without asserting avs_csr_read (stale hold) | Read address 0 on T, no read on T+1, sample readdata on T+1 | `csr_readdata_reg` holds last read value (registered, only updates when `avs_csr_read=1`) | :1167 |
-| E119 | CSR write to address 0 with apply bit=0 (no commit) | Write control word with bit[0]=0 | Mode and filter fields update in csr_* shadow registers, but `cfg_apply_request` does NOT fire | :1052-1074 |
-| E120 | CSR write to address 4: key bit fields packed correctly | Write `0xAABBCCDD` to address 4 | `csr_update_key_low=0xDD, csr_update_key_high=0xCC, csr_filter_key_low=0xBB, csr_filter_key_high=0xAA` | :1082-1085 |
-| E121 | CSR read address 9 (bank_status): flushing flag visible during clear | Read address 9 while `clear_active=1` (after reset) | `bank_status[1]=1` (flushing); verifies shadow pipeline captures flushing state | :953-954,1144 |
-| E122 | CSR read address 14 (coal_status): queue overflow visible | Read address 14 after coalescing queue overflow | `coal_status[31:16] = overflow_count`; verifies shadow pipeline captures queue overflow | :964,1154 |
+| E112 | CSR read during write to same address (address 3: left_bound) | `avs_csr_write=1` and `avs_csr_read=1` on same cycle, address=3 | Read returns old value (combinational mux samples csr_left_bound before write updates it); write updates register for next read | :1050,1076,1124 |
+| E113 | Back-to-back CSR reads to different addresses | Read address 8 on T, address 9 on T+1 | `readdata` on T+1 = underflow_count; `readdata` on T+2 = overflow_count; no stale data | :1162-1170 |
+| E114 | CSR read to address 0 (UID register, read-only) | Read address 0 | Returns IP_UID generic = 0x48495354 (ASCII "HIST") | :1120 |
+| E114a | CSR write to address 0 (UID) ignored | Write 0xDEADBEEF to address 0, then read address 0 | Read still returns 0x48495354; UID is read-only, write falls into `when others => null` | :1051-1094 |
+| E114b | CSR META page 0: VERSION | Write 0 to address 1 (select page 0), read address 1 | Returns `{VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, BUILD}` packed correctly | :1114-1118 |
+| E114c | CSR META page 1: DATE | Write 1 to address 1 (select page 1), read address 1 | Returns VERSION_DATE generic (default 20260410) | :1114-1118 |
+| E114d | CSR META page 2: GIT | Write 2 to address 1 (select page 2), read address 1 | Returns VERSION_GIT generic (default 0) | :1114-1118 |
+| E114e | CSR META page 3: INSTANCE_ID | Write 3 to address 1 (select page 3), read address 1 | Returns INSTANCE_ID generic (default 0) | :1114-1118 |
+| E114f | CSR META selector persistence across reads | Write 2 to address 1, read address 1 twice | Both reads return same value (VERSION_GIT); `csr_meta_sel` is registered, persists until next write to address 1 | :1114-1118 |
+| E115 | CSR write to read-only address (version via META page 0) | Write to address 1 sets `csr_meta_sel` only | No effect on actual VERSION/DATE/GIT/INSTANCE_ID values; they are generic constants | :1051-1094 |
+| E116 | CSR write to address 16 (scratch register) then read back | Write 0xCAFEBABE to address 16, read address 16 | Read returns 0xCAFEBABE; scratch register is pure read-write | :1092,1156 |
+| E117 | CSR address out of range (address 17+ on 5-bit address bus) | Address = 5'd17 or higher | Reads return `when others` default (zeros or last registered value); write has no effect | :1120 |
+| E118 | CSR read without asserting avs_csr_read (stale hold) | Read address 2 on T, no read on T+1, sample readdata on T+1 | `csr_readdata_reg` holds last read value (registered, only updates when `avs_csr_read=1`) | :1167 |
+| E119 | CSR write to address 2 with apply bit=0 (no commit) | Write control word with bit[0]=0 | Mode and filter fields update in csr_* shadow registers, but `cfg_apply_request` does NOT fire | :1052-1074 |
+| E120 | CSR write to address 6: key bit fields packed correctly | Write `0xAABBCCDD` to address 6 | `csr_update_key_low=0xDD, csr_update_key_high=0xCC, csr_filter_key_low=0xBB, csr_filter_key_high=0xAA` | :1082-1085 |
+| E121 | CSR read address 11 (bank_status): flushing flag visible during clear | Read address 11 while `clear_active=1` (after reset) | `bank_status[1]=1` (flushing); verifies shadow pipeline captures flushing state | :953-954,1144 |
+| E122 | CSR read address 15 (coal_status): queue overflow visible | Read address 15 after coalescing queue overflow | `coal_status[31:16] = overflow_count`; verifies shadow pipeline captures queue overflow | :964,1154 |
 
 ---
 

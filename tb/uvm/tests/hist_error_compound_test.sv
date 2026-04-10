@@ -2,14 +2,14 @@ class hist_error_compound_test extends hist_base_test;
   `uvm_component_utils(hist_error_compound_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG = 8192;
-  localparam bit [3:0] CSR_CONTROL     = 4'd0;
-  localparam bit [3:0] CSR_LEFT_BOUND  = 4'd1;
-  localparam bit [3:0] CSR_RIGHT_BOUND = 4'd2;
-  localparam bit [3:0] CSR_BIN_WIDTH   = 4'd3;
-  localparam bit [3:0] CSR_INTERVAL    = 4'd8;
-  localparam bit [3:0] CSR_TOTAL_HITS  = 4'd11;
-  localparam bit [3:0] CSR_DROPPED     = 4'd12;
-  localparam bit [3:0] CSR_COAL_STATUS = 4'd14;
+  localparam bit [4:0] CSR_CONTROL     = 5'd2;
+  localparam bit [4:0] CSR_LEFT_BOUND  = 5'd3;
+  localparam bit [4:0] CSR_RIGHT_BOUND = 5'd4;
+  localparam bit [4:0] CSR_BIN_WIDTH   = 5'd5;
+  localparam bit [4:0] CSR_INTERVAL    = 5'd10;
+  localparam bit [4:0] CSR_TOTAL_HITS  = 5'd13;
+  localparam bit [4:0] CSR_DROPPED     = 5'd14;
+  localparam bit [4:0] CSR_COAL_STATUS = 5'd16;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);

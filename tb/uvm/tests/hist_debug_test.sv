@@ -2,9 +2,9 @@ class hist_debug_test extends hist_base_test;
   `uvm_component_utils(hist_debug_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG = 2048;
-  localparam bit [3:0] CSR_CONTROL   = 4'd0;
-  localparam bit [3:0] CSR_UNDERFLOW = 4'd6;
-  localparam bit [3:0] CSR_OVERFLOW  = 4'd7;
+  localparam bit [4:0] CSR_CONTROL   = 5'd2;
+  localparam bit [4:0] CSR_UNDERFLOW = 5'd8;
+  localparam bit [4:0] CSR_OVERFLOW  = 5'd9;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -17,9 +17,9 @@ class hist_debug_test extends hist_base_test;
     input bit          key_unsigned = 1'b1
   );
     bit [31:0] control_word;
-    csr_write(4'd1, $unsigned(left_bound));
-    csr_write(4'd3, bin_width[31:0]);
-    csr_write(4'd8, HS_TEST_INTERVAL_CFG);
+    csr_write(5'd3, $unsigned(left_bound));
+    csr_write(5'd5, bin_width[31:0]);
+    csr_write(5'd10, HS_TEST_INTERVAL_CFG);
     control_word       = 32'h0000_0001;  // apply
     control_word[7:4]  = mode;
     control_word[8]    = key_unsigned;

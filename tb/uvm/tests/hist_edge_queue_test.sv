@@ -2,7 +2,7 @@ class hist_edge_queue_test extends hist_base_test;
   `uvm_component_utils(hist_edge_queue_test)
 
   localparam int unsigned HS_TEST_INTERVAL_CFG = 65536;
-  localparam bit [3:0] CSR_COAL_STATUS = 4'd14;
+  localparam bit [4:0] CSR_COAL_STATUS = 5'd16;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);

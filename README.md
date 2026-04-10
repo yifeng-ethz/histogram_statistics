@@ -67,7 +67,7 @@ When `ENABLE_PINGPONG = true`, the histogram maintains two SRAM banks:
 1. **Active bank** -- receives live bin updates from the coalescing queue.
 2. **Frozen bank** -- holds the previous interval's snapshot, readable by the host via `hist_bin`.
 
-A countdown timer (CSR word 8, default 125 MHz = 1 s) triggers the bank swap.
+A countdown timer (CSR word 10, default 125 MHz = 1 s) triggers the bank swap.
 On swap, the newly active bank is flushed to zero before accepting new updates.
 The host reads bins from the frozen bank with zero contention.
 
@@ -84,32 +84,34 @@ effective SRAM write bandwidth.
 
 The queue tracks which bins are in-flight via a circular buffer.  A per-bin kick
 counter (8-bit, saturating at 255) accumulates hits until the queue head drains.
-Queue overflow is counted in CSR word 14 (`COAL_STATUS`).
+Queue overflow is counted in CSR word 15 (`COAL_STATUS`).
 
 ---
 
 ## CSR Register Map
 
-All registers are word-addressed through the `csr` Avalon-MM slave (4-bit address, read latency 1).
+All registers are word-addressed through the `csr` Avalon-MM slave (5-bit address, read latency 1).
+Words 0-1 form the standard identity header (shared across all mu3e IP cores).
 
 | Word | Name | Access | Description |
 |------|------|--------|-------------|
-| 0x00 | CONTROL | RW | `[0]` soft_reset, `[1]` apply_pending (RO), `[7:4]` mode, `[8]` key_unsigned, `[12]` filter_enable, `[13]` filter_reject, `[24]` error (RO), `[31:28]` error_info (RO) |
-| 0x01 | LEFT_BOUND | RW | Signed left boundary of the histogram range |
-| 0x02 | RIGHT_BOUND | RW | Signed right boundary (auto-computed from left + width * bins) |
-| 0x03 | BIN_WIDTH | RW | `[15:0]` bin width in key-space units |
-| 0x04 | KEY_LOC | RW | `[7:0]` update_key_lo, `[15:8]` update_key_hi, `[23:16]` filter_key_lo, `[31:24]` filter_key_hi |
-| 0x05 | KEY_VALUE | RW | `[15:0]` update_key, `[31:16]` filter_key |
-| 0x06 | UNDERFLOW_COUNT | RO | Keys below left_bound (saturating, reset on interval/clear) |
-| 0x07 | OVERFLOW_COUNT | RO | Keys above right_bound (saturating, reset on interval/clear) |
-| 0x08 | INTERVAL_CFG | RW | Ping-pong interval in clock cycles |
-| 0x09 | BANK_STATUS | RO | `[0]` active_bank, `[1]` flushing, `[15:8]` flush_addr |
-| 0x0A | PORT_STATUS | RO | `[7:0]` per-port FIFO empty, `[23:16]` max FIFO fill level |
-| 0x0B | TOTAL_HITS | RO | Total accepted hits (saturating, reset on interval/clear) |
-| 0x0C | DROPPED_HITS | RO | Dropped hits due to FIFO/queue overflow |
-| 0x0D | VERSION | RO | `[31:24]` major, `[23:16]` minor, `[15:12]` patch, `[11:0]` build |
-| 0x0E | COAL_STATUS | RO | `[7:0]` queue occupancy, `[15:8]` occupancy max, `[31:16]` overflow count |
-| 0x0F | SCRATCH | RW | General-purpose scratch register |
+| 0x00 | UID | RO | IP identifier: ASCII "HIST" = 0x48495354 (immutable) |
+| 0x01 | META | RW/RO | Write: sets page selector `[1:0]`. Read: returns selected page (0=VERSION, 1=DATE, 2=GIT, 3=INSTANCE_ID) |
+| 0x02 | CONTROL | RW | `[0]` soft_reset, `[1]` apply_pending (RO), `[7:4]` mode, `[8]` key_unsigned, `[12]` filter_enable, `[13]` filter_reject, `[24]` error (RO), `[31:28]` error_info (RO) |
+| 0x03 | LEFT_BOUND | RW | Signed left boundary of the histogram range |
+| 0x04 | RIGHT_BOUND | RW | Signed right boundary (auto-computed from left + width * bins) |
+| 0x05 | BIN_WIDTH | RW | `[15:0]` bin width in key-space units |
+| 0x06 | KEY_LOC | RW | `[7:0]` update_key_lo, `[15:8]` update_key_hi, `[23:16]` filter_key_lo, `[31:24]` filter_key_hi |
+| 0x07 | KEY_VALUE | RW | `[15:0]` update_key, `[31:16]` filter_key |
+| 0x08 | UNDERFLOW_COUNT | RO | Keys below left_bound (saturating, reset on interval/clear) |
+| 0x09 | OVERFLOW_COUNT | RO | Keys above right_bound (saturating, reset on interval/clear) |
+| 0x0A | INTERVAL_CFG | RW | Ping-pong interval in clock cycles |
+| 0x0B | BANK_STATUS | RO | `[0]` active_bank, `[1]` flushing, `[15:8]` flush_addr |
+| 0x0C | PORT_STATUS | RO | `[7:0]` per-port FIFO empty, `[23:16]` max FIFO fill level |
+| 0x0D | TOTAL_HITS | RO | Total accepted hits (saturating, reset on interval/clear) |
+| 0x0E | DROPPED_HITS | RO | Dropped hits due to FIFO/queue overflow |
+| 0x0F | COAL_STATUS | RO | `[7:0]` queue occupancy, `[15:8]` occupancy max, `[31:16]` overflow count |
+| 0x10 | SCRATCH | RW | General-purpose scratch register |
 
 ### Runtime Configuration Workflow
 
@@ -180,7 +182,9 @@ interval timer, snooping, and packet support.
 **Delivered Profile** -- Catalog revision and runtime visibility notes.
 
 **Versioning** -- `VERSION_MAJOR`, `VERSION_MINOR`, `VERSION_PATCH`, `BUILD`
-parameters that are packed into CSR word 13.
+parameters packed into META page 0 (CSR word 1, selector=0).  Additional
+identity generics: `IP_UID` (word 0, default ASCII "HIST"), `VERSION_DATE`
+(META page 1), `VERSION_GIT` (META page 2), `INSTANCE_ID` (META page 3).
 
 **Debug** -- `N_DEBUG_INTERFACE` (how many of the 6 debug sinks to enable) and
 `DEBUG` level (0=off, 1=synthesizable, 2=simulation-only).
@@ -193,8 +197,44 @@ interfaces (debug sinks).
 
 ### Register Map Tab
 
-Interactive HTML table of the 16-word CSR window with address, name, access mode,
-and bit-field descriptions.
+Interactive HTML table of the 17-word CSR window (0x00-0x10) with address, name,
+access mode, and bit-field descriptions.  Words 0-1 show the standard identity
+header.
+
+### Tab Overview
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  Platform Designer Component Editor: histogram_statistics_v2          │
+│                                                                       │
+│  [Configuration Tab]                                                  │
+│    ├─ Overview ── block diagram, data-path summary                    │
+│    ├─ Histogram Sizing ── N_BINS, MAX_COUNT_BITS, bounds, bin width   │
+│    ├─ Key Extraction ── SAR_TICK_WIDTH, SAR_KEY_WIDTH, bit fields     │
+│    ├─ Ingress ── N_PORTS, CHANNELS_PER_PORT, queue depth, AVST width  │
+│    ├─ Ping-Pong / Interval ── dual-bank, interval timer, snoop, pkt  │
+│    └─ Resources ── M10K / ALM estimates (live validation)             │
+│                                                                       │
+│  [Identity Tab]                                                       │
+│    ├─ Delivered Profile ── catalog revision, visibility               │
+│    ├─ Versioning ── IP_UID, VERSION_*, VERSION_DATE/GIT, INSTANCE_ID  │
+│    └─ Debug ── N_DEBUG_INTERFACE, DEBUG level                         │
+│                                                                       │
+│  [Interfaces Tab] ── HTML descriptions of csr, hist_bin, AVST, ctrl   │
+│  [Register Map Tab] ── 17-word CSR table (identity header + config)   │
+│                                                                       │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+**To capture screenshots in Platform Designer:**
+
+1. Open the Quartus project containing this IP
+2. Launch Platform Designer (Tools > Platform Designer)
+3. Double-click the `histogram_statistics_v2` instance (or Add > Mu3e Data Path > Modules)
+4. Screenshot each of the four tabs: **Configuration**, **Identity**, **Interfaces**, **Register Map**
+5. Save screenshots to `doc/` and reference them here
+
+![Platform Designer system view](doc/pd_system_view.png)
 
 ---
 
@@ -294,6 +334,7 @@ quartus_sh --flow compile histogram_statistics_v2_standalone
 
 | Version | Date | Change |
 |---------|------|--------|
+| 26.2.0.0410 | 2026-04-10 | Added standard CSR identity header (UID + META mux); CSR addresses shifted +2; 5-bit address bus |
 | 26.1.0.0410 | 2026-04-10 | Upgraded `_hw.tcl` to rich IP packaging format (tabbed GUI, presets, CSR register map, resource estimates) |
 | 26.0.321 | 2026-03-21 | Restored v2 from `feb_system_v2` generated RTL |
 | Rev 1.2 | 2026-04-09 | Decouple `build_key` from `filter_pass_v` gating to break timing path (-2.554 ns at 137.5 MHz) |

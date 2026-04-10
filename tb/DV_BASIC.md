@@ -32,28 +32,33 @@ One hit through the entire pipeline. Proves that the data path from AVST ingress
 
 ---
 
-## 2. CSR Access (CSR) -- 16 cases
+## 2. CSR Access (CSR) -- 22 cases
 
-Read/write every CSR register. The CSR slave has 16 registers addressed by a 4-bit address bus. CSR reads have 1-cycle latency (registered output via csr_readdata_reg). A bug in the address decode silently maps writes to the wrong register, corrupting configuration.
+Read/write every CSR register. The CSR slave has 17 registers addressed by a 5-bit address bus, with a standard identity header at words 0-1. CSR reads have 1-cycle latency (registered output via csr_readdata_reg). A bug in the address decode silently maps writes to the wrong register, corrupting configuration.
 
 | ID | Method | Scenario | Iter | Stimulus | Checker |
 |----|--------|----------|------|----------|---------|
-| B013 | D | Read CONTROL (addr 0) at reset default | 1 | CSR read addr 0 after reset. | Returns default: mode=0, key_unsigned per generic, filter_enable=0, apply_pending=0, error=0. |
-| B014 | D | Write+read LEFT_BOUND (addr 1) | 1 | Write 0xFFFFFC18 (-1000 in 32-bit signed), readback. | Readback == 0xFFFFFC18. Confirms signed CSR storage. |
-| B015 | D | Write+read RIGHT_BOUND (addr 2) | 1 | Write 0x00000F00, readback. | Readback == 0x00000F00. Note: direct write to addr 2 is allowed but apply recalculates right_bound from left_bound + bin_width * N_BINS when bin_width != 0. |
-| B016 | D | Write+read BIN_WIDTH (addr 3) | 1 | Write 0x00000020 (32), readback. | Readback == 0x00000020 (lower 16 bits). |
-| B017 | D | Write+read KEY_FILTER_BITS (addr 4) | 1 | Write 0x26231D11 (filter_key_high=0x26, filter_key_low=0x23, update_key_high=0x1D, update_key_low=0x11). | Readback == 0x26231D11. Packed byte fields. |
-| B018 | D | Write+read KEY_FILTER_VAL (addr 5) | 1 | Write 0x000F000A (filter_key=0x000F, update_key=0x000A). | Readback == 0x000F000A. |
-| B019 | D | Read UNDERFLOW_CNT (addr 6) at idle | 1 | No hits injected. | Returns 0. |
-| B020 | D | Read OVERFLOW_CNT (addr 7) at idle | 1 | No hits injected. | Returns 0. |
-| B021 | D | Write+read INTERVAL_CFG (addr 8) | 1 | Write 0x000F4240 (1000000 clocks). | Readback == 0x000F4240. |
-| B022 | D | Read BANK_STATUS (addr 9) at idle | 1 | After reset + flush complete. | active_bank=0, flushing=0 (bit 1=0). |
-| B023 | D | Read PORT_STATUS (addr 10) at idle | 1 | No hits in flight. | fifo_empty[7:0] = 0xFF (all empty), fifo_pair_max = 0. |
-| B024 | D | Read TOTAL_HITS (addr 11) at idle | 1 | No hits. | Returns 0. |
-| B025 | D | Read DROPPED_HITS (addr 12) at idle | 1 | No hits. | Returns 0. |
-| B026 | D | Read VERSION (addr 13) | 1 | Read addr 13. | Returns VERSION_MAJOR=26 in [31:24], VERSION_MINOR=0 in [23:16], patch+build in lower bits. Catches swapped version fields. |
-| B027 | D | Read COAL_STATUS (addr 14) at idle | 1 | No hits in flight. | occupancy=0, occupancy_max=0, overflow=0. |
-| B028 | D | Write+read SCRATCH (addr 15) | 1 | Write 0xDEADBEEF, readback. | Readback == 0xDEADBEEF. SCRATCH is the only fully read/write register; catches bus connectivity issues. |
+| B013 | D | Read UID (addr 0) | 1 | CSR read addr 0 after reset. | Returns 0x48495354 (ASCII "HIST"). Confirms identity header word 0. |
+| B013a | D | Write to UID is ignored | 1 | Write 0xDEADBEEF to addr 0, then read back. | Still returns 0x48495354. UID is read-only. |
+| B013b | D | Read META page 0 = VERSION (addr 1) | 1 | Write selector 0 to addr 1, then read addr 1. | Returns VERSION_MAJOR=26 in [31:24], VERSION_MINOR=0 in [23:16], patch+build in lower bits. |
+| B013c | D | Read META page 1 = DATE (addr 1) | 1 | Write selector 1 to addr 1, then read addr 1. | Returns VERSION_DATE generic value (20260410). |
+| B013d | D | Read META page 2 = GIT (addr 1) | 1 | Write selector 2 to addr 1, then read addr 1. | Returns VERSION_GIT generic value (default 0). |
+| B013e | D | Read META page 3 = INSTANCE_ID (addr 1) | 1 | Write selector 3 to addr 1, then read addr 1. | Returns INSTANCE_ID generic value (default 0). |
+| B014 | D | Read CONTROL (addr 2) at reset default | 1 | CSR read addr 2 after reset. | Returns default: mode=0, key_unsigned per generic, filter_enable=0, apply_pending=0, error=0. |
+| B015 | D | Write+read LEFT_BOUND (addr 3) | 1 | Write 0xFFFFFC18 (-1000 in 32-bit signed), readback. | Readback == 0xFFFFFC18. Confirms signed CSR storage. |
+| B016 | D | Write+read RIGHT_BOUND (addr 4) | 1 | Write 0x00000F00, readback. | Readback == 0x00000F00. Note: direct write to addr 4 is allowed but apply recalculates right_bound from left_bound + bin_width * N_BINS when bin_width != 0. |
+| B017 | D | Write+read BIN_WIDTH (addr 5) | 1 | Write 0x00000020 (32), readback. | Readback == 0x00000020 (lower 16 bits). |
+| B018 | D | Write+read KEY_FILTER_BITS (addr 6) | 1 | Write 0x26231D11 (filter_key_high=0x26, filter_key_low=0x23, update_key_high=0x1D, update_key_low=0x11). | Readback == 0x26231D11. Packed byte fields. |
+| B019 | D | Write+read KEY_FILTER_VAL (addr 7) | 1 | Write 0x000F000A (filter_key=0x000F, update_key=0x000A). | Readback == 0x000F000A. |
+| B020 | D | Read UNDERFLOW_CNT (addr 8) at idle | 1 | No hits injected. | Returns 0. |
+| B021 | D | Read OVERFLOW_CNT (addr 9) at idle | 1 | No hits injected. | Returns 0. |
+| B022 | D | Write+read INTERVAL_CFG (addr 10) | 1 | Write 0x000F4240 (1000000 clocks). | Readback == 0x000F4240. |
+| B023 | D | Read BANK_STATUS (addr 11) at idle | 1 | After reset + flush complete. | active_bank=0, flushing=0 (bit 1=0). |
+| B024 | D | Read PORT_STATUS (addr 12) at idle | 1 | No hits in flight. | fifo_empty[7:0] = 0xFF (all empty), fifo_pair_max = 0. |
+| B025 | D | Read TOTAL_HITS (addr 13) at idle | 1 | No hits. | Returns 0. |
+| B026 | D | Read DROPPED_HITS (addr 14) at idle | 1 | No hits. | Returns 0. |
+| B027 | D | Read COAL_STATUS (addr 15) at idle | 1 | No hits in flight. | occupancy=0, occupancy_max=0, overflow=0. |
+| B028 | D | Write+read SCRATCH (addr 16) | 1 | Write 0xDEADBEEF, readback. | Readback == 0xDEADBEEF. SCRATCH is the only fully read/write register; catches bus connectivity issues. |
 
 ---
 

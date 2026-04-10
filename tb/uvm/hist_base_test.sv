@@ -57,7 +57,7 @@ class hist_base_test extends uvm_test;
     repeat (4) @(cfg.probe_vif.mon_cb);
   endtask
 
-  task automatic csr_write(bit [3:0] address, bit [31:0] data);
+  task automatic csr_write(bit [4:0] address, bit [31:0] data);
     hist_csr_write_seq seq;
     seq = hist_csr_write_seq::type_id::create($sformatf("csr_write_%0d", address));
     seq.address   = address;
@@ -65,7 +65,7 @@ class hist_base_test extends uvm_test;
     seq.start(env.csr_agent.seqr);
   endtask
 
-  task automatic csr_read(bit [3:0] address, output bit [31:0] data);
+  task automatic csr_read(bit [4:0] address, output bit [31:0] data);
     hist_csr_read_seq seq;
     seq = hist_csr_read_seq::type_id::create($sformatf("csr_read_%0d", address));
     seq.address = address;
@@ -99,14 +99,14 @@ class hist_base_test extends uvm_test;
   );
     bit [31:0] control_word;
 
-    csr_write(4'd1, $unsigned(left_bound));
-    csr_write(4'd3, bin_width[31:0]);
-    csr_write(4'd8, interval_cfg[31:0]);
+    csr_write(5'd3, $unsigned(left_bound));
+    csr_write(5'd5, bin_width[31:0]);
+    csr_write(5'd10, interval_cfg[31:0]);
     control_word       = 32'h0000_0001;
     control_word[8]    = key_unsigned;
     control_word[12]   = filter_enable;
     control_word[13]   = filter_reject;
-    csr_write(4'd0, control_word);
+    csr_write(5'd2, control_word);
     repeat (8) @(cfg.probe_vif.mon_cb);
   endtask
 
