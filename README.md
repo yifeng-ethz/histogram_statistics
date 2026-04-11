@@ -4,9 +4,9 @@ Multi-port coalescing histogram with pipelined bin index and ping-pong rate read
 Drop-in replacement for per-ASIC channel rate counter arrays in the Mu3e online data
 acquisition system.
 
-**Version:** 26.1.0.0410
+**Version:** 26.1.0.0411
 **Module name:** `histogram_statistics_v2`
-**Platform Designer group:** Mu3e Data Plane / Debug
+**Platform Designer group:** Mu3e Data Plane / Modules
 
 ---
 
@@ -97,7 +97,7 @@ Words 0-1 form the standard identity header (shared across all mu3e IP cores).
 |------|------|--------|-------------|
 | 0x00 | UID | RO | IP identifier: ASCII "HIST" = 0x48495354 (immutable) |
 | 0x01 | META | RW/RO | Write: sets page selector `[1:0]`. Read: returns selected page (0=VERSION, 1=DATE, 2=GIT, 3=INSTANCE_ID) |
-| 0x02 | CONTROL | RW | `[0]` soft_reset, `[1]` apply_pending (RO), `[7:4]` mode, `[8]` key_unsigned, `[12]` filter_enable, `[13]` filter_reject, `[24]` error (RO), `[31:28]` error_info (RO) |
+| 0x02 | CONTROL | RW/RO | `[0]` apply, `[1]` apply_pending (RO), `[7:4]` mode, `[8]` key_unsigned, `[12]` filter_enable, `[13]` filter_reject, `[24]` error (RO), `[31:28]` error_info (RO) |
 | 0x03 | LEFT_BOUND | RW | Signed left boundary of the histogram range |
 | 0x04 | RIGHT_BOUND | RW | Signed right boundary (auto-computed from left + width * bins) |
 | 0x05 | BIN_WIDTH | RW | `[15:0]` bin width in key-space units |
@@ -177,6 +177,10 @@ interval timer, snooping, and packet support.
 
 **Resources** -- Live M10K and ALM estimates updated by the validation callback.
 
+**Debug Inputs** -- `N_DEBUG_INTERFACE` and `DEBUG` live under Configuration.
+These control how many of the 16-bit debug sinks are exposed and which optional
+debug logic is kept in the build.
+
 ### Identity Tab
 
 **Delivered Profile** -- Catalog revision and runtime visibility notes.
@@ -186,9 +190,6 @@ parameters packed into META page 0 (CSR word 1, selector=0).  Additional
 identity generics: `IP_UID` (word 0, default ASCII "HIST"), `VERSION_DATE`
 (META page 1), `VERSION_GIT` (META page 2), `INSTANCE_ID` (META page 3).
 
-**Debug** -- `N_DEBUG_INTERFACE` (how many of the 6 debug sinks to enable) and
-`DEBUG` level (0=off, 1=synthesizable, 2=simulation-only).
-
 ### Interfaces Tab
 
 Clock/reset domain documentation, data-path interface descriptions (ingress sinks,
@@ -197,9 +198,9 @@ interfaces (debug sinks).
 
 ### Register Map Tab
 
-Interactive HTML table of the 17-word CSR window (0x00-0x10) with address, name,
-access mode, and bit-field descriptions.  Words 0-1 show the standard identity
-header.
+Interactive HTML table of the 17-word CSR window (0x00-0x10) plus dedicated
+field-level tables for the multi-field words (`META`, `CONTROL`, `KEY_LOC`,
+`KEY_VALUE`, `BANK_STATUS`, `PORT_STATUS`, and `COAL_STATUS`).
 
 ### Tab Overview
 
@@ -213,22 +214,24 @@ header.
 │    ├─ Key Extraction ── SAR_TICK_WIDTH, SAR_KEY_WIDTH, bit fields     │
 │    ├─ Ingress ── N_PORTS, CHANNELS_PER_PORT, queue depth, AVST width  │
 │    ├─ Ping-Pong / Interval ── dual-bank, interval timer, snoop, pkt  │
-│    └─ Resources ── M10K / ALM estimates (live validation)             │
+│    ├─ Resources ── M10K / ALM estimates (live validation)             │
+│    └─ Debug Inputs ── debug sink count and debug level                │
 │                                                                       │
 │  [Identity Tab]                                                       │
 │    ├─ Delivered Profile ── catalog revision, visibility               │
-│    ├─ Versioning ── IP_UID, VERSION_*, VERSION_DATE/GIT, INSTANCE_ID  │
-│    └─ Debug ── N_DEBUG_INTERFACE, DEBUG level                         │
+│    └─ Versioning ── IP_UID, VERSION_*, VERSION_DATE/GIT, INSTANCE_ID  │
 │                                                                       │
 │  [Interfaces Tab] ── HTML descriptions of csr, hist_bin, AVST, ctrl   │
-│  [Register Map Tab] ── 17-word CSR table (identity header + config)   │
+│  [Register Map Tab] ── CSR window plus per-word field tables          │
 │                                                                       │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Platform Designer system view** -- IP Catalog entry under *Mu3e Data Plane*,
-System Contents with `hist_0` instance, and the parameter editor showing
-Configuration, Identity, Interfaces, and Register Map tabs:
+**Platform Designer system view** -- IP Catalog entry under *Mu3e Data Plane / Modules*,
+System Contents with `hist_0` instance, and the parameter editor showing the
+cleaned Configuration, Identity, Interfaces, and Register Map tabs. The screenshots
+below are large stitched captures from the live Parameter Editor so each tab shows
+its full parameter/documentation content:
 
 ![Platform Designer — Configuration tab](doc/pd_configuration.png)
 ![Platform Designer — Identity tab](doc/pd_identity.png)
@@ -319,7 +322,7 @@ quartus_sh --flow compile histogram_statistics_v2_standalone
 
 1. Add the `histogram_statistics/` directory to your Quartus IP search path.
 2. In Platform Designer, search for **Histogram Statistics Mu3E IP** in the IP Catalog
-   under **Mu3e Data Plane / Debug**.
+   under **Mu3e Data Plane / Modules**.
 3. Select a preset (Default, Minimal, or Large) and adjust parameters.
 4. Connect `hist_fill_in` to your data stream, `csr` and `hist_bin` to the
    interconnect, `ctrl` to the run-control splitter, and `clock`/`reset` to
@@ -333,7 +336,7 @@ quartus_sh --flow compile histogram_statistics_v2_standalone
 
 | Version | Date | Change |
 |---------|------|--------|
-| 26.2.0.0410 | 2026-04-10 | Added standard CSR identity header (UID + META mux); CSR addresses shifted +2; 5-bit address bus |
+| 26.1.0.0411 | 2026-04-11 | Cleaned the Parameter Editor packaging, refreshed per-tab screenshots, and aligned the delivered GUI/docs with the packaged contract |
 | 26.1.0.0410 | 2026-04-10 | Upgraded `_hw.tcl` to rich IP packaging format (tabbed GUI, presets, CSR register map, resource estimates) |
 | 26.0.321 | 2026-03-21 | Restored v2 from `feb_system_v2` generated RTL |
 | Rev 1.2 | 2026-04-09 | Decouple `build_key` from `filter_pass_v` gating to break timing path (-2.554 ns at 137.5 MHz) |

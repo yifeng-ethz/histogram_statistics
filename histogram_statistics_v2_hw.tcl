@@ -1,11 +1,25 @@
 package require -exact qsys 16.1
 
+set VERSION_MAJOR_DEFAULT_CONST  26
+set VERSION_MINOR_DEFAULT_CONST  1
+set VERSION_PATCH_DEFAULT_CONST  0
+set BUILD_DEFAULT_CONST          411
+set VERSION_DATE_DEFAULT_CONST   20260411
+set VERSION_GIT_DEFAULT_CONST    72231161
+set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
+    $VERSION_MAJOR_DEFAULT_CONST \
+    $VERSION_MINOR_DEFAULT_CONST \
+    $VERSION_PATCH_DEFAULT_CONST \
+    $BUILD_DEFAULT_CONST]
+set VERSION_GIT_HEX_DEFAULT_CONST [format "0x%08X" $VERSION_GIT_DEFAULT_CONST]
+
 set_module_property NAME histogram_statistics_v2
-set_module_property DISPLAY_NAME "Histogram Statistics Mu3E IP"
-set_module_property VERSION 26.1.0.0410
-set_module_property DESCRIPTION "Multi-port coalescing histogram with pipelined bin index and ping-pong rate readout. Drop-in replacement for per-ASIC channel rate counter arrays."
-set_module_property GROUP "Mu3e Data Plane/Debug"
+set_module_property DISPLAY_NAME "Histogram Statistics"
+set_module_property VERSION $VERSION_STRING_DEFAULT_CONST
+set_module_property DESCRIPTION "Histogram Statistics Mu3e IP Core"
+set_module_property GROUP "Mu3e Data Plane/Modules"
 set_module_property AUTHOR "Yifeng Wang"
+set_module_property ICON_PATH ../quartus_system/logo/mu3e_logo.png
 set_module_property INTERNAL false
 set_module_property OPAQUE_ADDRESS_MAP true
 set_module_property INSTANTIATE_IN_SYSTEM_MODULE true
@@ -28,6 +42,20 @@ proc bool_param {name} {
     return [expr {[string equal -nocase [get_parameter_value $name] "true"] ? 1 : 0}]
 }
 
+proc ceil_log2 {value} {
+    if {$value <= 1} {
+        return 0
+    }
+
+    set result 0
+    set probe 1
+    while {$probe < $value} {
+        set probe [expr {$probe << 1}]
+        incr result
+    }
+    return $result
+}
+
 proc set_optional_stream {ifname enable data_w ch_w} {
     set_interface_property $ifname ENABLED [expr {$enable ? "true" : "false"}]
     if {$enable} {
@@ -38,38 +66,137 @@ proc set_optional_stream {ifname enable data_w ch_w} {
 
 # --- constants --------------------------------------------------------------------
 
-set CSR_ADDR_W_CONST             5
-set RUN_CONTROL_WIDTH_CONST      9
-set VERSION_MAJOR_DEFAULT_CONST  26
-set VERSION_MINOR_DEFAULT_CONST  1
-set VERSION_PATCH_DEFAULT_CONST  0
-set BUILD_DEFAULT_CONST          410
-set IP_UID_DEFAULT_CONST         1212765012
-set VERSION_DATE_DEFAULT_CONST   20260410
-set VERSION_GIT_DEFAULT_CONST    0
-set INSTANCE_ID_DEFAULT_CONST    0
+set CSR_ADDR_W_CONST        5
+set RUN_CONTROL_WIDTH_CONST 9
+set IP_UID_DEFAULT_CONST    1212765012
+set INSTANCE_ID_DEFAULT_CONST 0
 
-# --- CSR register map (documentation) --------------------------------------------
+# --- CSR register map (documentation) ---------------------------------------------
 
-set CSR_TABLE_HTML {<html><table border="1" width="100%">
+set CSR_TABLE_HTML {<html><table border="1" cellpadding="3" width="100%">
 <tr><th>Word</th><th>Byte</th><th>Name</th><th>Access</th><th>Description</th></tr>
 <tr><td>0x00</td><td>0x000</td><td>UID</td><td>RO</td><td>Software-visible IP identifier. Default ASCII <b>HIST</b> (0x48495354).</td></tr>
-<tr><td>0x01</td><td>0x004</td><td>META</td><td>RW/RO</td><td>Read-multiplexed metadata word. Write <b>0</b>=VERSION, <b>1</b>=DATE, <b>2</b>=GIT, <b>3</b>=INSTANCE_ID. VERSION is packed as MAJOR[31:24], MINOR[23:16], PATCH[15:12], BUILD[11:0].</td></tr>
-<tr><td>0x02</td><td>0x008</td><td>CONTROL</td><td>RW</td><td>Bit 0 <b>soft_reset</b>, bits [7:4] <b>mode</b>, bit 8 <b>key_unsigned</b>, bit 12 <b>filter_enable</b>, bit 13 <b>filter_reject</b>, bit 24 <b>error</b> (RO), bits [31:28] <b>error_info</b> (RO).</td></tr>
+<tr><td>0x01</td><td>0x004</td><td>META</td><td>RW/RO</td><td>Read-multiplexed metadata word. Write <b>0</b>=VERSION, <b>1</b>=DATE, <b>2</b>=GIT, <b>3</b>=INSTANCE_ID.</td></tr>
+<tr><td>0x02</td><td>0x008</td><td>CONTROL</td><td>RW/RO</td><td>Bit 0 <b>apply</b>, bit 1 <b>apply_pending</b> (RO), bits [7:4] <b>mode</b>, bit 8 <b>key_unsigned</b>, bit 12 <b>filter_enable</b>, bit 13 <b>filter_reject</b>, bit 24 <b>error</b> (RO), bits [31:28] <b>error_info</b> (RO).</td></tr>
 <tr><td>0x03</td><td>0x00C</td><td>LEFT_BOUND</td><td>RW</td><td>Signed left boundary of the histogram range.</td></tr>
-<tr><td>0x04</td><td>0x010</td><td>RIGHT_BOUND</td><td>RW</td><td>Signed right boundary of the histogram range.</td></tr>
-<tr><td>0x05</td><td>0x014</td><td>BIN_WIDTH</td><td>RW</td><td>Bin width in key-space units (lower 16 bits).</td></tr>
+<tr><td>0x04</td><td>0x010</td><td>RIGHT_BOUND</td><td>RW</td><td>Signed right boundary of the histogram range. Recomputed at apply time when <b>BIN_WIDTH != 0</b>.</td></tr>
+<tr><td>0x05</td><td>0x014</td><td>BIN_WIDTH</td><td>RW</td><td>Bin width in key-space units, stored in bits [15:0]. Set to 0 to keep explicit left/right bounds.</td></tr>
 <tr><td>0x06</td><td>0x018</td><td>KEY_LOC</td><td>RW</td><td>Packed bit-slice locations: [31:24] filter_key_high, [23:16] filter_key_low, [15:8] update_key_high, [7:0] update_key_low.</td></tr>
 <tr><td>0x07</td><td>0x01C</td><td>KEY_VALUE</td><td>RW</td><td>Packed runtime key overrides: [31:16] filter_key, [15:0] update_key.</td></tr>
-<tr><td>0x08</td><td>0x020</td><td>UNDERFLOW_COUNT</td><td>RO</td><td>Count of keys mapping below the left boundary.</td></tr>
-<tr><td>0x09</td><td>0x024</td><td>OVERFLOW_COUNT</td><td>RO</td><td>Count of keys mapping above the right boundary.</td></tr>
+<tr><td>0x08</td><td>0x020</td><td>UNDERFLOW_COUNT</td><td>RO</td><td>Count of keys mapped below the configured range.</td></tr>
+<tr><td>0x09</td><td>0x024</td><td>OVERFLOW_COUNT</td><td>RO</td><td>Count of keys mapped above the configured range.</td></tr>
 <tr><td>0x0A</td><td>0x028</td><td>INTERVAL_CFG</td><td>RW</td><td>Ping-pong interval timer configuration in clock cycles.</td></tr>
-<tr><td>0x0B</td><td>0x02C</td><td>BANK_STATUS</td><td>RO</td><td>Ping-pong bank swap and readout status.</td></tr>
-<tr><td>0x0C</td><td>0x030</td><td>PORT_STATUS</td><td>RO</td><td>Per-port ingress pipeline status flags.</td></tr>
-<tr><td>0x0D</td><td>0x034</td><td>TOTAL_HITS</td><td>RO</td><td>Total accepted hit count across all ports.</td></tr>
-<tr><td>0x0E</td><td>0x038</td><td>DROPPED_HITS</td><td>RO</td><td>Total dropped hits due to queue overflow.</td></tr>
-<tr><td>0x0F</td><td>0x03C</td><td>COAL_STATUS</td><td>RO</td><td>Coalescing queue occupancy and status.</td></tr>
+<tr><td>0x0B</td><td>0x02C</td><td>BANK_STATUS</td><td>RO</td><td>Ping-pong bank-selection and flush-progress status.</td></tr>
+<tr><td>0x0C</td><td>0x030</td><td>PORT_STATUS</td><td>RO</td><td>Ingress FIFO empty-mask and maximum observed fill level.</td></tr>
+<tr><td>0x0D</td><td>0x034</td><td>TOTAL_HITS</td><td>RO</td><td>Total accepted hit count across all active sources.</td></tr>
+<tr><td>0x0E</td><td>0x038</td><td>DROPPED_HITS</td><td>RO</td><td>Total dropped hits caused by FIFO or queue overflow.</td></tr>
+<tr><td>0x0F</td><td>0x03C</td><td>COAL_STATUS</td><td>RO</td><td>Coalescing-queue occupancy, occupancy max, and overflow count.</td></tr>
 <tr><td>0x10</td><td>0x040</td><td>SCRATCH</td><td>RW</td><td>General-purpose scratch register for integration testing.</td></tr>
+</table></html>}
+
+set META_FIELDS_HTML [format {<html><table border="1" cellpadding="3" width="100%%">
+<tr><th>Bit</th><th>Name</th><th>Access</th><th>Reset</th><th>Description</th></tr>
+<tr><td>1:0</td><td>meta_sel</td><td>RW</td><td>0</td><td>Selects the META read page: 0=VERSION, 1=DATE, 2=GIT, 3=INSTANCE_ID.</td></tr>
+<tr><td>31:2</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero on writeback of the selector word.</td></tr>
+</table><br/>
+<b>VERSION page layout</b><br/>
+<table border="1" cellpadding="3" width="100%%">
+<tr><th>Bit</th><th>Name</th><th>Access</th><th>Reset</th><th>Description</th></tr>
+<tr><td>31:24</td><td>major</td><td>RO</td><td>%d</td><td>Release major, aligned to the packaging year.</td></tr>
+<tr><td>23:16</td><td>minor</td><td>RO</td><td>%d</td><td>Feature revision within the release year.</td></tr>
+<tr><td>15:12</td><td>patch</td><td>RO</td><td>%d</td><td>Patch revision.</td></tr>
+<tr><td>11:0</td><td>build</td><td>RO</td><td>%d</td><td>Build stamp packed as MMDD.</td></tr>
+</table></html>} \
+    $VERSION_MAJOR_DEFAULT_CONST \
+    $VERSION_MINOR_DEFAULT_CONST \
+    $VERSION_PATCH_DEFAULT_CONST \
+    $BUILD_DEFAULT_CONST]
+
+set CONTROL_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
+<tr><th>Bit</th><th>Name</th><th>Access</th><th>Reset</th><th>Description</th></tr>
+<tr><td>0</td><td>apply</td><td>RW</td><td>0</td><td>Write 1 to request that the staged configuration becomes active after the ingress path drains.</td></tr>
+<tr><td>1</td><td>apply_pending</td><td>RO</td><td>0</td><td>1 while a committed configuration is waiting to settle into the live datapath.</td></tr>
+<tr><td>3:2</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+<tr><td>7:4</td><td>mode</td><td>RW</td><td>0</td><td>Mode selector. Negative 4-bit signed values route one of the debug inputs into the histogram path.</td></tr>
+<tr><td>8</td><td>key_unsigned</td><td>RW</td><td>1</td><td>1 selects unsigned update-key interpretation, 0 selects signed extraction.</td></tr>
+<tr><td>11:9</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+<tr><td>12</td><td>filter_enable</td><td>RW</td><td>0</td><td>Enables the runtime filter-key comparison.</td></tr>
+<tr><td>13</td><td>filter_reject</td><td>RW</td><td>0</td><td>0 accepts matching events, 1 rejects matching events.</td></tr>
+<tr><td>23:14</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+<tr><td>24</td><td>error</td><td>RO</td><td>0</td><td>Set when the last apply request failed CSR validation.</td></tr>
+<tr><td>27:25</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+<tr><td>31:28</td><td>error_info</td><td>RO</td><td>0</td><td>Validation error code. <b>0x1</b> indicates invalid bounds in auto-right-bound mode.</td></tr>
+</table></html>}
+
+set KEY_LOC_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
+<tr><th>Bit</th><th>Name</th><th>Access</th><th>Reset</th><th>Description</th></tr>
+<tr><td>7:0</td><td>update_key_low</td><td>RW</td><td>17</td><td>LSB of the update-key slice inside the snooped data word.</td></tr>
+<tr><td>15:8</td><td>update_key_high</td><td>RW</td><td>29</td><td>MSB of the update-key slice inside the snooped data word.</td></tr>
+<tr><td>23:16</td><td>filter_key_low</td><td>RW</td><td>35</td><td>LSB of the filter-key slice inside the snooped data word.</td></tr>
+<tr><td>31:24</td><td>filter_key_high</td><td>RW</td><td>38</td><td>MSB of the filter-key slice inside the snooped data word.</td></tr>
+</table></html>}
+
+set KEY_VALUE_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
+<tr><th>Bit</th><th>Name</th><th>Access</th><th>Reset</th><th>Description</th></tr>
+<tr><td>15:0</td><td>update_key</td><td>RW</td><td>0</td><td>Literal update-key override used by mode-dependent histogram logic.</td></tr>
+<tr><td>31:16</td><td>filter_key</td><td>RW</td><td>0</td><td>Literal filter-key comparison value.</td></tr>
+</table></html>}
+
+set BANK_STATUS_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
+<tr><th>Bit</th><th>Name</th><th>Access</th><th>Reset</th><th>Description</th></tr>
+<tr><td>0</td><td>active_bank</td><td>RO</td><td>0</td><td>Currently active write bank.</td></tr>
+<tr><td>1</td><td>flushing</td><td>RO</td><td>0</td><td>1 while the next active bank is being cleared.</td></tr>
+<tr><td>7:2</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+<tr><td>15:8</td><td>flush_addr</td><td>RO</td><td>0</td><td>Bin index currently being cleared.</td></tr>
+<tr><td>31:16</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+</table></html>}
+
+set PORT_STATUS_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
+<tr><th>Bit</th><th>Name</th><th>Access</th><th>Reset</th><th>Description</th></tr>
+<tr><td>7:0</td><td>fifo_empty_mask</td><td>RO</td><td>0xFF</td><td>One bit per ingress FIFO. 1 indicates the corresponding FIFO is empty.</td></tr>
+<tr><td>15:8</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+<tr><td>23:16</td><td>fifo_level_max</td><td>RO</td><td>0</td><td>Maximum observed FIFO fill level across the four ingress-port pairs.</td></tr>
+<tr><td>31:24</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+</table></html>}
+
+set COAL_STATUS_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
+<tr><th>Bit</th><th>Name</th><th>Access</th><th>Reset</th><th>Description</th></tr>
+<tr><td>7:0</td><td>queue_occupancy</td><td>RO</td><td>0</td><td>Current coalescing-queue occupancy.</td></tr>
+<tr><td>15:8</td><td>queue_occupancy_max</td><td>RO</td><td>0</td><td>Maximum queue occupancy observed in the current interval.</td></tr>
+<tr><td>31:16</td><td>queue_overflow_count</td><td>RO</td><td>0</td><td>Total number of queue-overflow events.</td></tr>
+</table></html>}
+
+set HIST_FILL_FMT_HTML {<html>
+<b>hist_fill_in / fill_in_1..7</b> — 39-bit Avalon-ST sink<br/>
+Sidebands: <b>channel[AVST_CHANNEL_WIDTH-1:0]</b>, <b>startofpacket</b>, <b>endofpacket</b><br/>
+<table border="1" cellpadding="3" width="100%">
+<tr><th>Bits</th><th>Field</th><th>Description</th></tr>
+<tr><td>38:35</td><td>filter key slice (default)</td><td>Default filter-key location. Runtime-programmable through <b>KEY_LOC</b>.</td></tr>
+<tr><td>34:30</td><td>payload / unused by default</td><td>Forwarded or ignored by the histogram core unless selected by a custom key map.</td></tr>
+<tr><td>29:17</td><td>update key slice (default)</td><td>Default update-key location used for binning. Runtime-programmable through <b>KEY_LOC</b>.</td></tr>
+<tr><td>16:0</td><td>payload / unused by default</td><td>Remaining data payload. Preserved on the snoop passthrough path.</td></tr>
+</table></html>}
+
+set FILL_OUT_FMT_HTML {<html>
+<b>fill_out</b> — 39-bit Avalon-ST source<br/>
+Sidebands: <b>channel[AVST_CHANNEL_WIDTH-1:0]</b>, optional <b>startofpacket</b>, optional <b>endofpacket</b><br/>
+<table border="1" cellpadding="3" width="100%">
+<tr><th>Bits</th><th>Field</th><th>Description</th></tr>
+<tr><td>38:0</td><td>forwarded ingress payload</td><td>Port-0 ingress word forwarded unchanged when <b>SNOOP_EN</b> is enabled. SOP/EOP are driven only when <b>ENABLE_PACKET</b> is enabled.</td></tr>
+</table></html>}
+
+set CTRL_FMT_HTML {<html>
+<b>ctrl</b> — 9-bit Avalon-ST sink<br/>
+<table border="1" cellpadding="3" width="100%">
+<tr><th>Bits</th><th>Field</th><th>Description</th></tr>
+<tr><td>8:0</td><td>reserved compatibility payload</td><td>Run-control transport kept for system-level compatibility. The current RTL always asserts <b>ready</b> and does not consume the payload bits.</td></tr>
+</table></html>}
+
+set DEBUG_FMT_HTML {<html>
+<b>debug_1..6</b> — 16-bit Avalon-ST sinks<br/>
+<table border="1" cellpadding="3" width="100%">
+<tr><th>Bits</th><th>Field</th><th>Description</th></tr>
+<tr><td>15:0</td><td>debug sample</td><td>Histogrammed directly when <b>CONTROL.mode</b> selects a negative debug source.</td></tr>
 </table></html>}
 
 # --- derived-value computation ----------------------------------------------------
@@ -80,6 +207,11 @@ proc compute_derived_values {} {
     set coal_depth     [get_parameter_value COAL_QUEUE_DEPTH]
     set enable_pp      [get_parameter_value ENABLE_PINGPONG]
     set n_ports        [get_parameter_value N_PORTS]
+
+    set min_hist_addr_w 1
+    if {$n_bins > 1} {
+        set min_hist_addr_w [ceil_log2 $n_bins]
+    }
 
     # M10K for bins: each true-dpram pair hosts up to 512 x 20 bits
     set m10k_pairs_bins   [expr {int(ceil(double($n_bins) / 512.0))}]
@@ -94,24 +226,26 @@ proc compute_derived_values {} {
     # M10K for coalescing queue
     set m10k_coal [expr {int(ceil(double($coal_depth) / 512.0)) * 2}]
 
-    set m10k_total [expr {$m10k_bins + $m10k_coal}]
-    set est_alm    [expr {350 + $n_ports * 45}]
+    set m10k_total  [expr {$m10k_bins + $m10k_coal}]
+    set est_alm     [expr {350 + $n_ports * 45}]
+    set flush_cycles $n_bins
 
-    set_parameter_value M10K_BINS_DERIVED  $m10k_bins
-    set_parameter_value M10K_COAL_DERIVED  $m10k_coal
-    set_parameter_value M10K_TOTAL_DERIVED $m10k_total
-    set_parameter_value DSP_COUNT_DERIVED  0
-    set_parameter_value EST_ALM_DERIVED    $est_alm
+    set_parameter_value M10K_BINS_DERIVED      $m10k_bins
+    set_parameter_value M10K_COAL_DERIVED      $m10k_coal
+    set_parameter_value M10K_TOTAL_DERIVED     $m10k_total
+    set_parameter_value DSP_COUNT_DERIVED      0
+    set_parameter_value EST_ALM_DERIVED        $est_alm
+    set_parameter_value HIST_ADDR_W_MIN_DERIVED $min_hist_addr_w
 
     catch {
-        set_display_item_property sizing_html TEXT "<html><b>Resource estimate</b><br/>Histogram bins M10K: <b>${m10k_bins}</b><br/>Coalescing queue M10K: <b>${m10k_coal}</b><br/>Total M10K: <b>${m10k_total}</b><br/>Estimated ALMs: ~<b>${est_alm}</b><br/>DSP blocks: <b>0</b></html>"
+        set_display_item_property sizing_html TEXT "<html><b>Resource estimate</b><br/>Histogram bins M10K: <b>${m10k_bins}</b><br/>Coalescing queue M10K: <b>${m10k_coal}</b><br/>Total M10K: <b>${m10k_total}</b><br/>Estimated ALMs: ~<b>${est_alm}</b><br/>Minimum hist_bin address width: <b>${min_hist_addr_w}</b> bits<br/>Worst-case bank flush length: <b>${flush_cycles}</b> cycles<br/>DSP blocks: <b>0</b></html>"
     }
     catch {
         set pp_status "disabled"
         if {[string equal -nocase $enable_pp "true"]} {
             set pp_status "enabled"
         }
-        set_display_item_property runtime_html TEXT "<html><b>Runtime behaviour</b><br/>Active ingress ports: <b>${n_ports}</b><br/>Coalescing queue depth: <b>${coal_depth}</b> entries<br/>Ping-pong rate readout: <b>${pp_status}</b></html>"
+        set_display_item_property runtime_html TEXT "<html><b>Runtime behaviour</b><br/>Active ingress ports: <b>${n_ports}</b><br/>Coalescing queue depth: <b>${coal_depth}</b> entries<br/>Ping-pong rate readout: <b>${pp_status}</b><br/>A clear or interval swap can require up to <b>${flush_cycles}</b> cycles to walk the full histogram depth.</html>"
     }
 }
 
@@ -120,25 +254,99 @@ proc compute_derived_values {} {
 proc validate {} {
     compute_derived_values
 
-    set sar_tick  [get_parameter_value SAR_TICK_WIDTH]
-    set sar_key   [get_parameter_value SAR_KEY_WIDTH]
-    set key_hi    [get_parameter_value UPDATE_KEY_BIT_HI]
-    set key_lo    [get_parameter_value UPDATE_KEY_BIT_LO]
-    set flt_hi    [get_parameter_value FILTER_KEY_BIT_HI]
-    set flt_lo    [get_parameter_value FILTER_KEY_BIT_LO]
-    set avst_w    [get_parameter_value AVST_DATA_WIDTH]
-    set max_cnt   [get_parameter_value MAX_COUNT_BITS]
-    set ver_maj   [get_parameter_value VERSION_MAJOR]
-    set ver_min   [get_parameter_value VERSION_MINOR]
-    set ver_pat   [get_parameter_value VERSION_PATCH]
-    set build_val [get_parameter_value BUILD]
-    set ip_uid_value    [get_parameter_value IP_UID]
-    set version_date    [get_parameter_value VERSION_DATE]
-    set version_git     [get_parameter_value VERSION_GIT]
-    set instance_id     [get_parameter_value INSTANCE_ID]
+    set n_bins         [get_parameter_value N_BINS]
+    set max_count_bits [get_parameter_value MAX_COUNT_BITS]
+    set def_left_bound [get_parameter_value DEF_LEFT_BOUND]
+    set def_bin_width  [get_parameter_value DEF_BIN_WIDTH]
+    set key_hi         [get_parameter_value UPDATE_KEY_BIT_HI]
+    set key_lo         [get_parameter_value UPDATE_KEY_BIT_LO]
+    set key_repr       [get_parameter_value UPDATE_KEY_REPRESENTATION]
+    set flt_hi         [get_parameter_value FILTER_KEY_BIT_HI]
+    set flt_lo         [get_parameter_value FILTER_KEY_BIT_LO]
+    set sar_tick       [get_parameter_value SAR_TICK_WIDTH]
+    set sar_key        [get_parameter_value SAR_KEY_WIDTH]
+    set n_ports        [get_parameter_value N_PORTS]
+    set channels_per_port [get_parameter_value CHANNELS_PER_PORT]
+    set coal_depth     [get_parameter_value COAL_QUEUE_DEPTH]
+    set avst_w         [get_parameter_value AVST_DATA_WIDTH]
+    set avst_ch_w      [get_parameter_value AVST_CHANNEL_WIDTH]
+    set def_interval   [get_parameter_value DEF_INTERVAL_CLOCKS]
+    set avs_addr_w     [get_parameter_value AVS_ADDR_WIDTH]
+    set n_debug        [get_parameter_value N_DEBUG_INTERFACE]
+    set debug_level    [get_parameter_value DEBUG]
+    set ver_maj        [get_parameter_value VERSION_MAJOR]
+    set ver_min        [get_parameter_value VERSION_MINOR]
+    set ver_pat        [get_parameter_value VERSION_PATCH]
+    set build_val      [get_parameter_value BUILD]
+    set ip_uid_value   [get_parameter_value IP_UID]
+    set version_date   [get_parameter_value VERSION_DATE]
+    set version_git    [get_parameter_value VERSION_GIT]
+    set instance_id    [get_parameter_value INSTANCE_ID]
 
-    if {$sar_tick < $sar_key} {
-        send_message error "SAR_TICK_WIDTH must be >= SAR_KEY_WIDTH."
+    set min_hist_addr_w 1
+    if {$n_bins > 1} {
+        set min_hist_addr_w [ceil_log2 $n_bins]
+    }
+
+    if {$n_bins < 1 || $n_bins > 2048} {
+        send_message error "N_BINS must stay in the range 1..2048."
+    }
+    if {$max_count_bits < 1 || $max_count_bits > 72} {
+        send_message error "MAX_COUNT_BITS must stay in the range 1..72."
+    }
+    if {$def_left_bound < -2147483648 || $def_left_bound > 2147483647} {
+        send_message error "DEF_LEFT_BOUND must stay in the signed 32-bit integer range."
+    }
+    if {$def_bin_width < 1 || $def_bin_width > 65535} {
+        send_message error "DEF_BIN_WIDTH must stay in the range 1..65535 because BIN_WIDTH is stored in 16 bits."
+    }
+    if {$key_hi < 0 || $key_hi > 255} {
+        send_message error "UPDATE_KEY_BIT_HI must stay in the range 0..255."
+    }
+    if {$key_lo < 0 || $key_lo > 255} {
+        send_message error "UPDATE_KEY_BIT_LO must stay in the range 0..255."
+    }
+    if {![string match "UNSIGNED" $key_repr] && ![string match "SIGNED" $key_repr]} {
+        send_message error "UPDATE_KEY_REPRESENTATION must be either UNSIGNED or SIGNED."
+    }
+    if {$flt_hi < 0 || $flt_hi > 255} {
+        send_message error "FILTER_KEY_BIT_HI must stay in the range 0..255."
+    }
+    if {$flt_lo < 0 || $flt_lo > 255} {
+        send_message error "FILTER_KEY_BIT_LO must stay in the range 0..255."
+    }
+    if {$sar_tick < 1 || $sar_tick > 127} {
+        send_message error "SAR_TICK_WIDTH must stay in the range 1..127."
+    }
+    if {$sar_key < 1 || $sar_key > 127} {
+        send_message error "SAR_KEY_WIDTH must stay in the range 1..127."
+    }
+    if {$n_ports != 1 && $n_ports != 2 && $n_ports != 4 && $n_ports != 8} {
+        send_message error "N_PORTS must stay in the set {1 2 4 8}."
+    }
+    if {$channels_per_port < 1 || $channels_per_port > 256} {
+        send_message error "CHANNELS_PER_PORT must stay in the range 1..256."
+    }
+    if {$coal_depth != 16 && $coal_depth != 32 && $coal_depth != 64 && $coal_depth != 128 && $coal_depth != 256 && $coal_depth != 512} {
+        send_message error "COAL_QUEUE_DEPTH must stay in the set {16 32 64 128 256 512}."
+    }
+    if {$avst_w < 1 || $avst_w > 512} {
+        send_message error "AVST_DATA_WIDTH must stay in the range 1..512."
+    }
+    if {$avst_ch_w < 1 || $avst_ch_w > 8} {
+        send_message error "AVST_CHANNEL_WIDTH must stay in the range 1..8."
+    }
+    if {$def_interval < 0 || $def_interval > 2147483647} {
+        send_message error "DEF_INTERVAL_CLOCKS must stay in the range 0..2147483647."
+    }
+    if {$avs_addr_w < 1 || $avs_addr_w > 16} {
+        send_message error "AVS_ADDR_WIDTH must stay in the range 1..16."
+    }
+    if {$n_debug < 0 || $n_debug > 6} {
+        send_message error "N_DEBUG_INTERFACE must stay in the range 0..6."
+    }
+    if {$debug_level < 0 || $debug_level > 2} {
+        send_message error "DEBUG must stay in the range 0..2."
     }
     if {$key_hi < $key_lo} {
         send_message error "UPDATE_KEY_BIT_HI must be >= UPDATE_KEY_BIT_LO."
@@ -146,14 +354,17 @@ proc validate {} {
     if {$flt_hi < $flt_lo} {
         send_message error "FILTER_KEY_BIT_HI must be >= FILTER_KEY_BIT_LO."
     }
+    if {$sar_tick < $sar_key} {
+        send_message error "SAR_TICK_WIDTH must be >= SAR_KEY_WIDTH."
+    }
     if {$key_hi >= $avst_w} {
         send_message error "UPDATE_KEY_BIT_HI must be < AVST_DATA_WIDTH."
     }
     if {$flt_hi >= $avst_w} {
         send_message error "FILTER_KEY_BIT_HI must be < AVST_DATA_WIDTH."
     }
-    if {$max_cnt < 1 || $max_cnt > 72} {
-        send_message error "MAX_COUNT_BITS must stay in the range 1..72."
+    if {$avs_addr_w < $min_hist_addr_w} {
+        send_message error "AVS_ADDR_WIDTH must be at least ceil(log2(N_BINS)) so the hist_bin slave can address every bin."
     }
     if {$ver_maj < 0 || $ver_maj > 255} {
         send_message error "VERSION_MAJOR must stay in the range 0..255."
@@ -186,14 +397,33 @@ proc elaborate {} {
 
     set data_w  [get_parameter_value AVST_DATA_WIDTH]
     set chan_w  [get_parameter_value AVST_CHANNEL_WIDTH]
+    set n_bins  [get_parameter_value N_BINS]
     set n_ports [get_parameter_value N_PORTS]
     set n_debug [get_parameter_value N_DEBUG_INTERFACE]
+
+    set min_hist_addr_w 1
+    if {$n_bins > 1} {
+        set min_hist_addr_w [ceil_log2 $n_bins]
+    }
+
+    set_parameter_property DEF_BIN_WIDTH ALLOWED_RANGES 1:65535
+    set_parameter_property AVS_ADDR_WIDTH ALLOWED_RANGES ${min_hist_addr_w}:16
+    set_parameter_property VERSION_MAJOR ENABLED false
+    set_parameter_property VERSION_MINOR ENABLED false
+    set_parameter_property VERSION_PATCH ENABLED false
+    set_parameter_property BUILD ENABLED false
+    set_parameter_property VERSION_DATE ENABLED false
+    if {[get_parameter_value GIT_STAMP_OVERRIDE]} {
+        set_parameter_property VERSION_GIT ENABLED true
+    } else {
+        set_parameter_property VERSION_GIT ENABLED false
+    }
 
     set_optional_stream hist_fill_in 1 $data_w $chan_w
     for {set idx 1} {$idx <= 7} {incr idx} {
         set_optional_stream fill_in_$idx [expr {$n_ports > $idx}] $data_w $chan_w
     }
-    set_optional_stream fill_out [bool_param ENABLE_PACKET] $data_w $chan_w
+    set_optional_stream fill_out 1 $data_w $chan_w
 
     for {set idx 1} {$idx <= 6} {incr idx} {
         set_interface_property debug_$idx ENABLED [expr {$n_debug >= $idx ? "true" : "false"}]
@@ -238,14 +468,14 @@ set_parameter_property DEF_LEFT_BOUND DISPLAY_NAME "Default Left Bound"
 set_parameter_property DEF_LEFT_BOUND UNITS None
 set_parameter_property DEF_LEFT_BOUND ALLOWED_RANGES -2147483648:2147483647
 set_parameter_property DEF_LEFT_BOUND HDL_PARAMETER true
-set_parameter_property DEF_LEFT_BOUND DESCRIPTION "Power-on default signed left boundary of the histogram range. Overridable at runtime through CSR word 1."
+set_parameter_property DEF_LEFT_BOUND DESCRIPTION "Power-on default signed left boundary of the histogram range. Overridable at runtime through CSR word 3."
 
 add_parameter DEF_BIN_WIDTH NATURAL 16
 set_parameter_property DEF_BIN_WIDTH DISPLAY_NAME "Default Bin Width"
 set_parameter_property DEF_BIN_WIDTH UNITS None
-set_parameter_property DEF_BIN_WIDTH ALLOWED_RANGES 1:2147483647
+set_parameter_property DEF_BIN_WIDTH ALLOWED_RANGES 1:65535
 set_parameter_property DEF_BIN_WIDTH HDL_PARAMETER true
-set_parameter_property DEF_BIN_WIDTH DESCRIPTION "Power-on default bin width in key-space units. Overridable at runtime through CSR word 3."
+set_parameter_property DEF_BIN_WIDTH DESCRIPTION "Power-on default bin width in key-space units. Overridable at runtime through CSR word 5."
 
 # -- Key extraction --
 
@@ -312,7 +542,7 @@ set_parameter_property CHANNELS_PER_PORT DISPLAY_NAME "Channels per Port"
 set_parameter_property CHANNELS_PER_PORT UNITS None
 set_parameter_property CHANNELS_PER_PORT ALLOWED_RANGES 1:256
 set_parameter_property CHANNELS_PER_PORT HDL_PARAMETER true
-set_parameter_property CHANNELS_PER_PORT DESCRIPTION "Maximum channel count per ingress port."
+set_parameter_property CHANNELS_PER_PORT DESCRIPTION "Logical channel stride added per ingress port before binning."
 
 add_parameter COAL_QUEUE_DEPTH NATURAL 256
 set_parameter_property COAL_QUEUE_DEPTH DISPLAY_NAME "Coalescing Queue Depth"
@@ -341,14 +571,14 @@ add_parameter ENABLE_PINGPONG BOOLEAN true
 set_parameter_property ENABLE_PINGPONG DISPLAY_NAME "Enable Ping-Pong Rate Mode"
 set_parameter_property ENABLE_PINGPONG UNITS None
 set_parameter_property ENABLE_PINGPONG HDL_PARAMETER true
-set_parameter_property ENABLE_PINGPONG DESCRIPTION "Enable dual-bank ping-pong SRAM with periodic automatic bank swap. When disabled, a single bank is used and the interval timer has no effect."
+set_parameter_property ENABLE_PINGPONG DESCRIPTION "Enable dual-bank ping-pong SRAM with periodic automatic bank swap. When disabled, a single bank is used and the interval timer only controls clear timing."
 
 add_parameter DEF_INTERVAL_CLOCKS NATURAL 125000000
 set_parameter_property DEF_INTERVAL_CLOCKS DISPLAY_NAME "Default Interval (clocks)"
 set_parameter_property DEF_INTERVAL_CLOCKS UNITS None
 set_parameter_property DEF_INTERVAL_CLOCKS ALLOWED_RANGES 0:2147483647
 set_parameter_property DEF_INTERVAL_CLOCKS HDL_PARAMETER true
-set_parameter_property DEF_INTERVAL_CLOCKS DESCRIPTION "Power-on default ping-pong interval in clock cycles. 125000000 = 1 second at 125 MHz. Overridable at runtime through CSR word 8."
+set_parameter_property DEF_INTERVAL_CLOCKS DESCRIPTION "Power-on default ping-pong interval in clock cycles. 125000000 = 1 second at 125 MHz. Overridable at runtime through CSR word 10."
 
 # -- Pass-through / snooping --
 
@@ -362,7 +592,7 @@ add_parameter ENABLE_PACKET BOOLEAN true
 set_parameter_property ENABLE_PACKET DISPLAY_NAME "Packet Support"
 set_parameter_property ENABLE_PACKET UNITS None
 set_parameter_property ENABLE_PACKET HDL_PARAMETER true
-set_parameter_property ENABLE_PACKET DESCRIPTION "Enable start-of-packet / end-of-packet signalling on the passthrough path."
+set_parameter_property ENABLE_PACKET DESCRIPTION "Enable start-of-packet / end-of-packet signalling on the passthrough path. Valid, data, and channel remain part of the contract regardless of this toggle."
 
 # -- Memory-mapped --
 
@@ -396,24 +626,28 @@ set_parameter_property VERSION_MAJOR DISPLAY_NAME "Version Major"
 set_parameter_property VERSION_MAJOR UNITS None
 set_parameter_property VERSION_MAJOR ALLOWED_RANGES 0:255
 set_parameter_property VERSION_MAJOR HDL_PARAMETER true
+set_parameter_property VERSION_MAJOR ENABLED false
 
 add_parameter VERSION_MINOR NATURAL $VERSION_MINOR_DEFAULT_CONST
 set_parameter_property VERSION_MINOR DISPLAY_NAME "Version Minor"
 set_parameter_property VERSION_MINOR UNITS None
 set_parameter_property VERSION_MINOR ALLOWED_RANGES 0:255
 set_parameter_property VERSION_MINOR HDL_PARAMETER true
+set_parameter_property VERSION_MINOR ENABLED false
 
 add_parameter VERSION_PATCH NATURAL $VERSION_PATCH_DEFAULT_CONST
 set_parameter_property VERSION_PATCH DISPLAY_NAME "Version Patch"
 set_parameter_property VERSION_PATCH UNITS None
 set_parameter_property VERSION_PATCH ALLOWED_RANGES 0:15
 set_parameter_property VERSION_PATCH HDL_PARAMETER true
+set_parameter_property VERSION_PATCH ENABLED false
 
 add_parameter BUILD NATURAL $BUILD_DEFAULT_CONST
 set_parameter_property BUILD DISPLAY_NAME "Build Stamp"
 set_parameter_property BUILD UNITS None
 set_parameter_property BUILD ALLOWED_RANGES 0:4095
 set_parameter_property BUILD HDL_PARAMETER true
+set_parameter_property BUILD ENABLED false
 set_parameter_property BUILD DESCRIPTION {12-bit build stamp packed into VERSION[11:0].}
 
 # -- Identity header --
@@ -431,6 +665,7 @@ set_parameter_property VERSION_DATE DISPLAY_NAME "Version Date"
 set_parameter_property VERSION_DATE UNITS None
 set_parameter_property VERSION_DATE ALLOWED_RANGES 0:2147483647
 set_parameter_property VERSION_DATE HDL_PARAMETER true
+set_parameter_property VERSION_DATE ENABLED false
 set_parameter_property VERSION_DATE DESCRIPTION {YYYYMMDD provenance word exposed through META when software writes selector 1.}
 
 add_parameter VERSION_GIT NATURAL $VERSION_GIT_DEFAULT_CONST
@@ -439,7 +674,14 @@ set_parameter_property VERSION_GIT UNITS None
 set_parameter_property VERSION_GIT ALLOWED_RANGES 0:2147483647
 set_parameter_property VERSION_GIT HDL_PARAMETER true
 set_parameter_property VERSION_GIT DISPLAY_HINT hexadecimal
+set_parameter_property VERSION_GIT ENABLED false
 set_parameter_property VERSION_GIT DESCRIPTION {Truncated build git hash exposed through META when software writes selector 2.}
+
+add_parameter GIT_STAMP_OVERRIDE BOOLEAN false
+set_parameter_property GIT_STAMP_OVERRIDE DISPLAY_NAME "Override Git Stamp"
+set_parameter_property GIT_STAMP_OVERRIDE UNITS None
+set_parameter_property GIT_STAMP_OVERRIDE HDL_PARAMETER false
+set_parameter_property GIT_STAMP_OVERRIDE DESCRIPTION "When enabled, allows manual entry of VERSION_GIT. When disabled, the packaged git stamp remains read-only."
 
 add_parameter INSTANCE_ID NATURAL $INSTANCE_ID_DEFAULT_CONST
 set_parameter_property INSTANCE_ID DISPLAY_NAME "Instance ID"
@@ -450,7 +692,7 @@ set_parameter_property INSTANCE_ID DESCRIPTION {Integration-time instance identi
 
 # -- Derived (hidden) --
 
-foreach derived_name {M10K_BINS_DERIVED M10K_COAL_DERIVED M10K_TOTAL_DERIVED DSP_COUNT_DERIVED EST_ALM_DERIVED} {
+foreach derived_name {M10K_BINS_DERIVED M10K_COAL_DERIVED M10K_TOTAL_DERIVED DSP_COUNT_DERIVED EST_ALM_DERIVED HIST_ADDR_W_MIN_DERIVED} {
     add_parameter $derived_name NATURAL 0
     set_parameter_property $derived_name HDL_PARAMETER false
     set_parameter_property $derived_name DERIVED true
@@ -471,8 +713,9 @@ add_display_item $TAB_CONFIGURATION "Key Extraction" GROUP
 add_display_item $TAB_CONFIGURATION "Ingress" GROUP
 add_display_item $TAB_CONFIGURATION "Ping-Pong / Interval" GROUP
 add_display_item $TAB_CONFIGURATION "Resources" GROUP
+add_display_item $TAB_CONFIGURATION "Debug Inputs" GROUP
 
-add_html_text "Overview" overview_html "<html><b>Function</b><br/>Multi-port coalescing histogram with pipelined bin index and ping-pong rate readout. Accepts up to 8 Avalon-ST ingress ports, extracts a configurable key field, maps keys to bin indices via a SAR-style divider, coalesces concurrent updates through a shared queue, and stores counts in dual-bank M10K SRAM with automatic interval-based bank swap.<br/><br/><b>Data path</b><br/>ingress &rarr; hit_fifo (per port) &rarr; rr_arbiter &rarr; bin_divider &rarr; coalescing_queue &rarr; pingpong_sram<br/><br/><b>Clocking</b><br/>All interfaces run inside a single synchronous domain. The optional <b>interval_reset</b> sink triggers a manual bank swap when the periodic timer is not used.</html>"
+add_html_text "Overview" overview_html {<html><b>Function</b><br/>Multi-port coalescing histogram with pipelined bin index and ping-pong rate readout. Accepts up to 8 Avalon-ST ingress ports, extracts a configurable key field, maps keys to bin indices via a SAR-style divider, coalesces concurrent updates through a shared queue, and stores counts in dual-bank M10K SRAM with automatic interval-based bank swap.<br/><br/><b>Data path</b><br/>ingress -&gt; hit_fifo (per port) -&gt; rr_arbiter -&gt; bin_divider -&gt; coalescing_queue -&gt; pingpong_sram<br/><br/><b>Clocking</b><br/>All interfaces run inside a single synchronous domain. The optional <b>interval_reset</b> sink triggers a manual clear / bank-swap event independently of the periodic timer.</html>}
 
 add_display_item "Histogram Sizing" N_BINS parameter
 add_display_item "Histogram Sizing" MAX_COUNT_BITS parameter
@@ -487,12 +730,14 @@ add_display_item "Key Extraction" FILTER_KEY_BIT_HI parameter
 add_display_item "Key Extraction" FILTER_KEY_BIT_LO parameter
 add_display_item "Key Extraction" SAR_TICK_WIDTH parameter
 add_display_item "Key Extraction" SAR_KEY_WIDTH parameter
+add_html_text "Key Extraction" key_html {<html><b>Default slices</b><br/>The delivered package bins the default update-key slice <b>data[29:17]</b> and compares the default filter-key slice <b>data[38:35]</b>. Both slices are runtime-programmable through <b>KEY_LOC</b>.<br/><br/><b>Signed / unsigned</b><br/><b>UPDATE_KEY_REPRESENTATION</b> controls the power-on interpretation of the update key. The live datapath can be switched at runtime through <b>CONTROL.key_unsigned</b>.</html>}
 
 add_display_item "Ingress" N_PORTS parameter
 add_display_item "Ingress" CHANNELS_PER_PORT parameter
 add_display_item "Ingress" COAL_QUEUE_DEPTH parameter
 add_display_item "Ingress" AVST_DATA_WIDTH parameter
 add_display_item "Ingress" AVST_CHANNEL_WIDTH parameter
+add_html_text "Ingress" ingress_html {<html><b>Port scaling</b><br/>Each enabled ingress port owns an elastic FIFO before the shared round-robin arbiter. Ports above <b>N_PORTS</b> stay disabled in the Platform Designer interface contract.<br/><br/><b>Channel stride</b><br/><b>CHANNELS_PER_PORT</b> is added as a per-port offset before binning so multiple ingress links can be flattened into one histogram namespace.</html>}
 
 add_display_item "Ping-Pong / Interval" ENABLE_PINGPONG parameter
 add_display_item "Ping-Pong / Interval" DEF_INTERVAL_CLOCKS parameter
@@ -501,26 +746,27 @@ add_display_item "Ping-Pong / Interval" ENABLE_PACKET parameter
 add_display_item "Ping-Pong / Interval" AVS_ADDR_WIDTH parameter
 add_html_text "Ping-Pong / Interval" runtime_html "<html><b>Runtime behaviour</b><br/>Updated by the validation callback.</html>"
 
-add_html_text "Resources" resources_html "<html><b>Integration notes</b><br/>1. The CSR aperture is <b>17</b> words (5-bit address). Words 0-1 are the standard identity header (UID + META). Words 2-16 hold control, histogram bounds, key configuration, status counters, and scratch.<br/>2. The <b>hist_bin</b> Avalon-MM slave provides burst-capable readout of the histogram SRAM with word-addressed access.<br/>3. The coalescing queue serializes concurrent bin updates from all ingress ports before they reach the histogram SRAM, preventing read-modify-write hazards.</html>"
+add_html_text "Resources" resources_html {<html><b>Integration notes</b><br/>1. The CSR aperture is <b>17</b> words (5-bit address). Words 0-1 are the standard identity header (UID + META). Words 2-16 hold control, histogram bounds, key configuration, status counters, and scratch.<br/>2. The <b>hist_bin</b> Avalon-MM slave provides burst-capable readout of the histogram SRAM with word-addressed access.<br/>3. The coalescing queue serializes concurrent bin updates from all ingress sources before they reach the histogram SRAM, preventing read-modify-write hazards.</html>}
+
+add_html_text "Debug Inputs" debug_cfg_html {<html><b>Debug control</b><br/>The RTL exports up to 6 optional 16-bit Avalon-ST debug sinks. Negative signed values in <b>CONTROL.mode</b> select <b>debug_1..6</b> as the histogram source instead of the normal ingress ports.</html>}
+add_display_item "Debug Inputs" N_DEBUG_INTERFACE parameter
+add_display_item "Debug Inputs" DEBUG parameter
 
 add_display_item "" $TAB_IDENTITY GROUP tab
 add_display_item $TAB_IDENTITY "Delivered Profile" GROUP
 add_display_item $TAB_IDENTITY "Versioning" GROUP
-add_display_item $TAB_IDENTITY "Debug" GROUP
 
-add_html_text "Delivered Profile" profile_html {<html><b>Catalog revision</b><br/>This release is packaged as <b>26.1.0.0410</b>.<br/><br/><b>Common identity header</b><br/>Word <b>0</b> is <b>UID</b> (default ASCII "HIST").<br/>Word <b>1</b> is <b>META</b>: write 0=VERSION, 1=DATE, 2=GIT, 3=INSTANCE_ID.<br/>Software can blind-scan the CSR window through UID at word 0 and the META mux at word 1.</html>}
-add_html_text "Versioning" versioning_html {<html><b>VERSION encoding</b><br/>Accessible via META word 1 (write selector 0).<br/>VERSION[31:24] = MAJOR, VERSION[23:16] = MINOR, VERSION[15:12] = PATCH, VERSION[11:0] = BUILD.</html>}
+add_html_text "Delivered Profile" profile_html [format {<html><b>Catalog revision</b><br/>This release is packaged as <b>%s</b>.<br/><br/><b>Common identity header</b><br/>Word <b>0</b> is <b>UID</b> (default ASCII "HIST").<br/>Word <b>1</b> is <b>META</b>: write 0=VERSION, 1=DATE, 2=GIT, 3=INSTANCE_ID.<br/>Software can blind-scan the CSR window through UID at word 0 and the META mux at word 1.</html>} $VERSION_STRING_DEFAULT_CONST]
+add_html_text "Versioning" versioning_html [format {<html><b>VERSION encoding</b><br/>Accessible via META word 1 (write selector 0).<br/>VERSION[31:24] = MAJOR, VERSION[23:16] = MINOR, VERSION[15:12] = PATCH, VERSION[11:0] = BUILD.<br/><br/><b>Packaged git stamp</b><br/>Default <b>VERSION_GIT</b> = <b>%s</b>. Enable <b>Override Git Stamp</b> to enter a custom value.</html>} $VERSION_GIT_HEX_DEFAULT_CONST]
+add_display_item "Versioning" IP_UID parameter
 add_display_item "Versioning" VERSION_MAJOR parameter
 add_display_item "Versioning" VERSION_MINOR parameter
 add_display_item "Versioning" VERSION_PATCH parameter
 add_display_item "Versioning" BUILD parameter
-add_display_item "Versioning" IP_UID parameter
 add_display_item "Versioning" VERSION_DATE parameter
 add_display_item "Versioning" VERSION_GIT parameter
+add_display_item "Versioning" GIT_STAMP_OVERRIDE parameter
 add_display_item "Versioning" INSTANCE_ID parameter
-add_html_text "Debug" debug_html "<html><b>Debug control</b><br/>The RTL exports up to 6 optional 16-bit Avalon-ST debug sinks controlled by the <b>N_DEBUG_INTERFACE</b> and <b>DEBUG</b> parameters below.</html>"
-add_display_item "Debug" N_DEBUG_INTERFACE parameter
-add_display_item "Debug" DEBUG parameter
 
 add_display_item "" $TAB_INTERFACES GROUP tab
 add_display_item $TAB_INTERFACES "Clock / Reset" GROUP
@@ -528,14 +774,34 @@ add_display_item $TAB_INTERFACES "Data Path" GROUP
 add_display_item $TAB_INTERFACES "Control Path" GROUP
 add_display_item $TAB_INTERFACES "Monitoring" GROUP
 
-add_html_text "Clock / Reset" clock_html "<html><b>clock</b> and <b>reset</b><br/>Single synchronous clock/reset domain for the full histogram datapath and CSR logic.<br/><br/><b>interval_reset</b><br/>Optional reset sink that triggers a manual ping-pong bank swap independently of the periodic timer.</html>"
-add_html_text "Data Path" datapath_html "<html><b>hist_fill_in</b><br/>Primary Avalon-ST sink carrying the data stream to be histogrammed.<br/><br/><b>fill_in_1..7</b><br/>Additional Avalon-ST sinks enabled when N_PORTS &gt; 1. Each port has an independent hit FIFO feeding the round-robin arbiter.<br/><br/><b>fill_out</b><br/>Passthrough Avalon-ST source that forwards the primary ingress stream with zero added latency when snooping is enabled.</html>"
-add_html_text "Control Path" control_html "<html><b>csr</b><br/>Word-addressed Avalon-MM CSR window with 17 registers (5-bit address). Words 0-1 provide the standard identity header (UID + META mux). Words 2-16 hold runtime configuration of histogram bounds, bin width, key locations, filter control, status readback, and scratch.<br/><br/><b>hist_bin</b><br/>Burst-capable Avalon-MM slave for histogram bin readout. Address width is configurable.<br/><br/><b>ctrl</b><br/>9-bit Avalon-ST run-control sink.</html>"
-add_html_text "Monitoring" monitor_html "<html><b>debug_1..6</b><br/>Optional 16-bit Avalon-ST debug sinks for integration-time signal monitoring. The number of active debug interfaces is controlled by <b>N_DEBUG_INTERFACE</b>.</html>"
+add_html_text "Clock / Reset" clock_html {<html><b>clock</b> and <b>reset</b><br/>Single synchronous clock/reset domain for the full histogram datapath and CSR logic.<br/><br/><b>interval_reset</b><br/>Optional reset sink that triggers a manual clear / interval event independently of the periodic timer.</html>}
+add_html_text "Data Path" datapath_html {<html><b>hist_fill_in</b><br/>Primary Avalon-ST sink carrying the data stream to be histogrammed.<br/><br/><b>fill_in_1..7</b><br/>Additional Avalon-ST sinks enabled when <b>N_PORTS &gt; 1</b>. Each port has an independent hit FIFO feeding the round-robin arbiter.<br/><br/><b>fill_out</b><br/>Passthrough Avalon-ST source that forwards the primary ingress stream when snooping is enabled.</html>}
+add_html_text "Data Path" hist_fill_fmt_html $HIST_FILL_FMT_HTML
+add_html_text "Data Path" fill_out_fmt_html $FILL_OUT_FMT_HTML
+
+add_html_text "Control Path" control_html {<html><b>csr</b><br/>Word-addressed Avalon-MM CSR window with 17 registers (5-bit address). Words 0-1 provide the standard identity header (UID + META mux). Words 2-16 hold runtime configuration of histogram bounds, bin width, key locations, filter control, status readback, and scratch.<br/><br/><b>hist_bin</b><br/>Burst-capable Avalon-MM slave for histogram bin readout. Writing 0 to the slave triggers measure-and-clear.<br/><br/><b>ctrl</b><br/>9-bit Avalon-ST run-control sink retained for compatibility with existing system-level wiring. The current RTL always accepts the stream and ignores the payload.</html>}
+add_html_text "Control Path" ctrl_fmt_html $CTRL_FMT_HTML
+
+add_html_text "Monitoring" monitor_html {<html><b>debug_1..6</b><br/>Optional 16-bit Avalon-ST debug sinks for integration-time signal monitoring. The number of active debug interfaces is controlled by <b>N_DEBUG_INTERFACE</b>.</html>}
+add_html_text "Monitoring" debug_fmt_html $DEBUG_FMT_HTML
 
 add_display_item "" $TAB_REGMAP GROUP tab
 add_display_item $TAB_REGMAP "CSR Window" GROUP
 add_html_text "CSR Window" csr_table_html $CSR_TABLE_HTML
+add_display_item $TAB_REGMAP "META Fields (0x01)" GROUP
+add_html_text "META Fields (0x01)" meta_fields_html $META_FIELDS_HTML
+add_display_item $TAB_REGMAP "CONTROL Fields (0x02)" GROUP
+add_html_text "CONTROL Fields (0x02)" control_fields_html $CONTROL_FIELDS_HTML
+add_display_item $TAB_REGMAP "KEY_LOC Fields (0x06)" GROUP
+add_html_text "KEY_LOC Fields (0x06)" key_loc_fields_html $KEY_LOC_FIELDS_HTML
+add_display_item $TAB_REGMAP "KEY_VALUE Fields (0x07)" GROUP
+add_html_text "KEY_VALUE Fields (0x07)" key_value_fields_html $KEY_VALUE_FIELDS_HTML
+add_display_item $TAB_REGMAP "BANK_STATUS Fields (0x0B)" GROUP
+add_html_text "BANK_STATUS Fields (0x0B)" bank_status_fields_html $BANK_STATUS_FIELDS_HTML
+add_display_item $TAB_REGMAP "PORT_STATUS Fields (0x0C)" GROUP
+add_html_text "PORT_STATUS Fields (0x0C)" port_status_fields_html $PORT_STATUS_FIELDS_HTML
+add_display_item $TAB_REGMAP "COAL_STATUS Fields (0x0F)" GROUP
+add_html_text "COAL_STATUS Fields (0x0F)" coal_status_fields_html $COAL_STATUS_FIELDS_HTML
 
 # --- interfaces -------------------------------------------------------------------
 
