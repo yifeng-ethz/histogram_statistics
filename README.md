@@ -231,6 +231,9 @@ System Contents with `hist_0` instance, and the parameter editor showing
 Configuration, Identity, Interfaces, and Register Map tabs:
 
 ![Platform Designer — Configuration tab](doc/pd_configuration.png)
+![Platform Designer — Identity tab](doc/pd_identity.png)
+![Platform Designer — Interfaces tab](doc/pd_interfaces.png)
+![Platform Designer — Register Map tab](doc/pd_register_map.png)
 
 ---
 
