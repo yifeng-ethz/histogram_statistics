@@ -7,6 +7,7 @@ transcript
 tr_db.log
 uvm/cov_runs/
 uvm/smoke_*.txt
+uvm/scripts/__pycache__/
 
 # Quartus incremental DB
 db/
