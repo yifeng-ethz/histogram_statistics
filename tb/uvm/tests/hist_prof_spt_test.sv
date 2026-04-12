@@ -27,6 +27,7 @@ class hist_prof_spt_test extends hist_base_test;
       send_fill_word(0, make_fill_word(i % 256));
       repeat (96) @(cfg.probe_vif.mon_cb);
     end
+    wait_pipeline_drain(256);
     csr_read(CSR_TOTAL_HITS, total);
     csr_read(CSR_DROPPED, dropped);
     if (dropped !== 32'd0)
@@ -43,6 +44,7 @@ class hist_prof_spt_test extends hist_base_test;
       send_fill_word(0, make_fill_word(i % 256));
       repeat (6) @(cfg.probe_vif.mon_cb);
     end
+    wait_pipeline_drain(256);
     csr_read(CSR_TOTAL_HITS, total);
     csr_read(CSR_DROPPED, dropped);
     if (dropped !== 32'd0)
@@ -57,6 +59,7 @@ class hist_prof_spt_test extends hist_base_test;
     configure();
     for (int i = 0; i < 200; i++)
       send_fill_word(0, make_fill_word(i % 256));
+    wait_pipeline_drain(256);
     csr_read(CSR_TOTAL_HITS, total);
     csr_read(CSR_DROPPED, dropped);
     if (dropped !== 32'd0)

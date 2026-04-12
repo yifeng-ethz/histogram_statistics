@@ -1,0 +1,16 @@
+set_global_assignment -name FAMILY "Arria 10"
+set_global_assignment -name DEVICE 10AX115U4F45I3SG
+set_global_assignment -name TOP_LEVEL_ENTITY histogram_statistics_v2
+set_global_assignment -name VHDL_INPUT_VERSION VHDL_2008
+set_global_assignment -name FLOW_ENABLE_DESIGN_ASSISTANT ON
+set_global_assignment -name FLOW_ENABLE_INTERACTIVE_DESIGN_ASSISTANT ON
+set_global_assignment -name FLOW_ENABLE_HDL_DESIGN_ANALYZER ON
+set_global_assignment -name VHDL_FILE /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2_pkg.vhd
+set_global_assignment -name VHDL_FILE /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/true_dual_port_ram_single_clock.vhd
+set_global_assignment -name VHDL_FILE /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/alt_dpram/alt_dpram_true.vhd
+set_global_assignment -name VHDL_FILE /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/hit_fifo.vhd
+set_global_assignment -name VHDL_FILE /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/rr_arbiter.vhd
+set_global_assignment -name VHDL_FILE /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd
+set_global_assignment -name VHDL_FILE /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/coalescing_queue.vhd
+set_global_assignment -name VHDL_FILE /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/pingpong_sram.vhd
+set_global_assignment -name VHDL_FILE /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd

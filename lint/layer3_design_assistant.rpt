@@ -1,0 +1,57 @@
+Error (125048): Error reading Quartus Prime Settings file /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/lint/quartus_proj/histogram_statistics.qsf, line 6 File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/lint/quartus_proj/histogram_statistics.qsf Line: 6
+    Info (125063): set_global_assignment -name FLOW_ENABLE_INTERACTIVE_DESIGN_ASSISTANT ON File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/lint/quartus_proj/histogram_statistics.qsf Line: 6
+Error (125048): Error reading Quartus Prime Settings file /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/lint/quartus_proj/histogram_statistics.qsf, line 7 File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/lint/quartus_proj/histogram_statistics.qsf Line: 7
+    Info (125063): set_global_assignment -name FLOW_ENABLE_HDL_DESIGN_ANALYZER ON File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/lint/quartus_proj/histogram_statistics.qsf Line: 7
+Info: *******************************************************************
+Info: Running Quartus Prime Synthesis
+    Info: Version 23.1.0 Build 115 03/30/2023 SC Pro Edition
+    Info: Copyright (C) 2023  Intel Corporation. All rights reserved.
+    Info: Your use of Intel Corporation's design tools, logic functions 
+    Info: and other software and tools, and any partner logic 
+    Info: functions, and any output files from any of the foregoing 
+    Info: (including device programming or simulation files), and any 
+    Info: associated documentation or information are expressly subject 
+    Info: to the terms and conditions of the Intel Program License 
+    Info: Subscription Agreement, the Intel Quartus Prime License Agreement,
+    Info: the Intel FPGA IP License Agreement, or other applicable license
+    Info: agreement, including, without limitation, that your use is for
+    Info: the sole purpose of programming logic devices manufactured by
+    Info: Intel and sold by Intel or its authorized distributors.  Please
+    Info: refer to the applicable agreement for further details, at
+    Info: https://fpgasoftware.intel.com/eula.
+    Info: Processing started: Sun Apr 12 11:20:20 2026
+    Info: System process ID: 7437
+Info: Command: quartus_syn histogram_statistics --analysis_and_elaboration
+Info: qis_default_flow_script.tcl version: #1
+Info: Initializing Synthesis...
+Info: Project = "histogram_statistics"
+Info: Revision = "histogram_statistics"
+Info: Analyzing source files
+Warning (21751): VHDL warning at histogram_statistics_v2_pkg.vhd(15): synthesis directive "vhdl_input_version" is not supported File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2_pkg.vhd Line: 15
+Warning (21751): VHDL warning at hit_fifo.vhd(16): synthesis directive "vhdl_input_version" is not supported File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/hit_fifo.vhd Line: 16
+Warning (21751): VHDL warning at rr_arbiter.vhd(15): synthesis directive "vhdl_input_version" is not supported File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/rr_arbiter.vhd Line: 15
+Warning (21751): VHDL warning at bin_divider.vhd(18): synthesis directive "vhdl_input_version" is not supported File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd Line: 18
+Warning (21751): VHDL warning at coalescing_queue.vhd(17): synthesis directive "vhdl_input_version" is not supported File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/coalescing_queue.vhd Line: 17
+Warning (21751): VHDL warning at pingpong_sram.vhd(17): synthesis directive "vhdl_input_version" is not supported File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/pingpong_sram.vhd Line: 17
+Warning (21751): VHDL warning at histogram_statistics_v2.vhd(36): synthesis directive "vhdl_input_version" is not supported File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd Line: 36
+Info: Elaborating from top-level entity "histogram_statistics_v2"
+Info (19337): VHDL info at histogram_statistics_v2.vhd(46): executing entity "histogram_statistics_v2" with architecture "rtl" File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd Line: 46
+Info (19337): VHDL info at hit_fifo.vhd(26): executing entity "hit_fifo" with architecture "rtl" File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/hit_fifo.vhd Line: 26
+Info (19337): VHDL info at rr_arbiter.vhd(25): executing entity "rr_arbiter(n_ports=8)" with architecture "rtl" File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/rr_arbiter.vhd Line: 25
+Info (19337): VHDL info at bin_divider.vhd(25): executing entity "bin_divider(count_width=8)" with architecture "rtl" File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd Line: 25
+Info (19337): VHDL info at coalescing_queue.vhd(27): executing entity "coalescing_queue" with architecture "rtl" File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/coalescing_queue.vhd Line: 27
+Info (19337): VHDL info at pingpong_sram.vhd(27): executing entity "pingpong_sram(count_width=32,update_width=8)" with architecture "rtl" File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/pingpong_sram.vhd Line: 27
+Info (19337): VHDL info at true_dual_port_ram_single_clock.vhd(10): executing entity "true_dual_port_ram_single_clock(data_width=32,addr_width=8)" with architecture "rtl" File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/true_dual_port_ram_single_clock.vhd Line: 10
+Warning (14496): Verilog HDL warning at true_dual_port_ram_single_clock.vhd: can't infer memory for variable 'ram'. The variable is written twice at lines 56 and 63 in the same process. File: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/true_dual_port_ram_single_clock.vhd Line: 36
+Info: Found 8 design entities
+Info: There are 15 partitions after elaboration.
+Info: Creating instance-specific data models and dissolving soft partitions
+Info (18299): Expanding entity and wildcard assignments.
+Info (18300): Expanded entity and wildcard assignments. Elapsed time: 00:00:00
+Error: Flow failed: ERROR: Analysis & Elaboration Fails
+
+Error: Quartus Prime Synthesis was unsuccessful. 3 errors, 8 warnings
+    Error: Peak virtual memory: 1530 megabytes
+    Error: Processing ended: Sun Apr 12 11:20:25 2026
+    Error: Elapsed time: 00:00:05
+    Error: System process ID: 7437

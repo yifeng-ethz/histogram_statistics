@@ -13,8 +13,8 @@ class hist_error_clear_test extends hist_base_test;
   localparam bit [4:0] CSR_BANK_STATUS = 5'd11;
   localparam bit [4:0] CSR_TOTAL_HITS  = 5'd13;
   localparam bit [4:0] CSR_DROPPED     = 5'd14;
-  localparam bit [4:0] CSR_SCRATCH     = 5'd17;
-  localparam bit [4:0] CSR_COAL_STATUS = 5'd16;
+  localparam bit [4:0] CSR_SCRATCH     = 5'd16;
+  localparam bit [4:0] CSR_COAL_STATUS = 5'd15;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);

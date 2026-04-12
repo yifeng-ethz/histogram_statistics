@@ -14,9 +14,9 @@ class hist_csr_test extends hist_base_test;
   localparam bit [4:0] HS_CSR_PORT_STATUS_ADDR     = 5'd12;
   localparam bit [4:0] HS_CSR_TOTAL_HITS_ADDR      = 5'd13;
   localparam bit [4:0] HS_CSR_DROPPED_HITS_ADDR    = 5'd14;
-  localparam bit [4:0] HS_CSR_VERSION_ADDR         = 5'd15;
-  localparam bit [4:0] HS_CSR_COAL_STATUS_ADDR     = 5'd16;
-  localparam bit [4:0] HS_CSR_SCRATCH_ADDR         = 5'd17;
+  localparam bit [4:0] HS_CSR_VERSION_ADDR         = 5'd1;
+  localparam bit [4:0] HS_CSR_COAL_STATUS_ADDR     = 5'd15;
+  localparam bit [4:0] HS_CSR_SCRATCH_ADDR         = 5'd16;
 
   localparam bit [31:0] HS_B013_CONTROL_DEFAULT    = 32'h0000_0100;
   localparam bit [31:0] HS_B014_LEFT_BOUND_VALUE   = 32'hFFFF_FC18;

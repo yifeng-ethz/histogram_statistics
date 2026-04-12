@@ -1,0 +1,94 @@
+Flow report for histogram_statistics
+Sun Apr 12 11:20:25 2026
+Quartus Prime Version 23.1.0 Build 115 03/30/2023 SC Pro Edition
+
+
+---------------------
+; Table of Contents ;
+---------------------
+  1. Legal Notice
+  2. Flow Summary
+  3. Flow Settings
+  4. Flow Non-Default Global Settings
+  5. Flow Elapsed Time
+  6. Flow OS Summary
+  7. Flow Log
+
+
+
+----------------
+; Legal Notice ;
+----------------
+Copyright (C) 2023  Intel Corporation. All rights reserved.
+Your use of Intel Corporation's design tools, logic functions 
+and other software and tools, and any partner logic 
+functions, and any output files from any of the foregoing 
+(including device programming or simulation files), and any 
+associated documentation or information are expressly subject 
+to the terms and conditions of the Intel Program License 
+Subscription Agreement, the Intel Quartus Prime License Agreement,
+the Intel FPGA IP License Agreement, or other applicable license
+agreement, including, without limitation, that your use is for
+the sole purpose of programming logic devices manufactured by
+Intel and sold by Intel or its authorized distributors.  Please
+refer to the applicable agreement for further details, at
+https://fpgasoftware.intel.com/eula.
+
+
+
++-----------------------------------------------------------+
+; Flow Summary                                              ;
++-------------+---------------------------------------------+
+; Flow Status ; Synthesis Failed - Sun Apr 12 11:20:24 2026 ;
++-------------+---------------------------------------------+
+
+
++------------------------------------------+
+; Flow Settings                            ;
++-------------------+----------------------+
+; Option            ; Setting              ;
++-------------------+----------------------+
+; Start date & time ; 04/12/2026 11:20:21  ;
+; Main task         ; Compilation          ;
+; Revision Name     ; histogram_statistics ;
++-------------------+----------------------+
+
+
++-------------------------------------------------------------------------------------------------------------------------+
+; Flow Non-Default Global Settings                                                                                        ;
++------------------------------+----------------------------------------+----------------------+-------------+------------+
+; Assignment Name              ; Value                                  ; Default Value        ; Entity Name ; Section Id ;
++------------------------------+----------------------------------------+----------------------+-------------+------------+
+; COMPILER_SIGNATURE_ID        ; 82303311050099.177598562107437         ; --                   ; --          ; --         ;
+; FLOW_ENABLE_DESIGN_ASSISTANT ; -- (Not supported for targeted family) ; --                   ; --          ; --         ;
+; TOP_LEVEL_ENTITY             ; histogram_statistics_v2                ; histogram_statistics ; --          ; --         ;
+; VHDL_INPUT_VERSION           ; VHDL_2008                              ; VHDL_1993            ; --          ; --         ;
++------------------------------+----------------------------------------+----------------------+-------------+------------+
+
+
++--------------------------------------------------+
+; Flow Elapsed Time                                ;
++-------------+--------------+---------------------+
+; Module Name ; Elapsed Time ; Peak Virtual Memory ;
++-------------+--------------+---------------------+
+; Synthesis   ; 00:00:04     ; 1530 MB             ;
+; Total       ; 00:00:04     ; --                  ;
++-------------+--------------+---------------------+
+
+
++------------------------------------------------------------------------+
+; Flow OS Summary                                                        ;
++-------------+------------------+---------+------------+----------------+
+; Module Name ; Machine Hostname ; OS Name ; OS Version ; Processor type ;
++-------------+------------------+---------+------------+----------------+
+; Synthesis   ; teferi.ethz.ch   ; \S -    ; --         ; x86_64         ;
++-------------+------------------+---------+------------+----------------+
+
+
+------------
+; Flow Log ;
+------------
+quartus_syn histogram_statistics --analysis_and_elaboration
+
+
+

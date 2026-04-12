@@ -39,6 +39,54 @@ class hist_debug_test extends hist_base_test;
     cfg.dbg_vifs[dbg_idx].drv_cb.data  <= '0;
   endtask
 
+  local task automatic check_debug_hit(
+    input string       case_id,
+    input bit [3:0]    mode,
+    input int unsigned dbg_idx,
+    input bit [15:0]   data_val,
+    input int unsigned expected_bin
+  );
+    bit [31:0] burst_data[$];
+    configure_debug_mode(.mode(mode));
+    send_debug_hit(dbg_idx, data_val);
+    wait_pipeline_drain(128);
+    wait_bank_swap();
+    bin_burst_read(expected_bin[7:0], 8'd1, burst_data);
+    if (burst_data[0] !== 32'd1)
+      `uvm_error(case_id, $sformatf("bin%0d expected 1 got %0d", expected_bin, burst_data[0]))
+  endtask
+
+  local task automatic check_debug_underflow(
+    input string       case_id,
+    input bit [3:0]    mode,
+    input int unsigned dbg_idx,
+    input bit [15:0]   data_val,
+    input int signed   left_bound = 100
+  );
+    bit [31:0] csr_val;
+    configure_debug_mode(.mode(mode), .left_bound(left_bound));
+    send_debug_hit(dbg_idx, data_val);
+    wait_pipeline_drain(256);
+    csr_read(CSR_UNDERFLOW, csr_val);
+    if (csr_val < 32'd1)
+      `uvm_error(case_id, $sformatf("underflow expected >=1 got %0d", csr_val))
+  endtask
+
+  local task automatic check_debug_overflow(
+    input string       case_id,
+    input bit [3:0]    mode,
+    input int unsigned dbg_idx,
+    input bit [15:0]   data_val
+  );
+    bit [31:0] csr_val;
+    configure_debug_mode(.mode(mode));
+    send_debug_hit(dbg_idx, data_val);
+    wait_pipeline_drain(256);
+    csr_read(CSR_OVERFLOW, csr_val);
+    if (csr_val < 32'd1)
+      `uvm_error(case_id, $sformatf("overflow expected >=1 got %0d", csr_val))
+  endtask
+
   local task automatic task_b123();
     bit [31:0] burst_data[$];
     `uvm_info(get_type_name(), "B123: debug mode -1, debug input 1, signed key=100", UVM_LOW)
@@ -153,6 +201,57 @@ class hist_debug_test extends hist_base_test;
       `uvm_error("B130", $sformatf("bin0 expected 1 got %0d", burst_data[0]))
   endtask
 
+  local task automatic task_b131();
+    `uvm_info(get_type_name(), "B131: debug mode -4, debug input 4 covers hit/underflow/overflow", UVM_LOW)
+    check_debug_hit("B131-hit", 4'hC, 3, 16'h0001, 0);
+    issue_measure_clear();
+    check_debug_underflow("B131-under", 4'hC, 3, 16'h0001);
+    issue_measure_clear();
+    check_debug_overflow("B131-over", 4'hC, 3, 16'hFFFF);
+  endtask
+
+  local task automatic task_b132();
+    `uvm_info(get_type_name(), "B132: debug mode -5, debug input 5 covers hit/underflow/overflow", UVM_LOW)
+    check_debug_hit("B132-hit", 4'hB, 4, 16'h0001, 0);
+    issue_measure_clear();
+    check_debug_underflow("B132-under", 4'hB, 4, 16'h0001);
+    issue_measure_clear();
+    check_debug_overflow("B132-over", 4'hB, 4, 16'hFFFF);
+  endtask
+
+  local task automatic task_b133();
+    `uvm_info(get_type_name(), "B133: debug mode -2 covers underflow and overflow", UVM_LOW)
+    check_debug_underflow("B133-under", 4'hE, 1, 16'h0001);
+    issue_measure_clear();
+    check_debug_overflow("B133-over", 4'hE, 1, 16'hFFFF);
+  endtask
+
+  local task automatic task_b134();
+    `uvm_info(get_type_name(), "B134: debug mode -3 covers hit and underflow", UVM_LOW)
+    check_debug_hit("B134-hit", 4'hD, 2, 16'h0001, 0);
+    issue_measure_clear();
+    check_debug_underflow("B134-under", 4'hD, 2, 16'h0001);
+  endtask
+
+  local task automatic task_b135();
+    `uvm_info(get_type_name(), "B135: debug mode -6 covers underflow and overflow", UVM_LOW)
+    check_debug_underflow("B135-under", 4'hA, 5, 16'h0001);
+    issue_measure_clear();
+    check_debug_overflow("B135-over", 4'hA, 5, 16'hFFFF);
+  endtask
+
+  local task automatic task_b136();
+    `uvm_info(get_type_name(), "B136: debug mode -1 covers signed overflow", UVM_LOW)
+    check_debug_overflow("B136-over", 4'hF, 0, 16'h7FFF);
+  endtask
+
+  local task automatic task_b137();
+    `uvm_info(get_type_name(), "B137: reserved non-debug modes 1..9 are writable", UVM_LOW)
+    for (int mode = 1; mode <= 9; mode++) begin
+      configure_debug_mode(.mode(mode[3:0]));
+    end
+  endtask
+
   task run_phase(uvm_phase phase);
     phase.raise_objection(this);
     wait_reset_release();
@@ -165,7 +264,14 @@ class hist_debug_test extends hist_base_test;
     task_b127(); issue_measure_clear();
     task_b128(); issue_measure_clear();
     task_b129(); issue_measure_clear();
-    task_b130();
+    task_b130(); issue_measure_clear();
+    task_b131(); issue_measure_clear();
+    task_b132(); issue_measure_clear();
+    task_b133(); issue_measure_clear();
+    task_b134(); issue_measure_clear();
+    task_b135(); issue_measure_clear();
+    task_b136(); issue_measure_clear();
+    task_b137();
 
     phase.drop_objection(this);
   endtask

@@ -108,7 +108,12 @@ class hist_coverage extends uvm_component;
       bins under    = {1};
       bins over     = {2};
     }
-    x_mode_port_result : cross cp_mode, cp_port, cp_result_kind;
+    x_mode_port_result : cross cp_mode, cp_port, cp_result_kind {
+      // In this DUT configuration, debug injections always enter through port 0.
+      ignore_bins debug_nonzero_ports =
+        (binsof(cp_mode) intersect {4'hA, 4'hB, 4'hC, 4'hD, 4'hE, 4'hF}) &&
+        (binsof(cp_port) intersect {[1:HS_N_PORTS-1]});
+    }
   endgroup
 
   function new(string name, uvm_component parent);

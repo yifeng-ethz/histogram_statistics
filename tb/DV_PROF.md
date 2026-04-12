@@ -1,8 +1,8 @@
 # histogram_statistics_v2 DV -- Performance and Stress Cases
 
 **Parent:** DV_PLAN.md
-**ID Range:** P001-P140
-**Total:** 140 cases
+**ID Range:** P001-P148
+**Total:** 148 cases
 **Method:** R (constrained-random), S (sweep), K (soak)
 
 These tests characterize throughput limits, stress conditions, and long-running behaviors of the histogram_statistics_v2 IP core. Each test maps to a specific system-level performance question about the multi-port ingress path, coalescing queue, ping-pong SRAM, and readout pipeline. Every case explains what throughput limit it probes or what long-running behavior it validates.
@@ -314,6 +314,34 @@ The coalescing queue has COAL_QUEUE_DEPTH=256 entries. When all 256 entries are 
 
 ---
 
+## 13. Long-Run Coverage Harvest and Plateau Campaigns -- 8 cases
+
+These are promoted closure runs, not generic benchmarking tests. Each case is a
+parameterised long-run transaction mix with incremental hit-count snapshots so
+signoff can judge coverage gained per wall-clock second and stop when the
+incremental gain plateaus.
+
+**Why this section exists:** once the directed and medium-length PERF suite is
+in place, extra runtime only matters if it expands observable DUT state space.
+These cases are the curated long-run farm used to answer that question.
+
+**Output per test:** `{txn_count, wall_s, stmt_pct, branch_pct, cond_pct,
+expr_pct, toggle_pct, covergroups_pct, delta_total_pct_per_s,
+delta_toggle_pct, plateau_assessment}`.
+
+| ID | Method | Scenario | Duration/Iter | Stimulus | Checker |
+|----|--------|----------|---------------|----------|---------|
+| P141 | R | Real-hit triad harvest | 256/512/1024/2048 hits per phase | `hist_real_hit_rand_test` profile=`triad` | Baseline real-hit mix; measure when general-purpose toggle/branch growth saturates |
+| P142 | R | Boundary-focused harvest | 256/512/1024/2048 hits | `hist_real_hit_rand_test` profile=`boundary` | Signed ET values biased to underflow/overflow and exact-boundary crossings; verifies whether boundary logic still buys new structure |
+| P143 | R | Queue/coalescing harvest | 256/512/1024/2048 hits | `hist_real_hit_rand_test` profile=`queue` | Multi-port 256-bin sweep with repeated same-bin bursts; targets queue occupancy, coalescing, and overflow-adjacent logic |
+| P144 | R | Interval/apply harvest | 128/256/512/1024 hits | `hist_real_hit_rand_test` profile=`interval` | Short-interval config changes plus swaps and reads; targets timer/swap/apply interaction |
+| P145 | K | Baseline + P141 promotion sweep | Whole-suite merge | Deterministic baseline followed by P141 final point | Promote only if merged gain-per-second stays above plateau threshold |
+| P146 | K | Baseline + P142 promotion sweep | Whole-suite merge | Deterministic baseline followed by P142 final point | Keep only if boundary-focused long run adds merged structural information beyond P141 |
+| P147 | K | Baseline + P143 promotion sweep | Whole-suite merge | Deterministic baseline followed by P143 final point | Keep only if queue/coalescing profile adds merged toggle/branch coverage after baseline |
+| P148 | K | Plateau signoff campaign | Whole-suite merge | Deterministic baseline plus all promoted P141-P144 cases | Final signoff uses cumulative gain-per-second to justify stopping or adding a new stimulus idea |
+
+---
+
 ## Summary
 
 | Section | Cases | ID Range | Focus |
@@ -330,4 +358,5 @@ The coalescing queue has COAL_QUEUE_DEPTH=256 entries. When all 256 entries are 
 | Multi-Interval Accumulation (MIA) | 10 | P107-P116 | Inter-interval isolation, frozen bank accuracy |
 | Port Imbalance (PIB) | 10 | P117-P126 | Round-robin starvation, hot/cold fairness |
 | Queue Saturation (QST) | 14 | P127-P140 | Overflow counter, kick saturation, pointer wrap |
-| **Total** | **140** | P001-P140 | |
+| Long-Run Coverage Harvest (LHC) | 8 | P141-P148 | Coverage-vs-wall-clock closure and plateau signoff |
+| **Total** | **148** | P001-P148 | |

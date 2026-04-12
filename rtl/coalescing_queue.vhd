@@ -87,6 +87,14 @@ architecture rtl of coalescing_queue is
     attribute ramstyle of kick_ram : signal is "MLAB,no_rw_check";
     attribute ramstyle of queue_mem : signal is "MLAB,no_rw_check";
 
+    function next_queue_ptr_f(ptr : queue_addr_t) return queue_addr_t is
+    begin
+        if to_integer(ptr) = QUEUE_DEPTH - 1 then
+            return (others => '0');
+        end if;
+        return ptr + 1;
+    end function next_queue_ptr_f;
+
 begin
 
     o_drain_valid    <= drain_valid_q;
@@ -216,7 +224,7 @@ begin
                 if drain_fire_c = '1' then
                     head_bin_v  := to_integer(queue_head_bin_q);
 
-                    rd_ptr_v     := rd_ptr_v + 1;
+                    rd_ptr_v     := next_queue_ptr_f(rd_ptr_v);
                     level_v      := level_v - 1;
 
                     if queue_level > 1 then
@@ -241,7 +249,7 @@ begin
                         end if;
                     elsif queue_room_c = '1' then
                         queue_mem(to_integer(wr_ptr_v)) <= i_hit_bin;
-                        wr_ptr_v := wr_ptr_v + 1;
+                        wr_ptr_v := next_queue_ptr_f(wr_ptr_v);
                         level_v  := level_v + 1;
                     else
                         overflow_v := sat_inc(overflow_v);

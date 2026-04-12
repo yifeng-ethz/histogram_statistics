@@ -25,6 +25,19 @@ package hist_env_pkg;
   localparam int HS_FIFO_DEPTH      = 16;
   localparam int HS_BIN_W           = $clog2(HS_N_BINS);
   localparam int HS_PORT_W          = $clog2(HS_N_PORTS);
+  // MuTRiG timestamp-processor hit_type1 payload layout from online_dpv2.
+  localparam int HS_TYPE1_ASIC_HI   = 38;
+  localparam int HS_TYPE1_ASIC_LO   = 35;
+  localparam int HS_TYPE1_CH_HI     = 34;
+  localparam int HS_TYPE1_CH_LO     = 30;
+  localparam int HS_TYPE1_TCC8N_HI  = 29;
+  localparam int HS_TYPE1_TCC8N_LO  = 17;
+  localparam int HS_TYPE1_TCC1N6_HI = 16;
+  localparam int HS_TYPE1_TCC1N6_LO = 14;
+  localparam int HS_TYPE1_TFINE_HI  = 13;
+  localparam int HS_TYPE1_TFINE_LO  = 9;
+  localparam int HS_TYPE1_ET1N6_HI  = 8;
+  localparam int HS_TYPE1_ET1N6_LO  = 0;
 
   typedef enum int unsigned {
     HIST_EVT_BIN       = 0,
@@ -117,6 +130,26 @@ package hist_env_pkg;
       end
     end
 
+    return word_v;
+  endfunction
+
+  function automatic logic [HS_AVST_DATA_W-1:0] hist_build_type1_word(
+    input int unsigned asic_id,
+    input int unsigned channel_id,
+    input int unsigned tcc_8n,
+    input int unsigned tcc_1n6 = 0,
+    input int unsigned tfine = 0,
+    input int unsigned et_1n6 = 0
+  );
+    logic [HS_AVST_DATA_W-1:0] word_v;
+
+    word_v = '0;
+    word_v[HS_TYPE1_ASIC_HI:HS_TYPE1_ASIC_LO]   = asic_id[3:0];
+    word_v[HS_TYPE1_CH_HI:HS_TYPE1_CH_LO]       = channel_id[4:0];
+    word_v[HS_TYPE1_TCC8N_HI:HS_TYPE1_TCC8N_LO] = tcc_8n[12:0];
+    word_v[HS_TYPE1_TCC1N6_HI:HS_TYPE1_TCC1N6_LO] = tcc_1n6[2:0];
+    word_v[HS_TYPE1_TFINE_HI:HS_TYPE1_TFINE_LO] = tfine[4:0];
+    word_v[HS_TYPE1_ET1N6_HI:HS_TYPE1_ET1N6_LO] = et_1n6[8:0];
     return word_v;
   endfunction
 
@@ -1053,6 +1086,48 @@ package hist_env_pkg;
     endtask
   endclass
 
+  class hist_bin_write_seq extends uvm_sequence #(hist_bin_txn);
+    `uvm_object_utils(hist_bin_write_seq)
+
+    rand bit [7:0]  address;
+    rand bit [7:0]  burstcount;
+    rand bit [31:0] writedata;
+
+    function new(string name = "hist_bin_write_seq");
+      super.new(name);
+      burstcount = 8'd1;
+    endfunction
+
+    task body();
+      hist_bin_txn req;
+      req = hist_bin_txn::type_id::create("req");
+      start_item(req);
+      req.write      = 1'b1;
+      req.address    = address;
+      req.burstcount = burstcount;
+      req.writedata  = writedata;
+      finish_item(req);
+    endtask
+  endclass
+
+  class hist_ctrl_seq extends uvm_sequence #(hist_ctrl_txn);
+    `uvm_object_utils(hist_ctrl_seq)
+
+    rand bit [8:0] data;
+
+    function new(string name = "hist_ctrl_seq");
+      super.new(name);
+    endfunction
+
+    task body();
+      hist_ctrl_txn req;
+      req = hist_ctrl_txn::type_id::create("req");
+      start_item(req);
+      req.data = data;
+      finish_item(req);
+    endtask
+  endclass
+
   `include "hist_scoreboard.sv"
   `include "hist_coverage.sv"
   `include "hist_env.sv"
@@ -1113,6 +1188,7 @@ package hist_env_pkg;
   `include "tests/hist_prof_mia_test.sv"
   `include "tests/hist_prof_pib_test.sv"
   `include "tests/hist_prof_qst_test.sv"
+  `include "tests/hist_real_hit_rand_test.sv"
 
   // DV_CROSS tests
   `include "tests/hist_cross_test.sv"

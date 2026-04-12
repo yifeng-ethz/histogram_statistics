@@ -14,9 +14,9 @@ class hist_edge_csr_test extends hist_base_test;
   localparam bit [4:0] CSR_BANK_STATUS = 5'd11;
   localparam bit [4:0] CSR_TOTAL_HITS  = 5'd13;
   localparam bit [4:0] CSR_DROPPED     = 5'd14;
-  localparam bit [4:0] CSR_VERSION     = 5'd15;
-  localparam bit [4:0] CSR_COAL_STATUS = 5'd16;
-  localparam bit [4:0] CSR_SCRATCH     = 5'd17;
+  localparam bit [4:0] CSR_VERSION     = 5'd1;
+  localparam bit [4:0] CSR_COAL_STATUS = 5'd15;
+  localparam bit [4:0] CSR_SCRATCH     = 5'd16;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -95,28 +95,49 @@ class hist_edge_csr_test extends hist_base_test;
       `uvm_error("E113", $sformatf("overflow expected 1 got %0d", val_of))
   endtask
 
-  // E114: CSR read to address 13 (version register)
+  // E114: CSR read to META page 0 (version register)
   // DUT instantiated with VERSION_MAJOR=26, VERSION_MINOR=0, VERSION_PATCH=0, BUILD=0
   local task automatic task_e114();
     bit [31:0] val;
     bit [31:0] expected;
     `uvm_info(get_type_name(), "E114: version register read", UVM_LOW)
     // version_v[31:24]=26, [23:16]=0, [15:12]=0, [11:0]=0
-    expected = {8'd26, 8'd0, 5'd2, 12'd0};
+    expected = 32'h1A00_0000;
     csr_read(CSR_VERSION, val);
     if (val !== expected)
       `uvm_error("E114", $sformatf("version expected 0x%08h got 0x%08h", expected, val))
   endtask
 
-  // E115: CSR write to read-only address 13 (version) — no effect
+  // E115: CSR write to META selector changes the readback page and can be restored
   local task automatic task_e115();
-    bit [31:0] val_before, val_after;
-    `uvm_info(get_type_name(), "E115: write to version register has no effect", UVM_LOW)
-    csr_read(CSR_VERSION, val_before);
-    csr_write(CSR_VERSION, 32'hFFFF_FFFF);
-    csr_read(CSR_VERSION, val_after);
-    if (val_after !== val_before)
-      `uvm_error("E115", $sformatf("version changed after write: before=0x%08h after=0x%08h", val_before, val_after))
+    bit [31:0] version_page;
+    bit [31:0] date_page;
+    bit [31:0] git_page;
+    bit [31:0] git_page_repeat;
+    bit [31:0] instance_page;
+    bit [31:0] instance_page_repeat;
+    bit [31:0] restored_page;
+    `uvm_info(get_type_name(), "E115: META selector write changes readback page", UVM_LOW)
+    csr_write(CSR_VERSION, 32'd0);
+    csr_read(CSR_VERSION, version_page);
+    csr_write(CSR_VERSION, 32'd1);
+    csr_read(CSR_VERSION, date_page);
+    if (date_page === version_page)
+      `uvm_error("E115", $sformatf("META selector did not switch page: version=0x%08h date=0x%08h", version_page, date_page))
+    csr_write(CSR_VERSION, 32'd2);
+    csr_read(CSR_VERSION, git_page);
+    csr_read(CSR_VERSION, git_page_repeat);
+    if (git_page_repeat !== git_page)
+      `uvm_error("E115", $sformatf("META selector page 2 readback unstable: first=0x%08h second=0x%08h", git_page, git_page_repeat))
+    csr_write(CSR_VERSION, 32'd3);
+    csr_read(CSR_VERSION, instance_page);
+    csr_read(CSR_VERSION, instance_page_repeat);
+    if (instance_page_repeat !== instance_page)
+      `uvm_error("E115", $sformatf("META selector page 3 readback unstable: first=0x%08h second=0x%08h", instance_page, instance_page_repeat))
+    csr_write(CSR_VERSION, 32'd0);
+    csr_read(CSR_VERSION, restored_page);
+    if (restored_page !== version_page)
+      `uvm_error("E115", $sformatf("META selector restore failed: expected 0x%08h got 0x%08h", version_page, restored_page))
   endtask
 
   // E116: CSR scratch register write and read back
@@ -134,9 +155,8 @@ class hist_edge_csr_test extends hist_base_test;
       `uvm_error("E116", $sformatf("scratch expected 0x12345678 got 0x%08h", val))
   endtask
 
-  // E117: CSR address 4-bit bus — address 16 wraps to 0
-  // The address bus is 4 bits wide, so all values 0-15 are valid.
-  // Address 16 is impossible on 4-bit bus. Verify addr 0 reads control.
+  // E117: CSR address bus is 5 bits wide, so address 16 is valid.
+  // Out-of-range wraparound is not representable through the UVM seq item.
   local task automatic task_e117();
     `uvm_info(get_type_name(), "E117: 4-bit address wraps — skipped (cannot drive 5-bit address on 4-bit bus)", UVM_LOW)
   endtask

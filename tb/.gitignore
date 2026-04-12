@@ -5,6 +5,8 @@ work_*/
 # Simulation transcripts and logs
 transcript
 tr_db.log
+uvm/cov_runs/
+uvm/smoke_*.txt
 
 # Quartus incremental DB
 db/

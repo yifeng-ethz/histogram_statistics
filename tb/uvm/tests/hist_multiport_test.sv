@@ -20,10 +20,10 @@ class hist_multiport_test extends hist_base_test;
 
   local task automatic task_b079();
     bit [31:0] burst_data[$];
-    `uvm_info(get_type_name(), "B079: 1 hit per port, all 8, raw key=0", UVM_LOW)
+    `uvm_info(get_type_name(), "B079: 1 hit per port, all 8, raw key=0 with SOP/EOP asserted", UVM_LOW)
     configure_default();
     for (int p = 0; p < HS_N_PORTS; p++) begin
-      send_fill_word(p, make_fill_word(0));
+      send_fill_word_ex(p, make_fill_word(0), '0, 1'b1, 1'b1);
     end
     wait_pipeline_drain(256);
     wait_bank_swap();

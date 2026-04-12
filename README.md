@@ -246,12 +246,17 @@ Three presets are shipped in `histogram_statistics_v2_presets.qprs`:
 
 | Preset | N_BINS | Counter | Ports | Queue | Ping-Pong | Use Case |
 |--------|--------|---------|-------|-------|-----------|----------|
-| **Default** | 256 | 32-bit | 8 | 256 | On (1 s @ 125 MHz) | Standard per-ASIC rate monitoring |
+| **Default** | 256 | 32-bit | 8 | 160 | On (1 s @ 125 MHz) | Standard per-ASIC rate monitoring |
 | **Minimal** | 64 | 32-bit | 1 | 16 | Off | Single-channel, low-resource monitoring |
 | **Large** | 1024 | 40-bit | 8 | 256 | On (1 s @ 125 MHz) | Fine-grained profiling, wide key space |
 
 Select a preset from the Platform Designer component editor to load all
 parameters at once, then adjust individual settings as needed.
+
+The shipped `Default` preset trims `COAL_QUEUE_DEPTH` to `160`. This was
+re-validated against the 8-port MuTRiG channel-rate stress case at an average
+`3.5` cycles/hit/MuTRiG: the sweep peaked at `144` queued entries with
+`queue_overflow=0` at `160`, while `128` overflowed.
 
 ---
 

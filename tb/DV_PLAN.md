@@ -4,7 +4,7 @@
 **IP source:** `mu3e-ip-cores/histogram_statistics/histogram_statistics_v2.vhd`
 **Author:** Yifeng Wang (yifenwan@phys.ethz.ch)
 **Date:** 2026-04-09
-**Status:** Planning (awaiting chief architect signoff)
+**Status:** Approved for implementation and signoff updates (chief architect signoff recorded 2026-04-12)
 
 ---
 

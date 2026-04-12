@@ -327,8 +327,8 @@ proc validate {} {
     if {$channels_per_port < 1 || $channels_per_port > 256} {
         send_message error "CHANNELS_PER_PORT must stay in the range 1..256."
     }
-    if {$coal_depth != 16 && $coal_depth != 32 && $coal_depth != 64 && $coal_depth != 128 && $coal_depth != 256 && $coal_depth != 512} {
-        send_message error "COAL_QUEUE_DEPTH must stay in the set {16 32 64 128 256 512}."
+    if {$coal_depth != 16 && $coal_depth != 32 && $coal_depth != 64 && $coal_depth != 128 && $coal_depth != 160 && $coal_depth != 192 && $coal_depth != 256 && $coal_depth != 512} {
+        send_message error "COAL_QUEUE_DEPTH must stay in the set {16 32 64 128 160 192 256 512}."
     }
     if {$avst_w < 1 || $avst_w > 512} {
         send_message error "AVST_DATA_WIDTH must stay in the range 1..512."
@@ -547,7 +547,7 @@ set_parameter_property CHANNELS_PER_PORT DESCRIPTION "Logical channel stride add
 add_parameter COAL_QUEUE_DEPTH NATURAL 256
 set_parameter_property COAL_QUEUE_DEPTH DISPLAY_NAME "Coalescing Queue Depth"
 set_parameter_property COAL_QUEUE_DEPTH UNITS None
-set_parameter_property COAL_QUEUE_DEPTH ALLOWED_RANGES {16 32 64 128 256 512}
+set_parameter_property COAL_QUEUE_DEPTH ALLOWED_RANGES {16 32 64 128 160 192 256 512}
 set_parameter_property COAL_QUEUE_DEPTH HDL_PARAMETER true
 set_parameter_property COAL_QUEUE_DEPTH DESCRIPTION "Shared coalescing FIFO depth. Concurrent bin updates from all ports are serialized through this queue before reaching the histogram SRAM."
 

@@ -3,19 +3,35 @@ module hist_pipeline_sva (
   input logic rst,
   hist_probe_if probe_if
 );
+  localparam int unsigned POST_CLEAR_DRAIN_CYCLES = 12;
+
+  int unsigned post_clear_drain;
+
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      post_clear_drain <= 0;
+    end else if (probe_if.measure_clear_pulse) begin
+      // The scoreboard suppresses stale divider/queue observations for the
+      // 3-stage pre-divider pipe + 8-stage divider + 1 registered queue-hit hop.
+      post_clear_drain <= POST_CLEAR_DRAIN_CYCLES;
+    end else if (post_clear_drain != 0) begin
+      post_clear_drain <= post_clear_drain - 1;
+    end
+  end
+
   property p_apply_blocks_ingress;
     @(posedge clk) disable iff (rst)
       probe_if.cfg_apply_pending |-> (probe_if.ingress_accept == '0);
   endproperty
 
   property p_divider_bin_to_queue_hit;
-    @(posedge clk) disable iff (rst)
+    @(posedge clk) disable iff (rst || probe_if.measure_clear_pulse || (post_clear_drain != 0))
       probe_if.divider_valid && !probe_if.divider_underflow && !probe_if.divider_overflow
       |=> probe_if.queue_hit_valid && (probe_if.queue_hit_bin == $past(probe_if.divider_bin_index));
   endproperty
 
   property p_divider_exception_no_queue_hit;
-    @(posedge clk) disable iff (rst)
+    @(posedge clk) disable iff (rst || probe_if.measure_clear_pulse || (post_clear_drain != 0))
       probe_if.divider_valid && (probe_if.divider_underflow || probe_if.divider_overflow)
       |=> !probe_if.queue_hit_valid;
   endproperty

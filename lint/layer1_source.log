@@ -1,0 +1,128 @@
+Questa Intel FPGA Edition-64 vcom 2022.4 Compiler 2022.10 Oct 18 2022
+Start time: 11:20:13 on Apr 12,2026
+vcom -work work_lint -2008 -lint=full -pedanticerrors -check_synthesis -rangecheck -explicit -fsmsingle /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2_pkg.vhd 
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Compiling package histogram_statistics_v2_pkg
+-- Compiling package body histogram_statistics_v2_pkg
+-- Loading package histogram_statistics_v2_pkg
+End time: 11:20:13 on Apr 12,2026, Elapsed time: 0:00:00
+Errors: 0, Warnings: 0
+Questa Intel FPGA Edition-64 vcom 2022.4 Compiler 2022.10 Oct 18 2022
+Start time: 11:20:13 on Apr 12,2026
+vcom -work work_lint -2008 -lint=full -pedanticerrors -check_synthesis -rangecheck -explicit -fsmsingle /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/true_dual_port_ram_single_clock.vhd 
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Compiling entity true_dual_port_ram_single_clock
+-- Compiling architecture rtl of true_dual_port_ram_single_clock
+End time: 11:20:13 on Apr 12,2026, Elapsed time: 0:00:00
+Errors: 0, Warnings: 0
+Questa Intel FPGA Edition-64 vcom 2022.4 Compiler 2022.10 Oct 18 2022
+Start time: 11:20:13 on Apr 12,2026
+vcom -work work_lint -2008 -lint=full -pedanticerrors -check_synthesis -rangecheck -explicit -fsmsingle /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/alt_dpram/alt_dpram_true.vhd 
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package altera_mf_components
+-- Compiling entity alt_dpram_true
+-- Compiling architecture SYN of alt_dpram_true
+End time: 11:20:13 on Apr 12,2026, Elapsed time: 0:00:00
+Errors: 0, Warnings: 0
+Questa Intel FPGA Edition-64 vcom 2022.4 Compiler 2022.10 Oct 18 2022
+Start time: 11:20:13 on Apr 12,2026
+vcom -work work_lint -2008 -lint=full -pedanticerrors -check_synthesis -rangecheck -explicit -fsmsingle /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/hit_fifo.vhd 
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package histogram_statistics_v2_pkg
+-- Compiling entity hit_fifo
+-- Compiling architecture rtl of hit_fifo
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/hit_fifo.vhd(55): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type STD_LOGIC_VECTOR, not aggregate type fifo_mem_t.
+End time: 11:20:13 on Apr 12,2026, Elapsed time: 0:00:00
+Errors: 0, Warnings: 1
+Questa Intel FPGA Edition-64 vcom 2022.4 Compiler 2022.10 Oct 18 2022
+Start time: 11:20:13 on Apr 12,2026
+vcom -work work_lint -2008 -lint=full -pedanticerrors -check_synthesis -rangecheck -explicit -fsmsingle /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/rr_arbiter.vhd 
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package histogram_statistics_v2_pkg
+-- Compiling entity rr_arbiter
+-- Compiling architecture rtl of rr_arbiter
+End time: 11:20:13 on Apr 12,2026, Elapsed time: 0:00:00
+Errors: 0, Warnings: 0
+Questa Intel FPGA Edition-64 vcom 2022.4 Compiler 2022.10 Oct 18 2022
+Start time: 11:20:13 on Apr 12,2026
+vcom -work work_lint -2008 -lint=full -pedanticerrors -check_synthesis -rangecheck -explicit -fsmsingle /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd 
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Compiling entity bin_divider
+-- Compiling architecture rtl of bin_divider
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd(63): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type UNSIGNED, not aggregate type count_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd(64): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type UNSIGNED, not aggregate type bin_index_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd(65): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type ext_tick_t, not aggregate type ext_tick_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd(66): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type ext_tick_t, not aggregate type ext_tick_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd(88): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type UNSIGNED, not aggregate type count_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd(89): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type UNSIGNED, not aggregate type bin_index_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd(90): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type ext_tick_t, not aggregate type ext_tick_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd(91): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type ext_tick_t, not aggregate type ext_tick_array_t.
+End time: 11:20:13 on Apr 12,2026, Elapsed time: 0:00:00
+Errors: 0, Warnings: 8
+Questa Intel FPGA Edition-64 vcom 2022.4 Compiler 2022.10 Oct 18 2022
+Start time: 11:20:13 on Apr 12,2026
+vcom -work work_lint -2008 -lint=full -pedanticerrors -check_synthesis -rangecheck -explicit -fsmsingle /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/coalescing_queue.vhd 
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package histogram_statistics_v2_pkg
+-- Compiling entity coalescing_queue
+-- Compiling architecture rtl of coalescing_queue
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/coalescing_queue.vhd(66): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type kick_t, not aggregate type kick_ram_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/coalescing_queue.vhd(68): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type bin_index_t, not aggregate type queue_mem_t.
+End time: 11:20:13 on Apr 12,2026, Elapsed time: 0:00:00
+Errors: 0, Warnings: 2
+Questa Intel FPGA Edition-64 vcom 2022.4 Compiler 2022.10 Oct 18 2022
+Start time: 11:20:13 on Apr 12,2026
+vcom -work work_lint -2008 -lint=full -pedanticerrors -check_synthesis -rangecheck -explicit -fsmsingle /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/pingpong_sram.vhd 
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package histogram_statistics_v2_pkg
+-- Compiling entity pingpong_sram
+-- Compiling architecture rtl of pingpong_sram
+-- Loading entity true_dual_port_ram_single_clock
+End time: 11:20:13 on Apr 12,2026, Elapsed time: 0:00:00
+Errors: 0, Warnings: 0
+Questa Intel FPGA Edition-64 vcom 2022.4 Compiler 2022.10 Oct 18 2022
+Start time: 11:20:13 on Apr 12,2026
+vcom -work work_lint -2008 -lint=full -pedanticerrors -check_synthesis -rangecheck -explicit -fsmsingle /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd 
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package histogram_statistics_v2_pkg
+-- Compiling entity histogram_statistics_v2
+-- Compiling architecture rtl of histogram_statistics_v2
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd(317): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type status_byte_t, not aggregate type status_pair_max_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd(501): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type STD_LOGIC_VECTOR, not aggregate type hs_slv_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd(507): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type STD_LOGIC_VECTOR, not aggregate type hs_slv_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd(620): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type STD_LOGIC_VECTOR, not aggregate type hs_slv_array_t.
+-- Loading entity hit_fifo
+-- Loading entity rr_arbiter
+-- Loading entity bin_divider
+-- Loading entity coalescing_queue
+-- Loading entity pingpong_sram
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd(896): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type status_byte_t, not aggregate type status_pair_max_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd(902): (vcom-1320) Type of expression "(OTHERS => '0')" is ambiguous; using element type status_byte_t, not aggregate type status_pair_max_array_t.
+** Warning: /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd(405): (vcom-1292) Slice range direction "downto" specified in slice with prefix of unknown direction.
+End time: 11:20:13 on Apr 12,2026, Elapsed time: 0:00:00
+Errors: 0, Warnings: 7

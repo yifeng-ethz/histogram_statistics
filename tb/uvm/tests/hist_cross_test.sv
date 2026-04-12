@@ -12,7 +12,7 @@ class hist_cross_test extends hist_base_test;
   localparam bit [4:0] CSR_INTERVAL    = 5'd10;
   localparam bit [4:0] CSR_TOTAL_HITS  = 5'd13;
   localparam bit [4:0] CSR_DROPPED     = 5'd14;
-  localparam bit [4:0] CSR_COAL_STATUS = 5'd16;
+  localparam bit [4:0] CSR_COAL_STATUS = 5'd15;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -93,9 +93,20 @@ class hist_cross_test extends hist_base_test;
   endtask
 
   // ---- X04-X08: Port/throughput/queue/FIFO crosses ----
-  // Require multi-port rate control and coverage infrastructure. Skipped.
+  // Directed substitute: cover the remaining legal normal-mode underflow ports.
   local task automatic task_x04();
-    `uvm_info(get_type_name(), "X04: port x key_region x active_ports — skipped (covergroup + multi-port)", UVM_LOW)
+    bit [31:0] uflow;
+    `uvm_info(get_type_name(), "X04: normal-mode underflow on ports 6 and 7", UVM_LOW)
+    // Effective key includes port_offset = port_index * 32. Use a left bound above
+    // the highest covered port offset so both ports still land in underflow.
+    program_histogram(.left_bound(300), .bin_width(16), .key_unsigned(1'b1),
+                      .interval_cfg(HS_TEST_INTERVAL_CFG));
+    send_fill_word(6, make_fill_word(0));
+    send_fill_word(7, make_fill_word(0));
+    wait_pipeline_drain(256);
+    csr_read(CSR_UNDERFLOW, uflow);
+    if (uflow < 32'd2)
+      `uvm_error("X04", $sformatf("underflow expected >=2 got %0d", uflow))
   endtask
   local task automatic task_x05();
     `uvm_info(get_type_name(), "X05: hit_count x injection_rate x queue_occ — skipped (covergroup)", UVM_LOW)
@@ -194,6 +205,7 @@ class hist_cross_test extends hist_base_test;
   local task automatic task_x20();
     bit [31:0] uflow, oflow;
     `uvm_info(get_type_name(), "X20: underflow x overflow x bin_index — mixed txn", UVM_LOW)
+    issue_measure_clear();
     program_histogram(.left_bound(100), .bin_width(16), .key_unsigned(1'b1),
                       .interval_cfg(HS_TEST_INTERVAL_CFG));
     // Underflow: key=50 < lb=100
@@ -252,7 +264,8 @@ class hist_cross_test extends hist_base_test;
     task_x01(); issue_measure_clear();
     task_x02(); issue_measure_clear();
     task_x03(); issue_measure_clear();
-    task_x04(); task_x05(); task_x06(); task_x07(); task_x08();
+    task_x04(); issue_measure_clear();
+    task_x05(); task_x06(); task_x07(); task_x08();
     task_x09(); issue_measure_clear();
     task_x10(); issue_measure_clear();
     task_x11(); task_x12(); task_x13(); task_x14();

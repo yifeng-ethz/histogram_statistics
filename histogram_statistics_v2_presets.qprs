@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ip><presets version="18.1">
-	<preset name="Default" kind="histogram_statistics_v2" version="All" description="Delivered default. 256 bins with 32-bit counters, 8 ingress ports, 256-deep coalescing queue, ping-pong rate readout enabled at 1 s interval (125 MHz).">
+	<preset name="Default" kind="histogram_statistics_v2" version="All" description="Delivered default. 256 bins with 32-bit counters, 8 ingress ports, 160-deep coalescing queue, ping-pong rate readout enabled at 1 s interval (125 MHz). The queue depth is trimmed from 256 after MuTRiG 3.5 cycles/hit channel-rate stress sweeps showed a 144-entry peak with no queue overflow at 160.">
 		<parameter name="N_BINS" value="256" />
 		<parameter name="MAX_COUNT_BITS" value="32" />
 		<parameter name="DEF_LEFT_BOUND" value="-1000" />
@@ -14,7 +14,7 @@
 		<parameter name="SAR_KEY_WIDTH" value="16" />
 		<parameter name="N_PORTS" value="8" />
 		<parameter name="CHANNELS_PER_PORT" value="32" />
-		<parameter name="COAL_QUEUE_DEPTH" value="256" />
+		<parameter name="COAL_QUEUE_DEPTH" value="160" />
 		<parameter name="ENABLE_PINGPONG" value="true" />
 		<parameter name="DEF_INTERVAL_CLOCKS" value="125000000" />
 		<parameter name="AVST_DATA_WIDTH" value="39" />

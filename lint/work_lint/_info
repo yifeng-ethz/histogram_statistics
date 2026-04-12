@@ -1,0 +1,425 @@
+m255
+K4
+z2
+Z0 !s99 nomlopt
+!s11e vcom 2022.4 2022.10, Oct 18 2022
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z1 d/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores
+Ealt_dpram_true
+Z2 w1775570910
+Z3 DPx9 altera_mf 20 altera_mf_components 0 22 EXk_gM@S`_z;Jl0KU7X?R2
+Z4 DPx3 std 6 textio 0 22 LS[?81n5ZHWBI9JkBZTV<2
+Z5 DPx4 ieee 14 std_logic_1164 0 22 6<US`=mgl_dFdCEFF7J=m1
+!i122 2
+R1
+Z6 8/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/alt_dpram/alt_dpram_true.vhd
+Z7 F/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/alt_dpram/alt_dpram_true.vhd
+l0
+L42 1
+VGNdjb5^IU8I`ZcQWkz6300
+!s100 aizLUSZ4[1o3F?>NbUjWP3
+Z8 OL;C;2022.4;75
+33
+Z9 !s110 1775985613
+!i10b 1
+Z10 !s108 1775985613.000000
+Z11 !s90 -work|work_lint|-2008|-lint=full|-pedanticerrors|-check_synthesis|-rangecheck|-explicit|-fsmsingle|/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/alt_dpram/alt_dpram_true.vhd|
+Z12 !s107 /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/alt_dpram/alt_dpram_true.vhd|
+!i113 0
+Z13 o-work work_lint -2008 -lint=full -pedanticerrors -check_synthesis -rangecheck -explicit -fsmsingle
+Z14 tExplicit 1 CvgOpt 0
+Asyn
+R3
+R4
+R5
+DEx4 work 14 alt_dpram_true 0 22 GNdjb5^IU8I`ZcQWkz6300
+!i122 2
+l63
+L58 54
+Vk^D_5bkz<F:PAP0IW2B[W0
+!s100 OhJ6i85O5ISZXkfKGdCei2
+R8
+33
+R9
+!i10b 1
+R10
+R11
+R12
+!i113 0
+R13
+R14
+Ebin_divider
+Z15 w1775571019
+Z16 DPx4 ieee 11 numeric_std 0 22 F8@]:i<mFK7<TjIzKcTGi0
+R4
+R5
+!i122 5
+R1
+Z17 8/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd
+Z18 F/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd
+l0
+Z19 L25 1
+V2bjI?>AYllOWP`a<_a<K_3
+!s100 `Nlz<Sg0OTL:W<LVSJBm]2
+R8
+33
+R9
+!i10b 1
+R10
+Z20 !s90 -work|work_lint|-2008|-lint=full|-pedanticerrors|-check_synthesis|-rangecheck|-explicit|-fsmsingle|/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd|
+Z21 !s107 /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/bin_divider.vhd|
+!i113 0
+R13
+R14
+Artl
+R16
+R4
+R5
+Z22 DEx4 work 11 bin_divider 0 22 2bjI?>AYllOWP`a<_a<K_3
+!i122 5
+l68
+L49 99
+VT9PMMk__eGB^U=<0iN>2N3
+!s100 n]<eFT`QgYm_P?8GNRMW?0
+R8
+33
+R9
+!i10b 1
+R10
+R20
+R21
+!i113 0
+R13
+R14
+Ecoalescing_queue
+Z23 w1775932112
+Z24 DPx4 work 27 histogram_statistics_v2_pkg 0 22 N<38d[mLS>ijog5PYi0_c2
+R16
+R4
+R5
+!i122 6
+R1
+Z25 8/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/coalescing_queue.vhd
+Z26 F/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/coalescing_queue.vhd
+l0
+Z27 L27 1
+V`bQB4imDX_2J8O>123fBU2
+!s100 VnlDmZIhaX]jV?Xn8hl:Z2
+R8
+33
+R9
+!i10b 1
+R10
+Z28 !s90 -work|work_lint|-2008|-lint=full|-pedanticerrors|-check_synthesis|-rangecheck|-explicit|-fsmsingle|/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/coalescing_queue.vhd|
+Z29 !s107 /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/coalescing_queue.vhd|
+!i113 0
+R13
+R14
+Artl
+R24
+R16
+R4
+R5
+Z30 DEx4 work 16 coalescing_queue 0 22 `bQB4imDX_2J8O>123fBU2
+!i122 6
+l98
+L50 224
+Vc=0FGgR9Q5=>jX^g9ZKS^3
+!s100 g`YfM;Kn58L3^8kQ6M:0N3
+R8
+33
+R9
+!i10b 1
+R10
+R28
+R29
+!i113 0
+R13
+R14
+Ehistogram_statistics_v2
+Z31 w1775835762
+R24
+R16
+R4
+R5
+!i122 8
+R1
+Z32 8/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd
+Z33 F/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd
+l0
+L46 1
+VdjdBnT>>CBZSgYE7M>8P?0
+!s100 [9TQRc7_zfNScg^09f_0f1
+R8
+33
+R9
+!i10b 1
+R10
+Z34 !s90 -work|work_lint|-2008|-lint=full|-pedanticerrors|-check_synthesis|-rangecheck|-explicit|-fsmsingle|/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd|
+Z35 !s107 /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2.vhd|
+!i113 0
+R13
+R14
+Artl
+Z36 DEx4 work 13 pingpong_sram 0 22 iBEY8U27G=:JeO]jI;=bX1
+R30
+R22
+Z37 DEx4 work 10 rr_arbiter 0 22 M5Nijl>>>EQ0dbQD<EjCc2
+Z38 DEx4 work 8 hit_fifo 0 22 hf]H?<60@SnY6D@AdJ9TX2
+R24
+R16
+R4
+R5
+DEx4 work 23 histogram_statistics_v2 0 22 djdBnT>>CBZSgYE7M>8P?0
+!i122 8
+l416
+L185 1010
+V@YNQi2ZJ0<6l;`WEjG2Q?1
+!s100 eDbBL9m]lPSQ_OKkl0zhY1
+R8
+33
+R9
+!i10b 1
+R10
+R34
+R35
+!i113 0
+R13
+R14
+Thistogram_statistics_v2_opt
+R9
+VC[DcPGC6309ceYlPaAJQo2
+04 23 3 work histogram_statistics_v2 rtl 1
+R0
+!s12b OEM100
+!s124 OEM25U15 
+o-work work_lint -check_synthesis
+tCvgOpt 0
+nhistogram_statistics_v2_opt
+OL;O;2022.4;75
+Phistogram_statistics_v2_pkg
+R16
+R4
+R5
+!i122 0
+R15
+R1
+Z39 8/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2_pkg.vhd
+Z40 F/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2_pkg.vhd
+l0
+L22 26
+VN<38d[mLS>ijog5PYi0_c2
+!s100 HZ5ZZAKFU[Zb8ZeS4XPP21
+R8
+33
+b1
+R9
+!i10b 1
+R10
+Z41 !s90 -work|work_lint|-2008|-lint=full|-pedanticerrors|-check_synthesis|-rangecheck|-explicit|-fsmsingle|/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2_pkg.vhd|
+Z42 !s107 /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/histogram_statistics_v2_pkg.vhd|
+!i113 0
+R13
+R14
+Bbody
+R24
+R16
+R4
+R5
+!i122 0
+l0
+L49 91
+VXaLUL4FfCXI5:N74EGN5:0
+!s100 L6G6WoGFSeF78FoH`?37T1
+R8
+33
+R9
+!i10b 1
+R10
+R41
+R42
+!i113 0
+R13
+R14
+Ehit_fifo
+R15
+R24
+R16
+R4
+R5
+!i122 3
+R1
+Z43 8/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/hit_fifo.vhd
+Z44 F/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/hit_fifo.vhd
+l0
+L26 1
+Vhf]H?<60@SnY6D@AdJ9TX2
+!s100 >:1``=DzgVH;^=]BW=_RN1
+R8
+33
+R9
+!i10b 1
+R10
+Z45 !s90 -work|work_lint|-2008|-lint=full|-pedanticerrors|-check_synthesis|-rangecheck|-explicit|-fsmsingle|/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/hit_fifo.vhd|
+Z46 !s107 /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/hit_fifo.vhd|
+!i113 0
+R13
+R14
+Artl
+R24
+R16
+R4
+R5
+R38
+!i122 3
+l66
+L46 75
+VoDVBSe4oF8D`N63iB2MZF2
+!s100 3OGD7^9;UbfcdKhn7PXZN2
+R8
+33
+R9
+!i10b 1
+R10
+R45
+R46
+!i113 0
+R13
+R14
+Epingpong_sram
+R15
+R24
+R16
+R4
+R5
+!i122 7
+R1
+Z47 8/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/pingpong_sram.vhd
+Z48 F/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/pingpong_sram.vhd
+l0
+R27
+ViBEY8U27G=:JeO]jI;=bX1
+!s100 Q0SH4IaD<eF]f4>7:RES<2
+R8
+33
+R9
+!i10b 1
+R10
+Z49 !s90 -work|work_lint|-2008|-lint=full|-pedanticerrors|-check_synthesis|-rangecheck|-explicit|-fsmsingle|/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/pingpong_sram.vhd|
+Z50 !s107 /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/pingpong_sram.vhd|
+!i113 0
+R13
+R14
+Artl
+Z51 DEx4 work 31 true_dual_port_ram_single_clock 0 22 7MP^^0U;<K_Q@0;mL6VAV0
+R24
+R16
+R4
+R5
+R36
+!i122 7
+l128
+L55 431
+Vak]>2=@nLzQdcVjAM3IF43
+!s100 J8eZ1coM4gE[izA:C2OJ^0
+R8
+33
+R9
+!i10b 1
+R10
+R49
+R50
+!i113 0
+R13
+R14
+Err_arbiter
+R15
+R24
+R16
+R4
+R5
+!i122 4
+R1
+Z52 8/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/rr_arbiter.vhd
+Z53 F/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/rr_arbiter.vhd
+l0
+R19
+VM5Nijl>>>EQ0dbQD<EjCc2
+!s100 n;[DBo?ZQEi1iSHENYebN3
+R8
+33
+R9
+!i10b 1
+R10
+Z54 !s90 -work|work_lint|-2008|-lint=full|-pedanticerrors|-check_synthesis|-rangecheck|-explicit|-fsmsingle|/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/rr_arbiter.vhd|
+Z55 !s107 /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/rr_arbiter.vhd|
+!i113 0
+R13
+R14
+Artl
+R24
+R16
+R4
+R5
+R37
+!i122 4
+l55
+L44 77
+VNUb=Z5;]G047P;;J1ld;N3
+!s100 KS4C_O_8JRV]VaaFjGOYQ2
+R8
+33
+R9
+!i10b 1
+R10
+R54
+R55
+!i113 0
+R13
+R14
+Etrue_dual_port_ram_single_clock
+R15
+R4
+R5
+!i122 1
+R1
+Z56 8/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/true_dual_port_ram_single_clock.vhd
+Z57 F/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/true_dual_port_ram_single_clock.vhd
+l0
+L10 1
+V7MP^^0U;<K_Q@0;mL6VAV0
+!s100 ]JK[9UHl@V0=]n<a1QBJf0
+R8
+33
+R9
+!i10b 1
+R10
+Z58 !s90 -work|work_lint|-2008|-lint=full|-pedanticerrors|-check_synthesis|-rangecheck|-explicit|-fsmsingle|/home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/true_dual_port_ram_single_clock.vhd|
+Z59 !s107 /home/yifeng/packages/mu3e_ip_dev/mu3e-ip-cores/histogram_statistics/rtl/true_dual_port_ram_single_clock.vhd|
+!i113 0
+R13
+R14
+Artl
+R4
+R5
+R51
+!i122 1
+l47
+L31 55
+V3Bj37Z<PeI]8N9<5:P?T[1
+!s100 =g<@WDecM1]Nzm`T?O:G23
+R8
+33
+R9
+!i10b 1
+R10
+R58
+R59
+!i113 0
+R13
+R14

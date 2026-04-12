@@ -9,6 +9,7 @@ class hist_cfg_test extends hist_base_test;
   localparam bit [4:0]    HS_CSR_KEY_FILTER_VAL_ADDR = 5'd7;
   localparam bit [4:0]    HS_CSR_OVERFLOW_CNT_ADDR   = 5'd9;
   localparam bit [4:0]    HS_CSR_INTERVAL_CFG_ADDR   = 5'd10;
+  localparam bit [4:0]    HS_CSR_SCRATCH_ADDR        = 5'd16;
 
   localparam bit [31:0]   HS_CONTROL_APPLY_PENDING_MASK = 32'h0000_0002;
   localparam bit [31:0]   HS_CONTROL_ERROR_MASK         = 32'h0100_0000;
@@ -270,7 +271,62 @@ class hist_cfg_test extends hist_base_test;
   endtask
 
   local task automatic task_b038();
-    `uvm_info(get_type_name(), "B038: skipped, requires debug input mode setup", UVM_LOW)
+    bit [31:0] scratch_val;
+    `uvm_info(get_type_name(), "B038: config/control/bin activity toggles high-bit register and interface state", UVM_LOW)
+
+    // Exercise CSR shadow registers with high-bit patterns, then restore to a legal baseline.
+    program_key_fields(
+      .update_lo  (8'd18),
+      .update_hi  (8'd31),
+      .filter_lo  (8'd9),
+      .filter_hi  (8'd22),
+      .update_key (16'hFFFF),
+      .filter_key (16'hFFFF)
+    );
+    csr_write(HS_CSR_INTERVAL_CFG_ADDR, 32'hFFFF_FFFF);
+    csr_write(HS_CSR_SCRATCH_ADDR, 32'hFFFF_FFFF);
+    write_control_apply(.mode(4'h0), .key_unsigned(1'b1), .filter_enable(1'b1), .filter_reject(1'b1));
+    wait_apply_settle();
+    check_csr_equal("B038", HS_CSR_INTERVAL_CFG_ADDR, 32'hFFFF_FFFF, "interval_cfg");
+    check_csr_equal("B038", HS_CSR_SCRATCH_ADDR, 32'hFFFF_FFFF, "scratch");
+
+    // Toggle otherwise-cold interfaces and AVMM write data bits.
+    send_ctrl_word(9'h1FF);
+    bin_write_word(8'h3C, 32'hFFFF_FFFF);
+    bin_write_word(8'h3D, 32'h1234_5678);
+
+    // Flip the position fields and key values once more so partially-covered
+    // toggle bins see the opposite edge before the final restore.
+    program_key_fields(
+      .update_lo  (8'd12),
+      .update_hi  (8'd30),
+      .filter_lo  (8'd20),
+      .filter_hi  (8'd30),
+      .update_key (16'h0000),
+      .filter_key (16'h0000)
+    );
+    csr_write(HS_CSR_INTERVAL_CFG_ADDR, 32'h0000_FF00);
+    csr_write(HS_CSR_SCRATCH_ADDR, 32'h0000_00FF);
+    write_control_apply(.mode(4'h0), .key_unsigned(1'b1), .filter_enable(1'b1), .filter_reject(1'b1));
+    wait_apply_settle();
+
+    // Restore defaults so both 0->1 and 1->0 transitions are observed.
+    program_key_fields(
+      .update_lo  (HS_DEF_UPDATE_LO[7:0]),
+      .update_hi  (HS_DEF_UPDATE_HI[7:0]),
+      .filter_lo  (HS_DEF_FILTER_LO[7:0]),
+      .filter_hi  (HS_DEF_FILTER_HI[7:0]),
+      .update_key (16'h0000),
+      .filter_key (16'h0000)
+    );
+    csr_write(HS_CSR_INTERVAL_CFG_ADDR, HS_MIN_INTERVAL_CFG);
+    csr_write(HS_CSR_SCRATCH_ADDR, 32'h0000_0000);
+    write_control_apply(.mode(4'h0), .key_unsigned(1'b1), .filter_enable(1'b0), .filter_reject(1'b0));
+    wait_apply_settle();
+    check_csr_equal("B038", HS_CSR_INTERVAL_CFG_ADDR, HS_MIN_INTERVAL_CFG, "interval_cfg_restore");
+    csr_read(HS_CSR_SCRATCH_ADDR, scratch_val);
+    if (scratch_val !== 32'h0000_0000)
+      `uvm_error("B038", $sformatf("scratch restore expected 0 got 0x%08h", scratch_val))
   endtask
 
   local task automatic task_b039();
