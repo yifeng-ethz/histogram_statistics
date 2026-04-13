@@ -1,0 +1,470 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<device schemaVersion="1.3" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd">
+  <vendor>Mu3e</vendor>
+  <vendorID>MU3E</vendorID>
+  <name>MU3E_HISTOGRAM_STATISTICS</name>
+  <series>MU3E_FPGA_IP</series>
+  <version>26.1.0.0411</version>
+  <description>CMSIS-SVD description of the histogram statistics CSR window. BaseAddress is 0 because this file describes the relative CSR aperture of the IP; system integration supplies the live slave base address.</description>
+  <addressUnitBits>8</addressUnitBits>
+  <width>32</width>
+  <size>32</size>
+  <access>read-write</access>
+  <resetValue>0x00000000</resetValue>
+  <resetMask>0xFFFFFFFF</resetMask>
+  <peripherals>
+    <peripheral>
+      <name>HISTOGRAM_STATISTICS_CSR</name>
+      <description>Relative 17-word CSR aperture for histogram statistics. The separate hist_bin data window is intentionally excluded because it is histogram memory, not control/status registers.</description>
+      <groupName>MU3E_HISTOGRAM_STATISTICS</groupName>
+      <baseAddress>0x0</baseAddress>
+      <addressBlock>
+        <offset>0x0</offset>
+        <size>0x44</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <register>
+          <name>UID</name>
+          <description>Software-visible IP identifier. Default ASCII &quot;HIST&quot; (0x48495354).</description>
+          <addressOffset>0x00</addressOffset>
+          <access>read-only</access>
+          <resetValue>0x48495354</resetValue>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Compile-time or integration-time UID word. Default ASCII &quot;HIST&quot;.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>META</name>
+          <description>Read-multiplexed metadata word. Write meta_sel[1:0] before reading back: 0=VERSION, 1=DATE, 2=GIT, 3=INSTANCE_ID.</description>
+          <addressOffset>0x04</addressOffset>
+          <access>read-write</access>
+          <fields>
+            <field>
+              <name>meta_sel</name>
+              <description>Selects the META read page.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>reserved</name>
+              <description>Reserved, read as zero on selector writeback.</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>30</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CONTROL</name>
+          <description>Configuration apply, mode, key interpretation, filter control, and validation status.</description>
+          <addressOffset>0x08</addressOffset>
+          <access>read-write</access>
+          <resetValue>0x00000100</resetValue>
+          <fields>
+            <field>
+              <name>apply</name>
+              <description>Write 1 to request that the staged configuration becomes active after the ingress path drains.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>apply_pending</name>
+              <description>1 while a committed configuration is waiting to settle into the live datapath.</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>reserved0</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>mode</name>
+              <description>Mode selector. Negative 4-bit signed values route one of the debug inputs into the histogram path.</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>4</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>key_unsigned</name>
+              <description>1 selects unsigned update-key interpretation, 0 selects signed extraction.</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>reserved1</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>9</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>filter_enable</name>
+              <description>Enables the runtime filter-key comparison.</description>
+              <bitOffset>12</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>filter_reject</name>
+              <description>0 accepts matching events, 1 rejects matching events.</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>reserved2</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>10</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>error</name>
+              <description>Set when the last apply request failed CSR validation.</description>
+              <bitOffset>24</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>reserved3</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>25</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>error_info</name>
+              <description>Validation error code. 0x1 indicates invalid bounds in auto-right-bound mode.</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>4</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>LEFT_BOUND</name>
+          <description>Signed left boundary of the histogram range.</description>
+          <addressOffset>0x0C</addressOffset>
+          <access>read-write</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Signed left boundary.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RIGHT_BOUND</name>
+          <description>Signed right boundary of the histogram range. Recomputed at apply time when BIN_WIDTH != 0.</description>
+          <addressOffset>0x10</addressOffset>
+          <access>read-write</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Signed right boundary.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>BIN_WIDTH</name>
+          <description>Bin width in key-space units. Set to 0 to keep explicit left and right bounds.</description>
+          <addressOffset>0x14</addressOffset>
+          <access>read-write</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Bin width in key-space units.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>reserved</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>KEY_LOC</name>
+          <description>Packed bit-slice locations for update-key and filter-key extraction.</description>
+          <addressOffset>0x18</addressOffset>
+          <access>read-write</access>
+          <resetValue>0x26231D11</resetValue>
+          <fields>
+            <field>
+              <name>update_key_low</name>
+              <description>LSB of the update-key slice inside the snooped data word.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>update_key_high</name>
+              <description>MSB of the update-key slice inside the snooped data word.</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>filter_key_low</name>
+              <description>LSB of the filter-key slice inside the snooped data word.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>filter_key_high</name>
+              <description>MSB of the filter-key slice inside the snooped data word.</description>
+              <bitOffset>24</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>KEY_VALUE</name>
+          <description>Packed runtime key overrides used by mode-dependent histogram logic.</description>
+          <addressOffset>0x1C</addressOffset>
+          <access>read-write</access>
+          <fields>
+            <field>
+              <name>update_key</name>
+              <description>Literal update-key override.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>filter_key</name>
+              <description>Literal filter-key comparison value.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>UNDERFLOW_COUNT</name>
+          <description>Count of keys mapped below the configured range.</description>
+          <addressOffset>0x20</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Underflow event count.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>OVERFLOW_COUNT</name>
+          <description>Count of keys mapped above the configured range.</description>
+          <addressOffset>0x24</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Overflow event count.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>INTERVAL_CFG</name>
+          <description>Ping-pong interval timer configuration in clock cycles.</description>
+          <addressOffset>0x28</addressOffset>
+          <access>read-write</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Interval length in clock cycles.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>BANK_STATUS</name>
+          <description>Ping-pong bank-selection and flush-progress status.</description>
+          <addressOffset>0x2C</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>active_bank</name>
+              <description>Currently active write bank.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>flushing</name>
+              <description>1 while the next active bank is being cleared.</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>reserved0</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>6</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>flush_addr</name>
+              <description>Bin index currently being cleared.</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>reserved1</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>PORT_STATUS</name>
+          <description>Ingress FIFO empty-mask and maximum observed fill level.</description>
+          <addressOffset>0x30</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>fifo_empty_mask</name>
+              <description>One bit per ingress FIFO. 1 indicates the corresponding FIFO is empty.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>reserved0</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>fifo_level_max</name>
+              <description>Maximum observed FIFO fill level across the ingress-port pairs.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>reserved1</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>24</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOTAL_HITS</name>
+          <description>Total accepted hit count across all active sources.</description>
+          <addressOffset>0x34</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Accepted-hit count.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>DROPPED_HITS</name>
+          <description>Total dropped hits caused by FIFO or queue overflow.</description>
+          <addressOffset>0x38</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Dropped-hit count.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>COAL_STATUS</name>
+          <description>Coalescing-queue occupancy, occupancy maximum, and overflow count.</description>
+          <addressOffset>0x3C</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>queue_occupancy</name>
+              <description>Current coalescing-queue occupancy.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>queue_occupancy_max</name>
+              <description>Maximum queue occupancy observed in the current interval.</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>queue_overflow_count</name>
+              <description>Total number of queue-overflow events.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>16</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SCRATCH</name>
+          <description>General-purpose scratch register for integration testing.</description>
+          <addressOffset>0x40</addressOffset>
+          <access>read-write</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Scratch value.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+  </peripherals>
+</device>
