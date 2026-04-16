@@ -1,0 +1,27 @@
+{
+  "config": { "hscale": 2 },
+  "head": { "text": "P141-REAL-TRIAD promoted long-run summary" },
+  "signal": [
+    { "name": "clk", "wave": "p.................." },
+    { "name": "rst", "wave": "10................." },
+    { "name": "cfg_apply_pending", "wave": "0...10............." },
+    { "name": "profile", "wave": "x..=....=....=.....", "data": ["REAL_A", "REAL_B", "REAL_C"] },
+    { "name": "queue_hit_valid", "wave": "0..=....=....=.....", "data": ["A activity", "B activity", "C activity"] },
+    { "name": "sample_bin_window", "wave": "0......10...10...10" },
+    { "name": "queue_overflow_count", "wave": "0.................." },
+    {
+      "name": "event",
+      "wave": "x.=.=.=.=.=.=.=.=.",
+      "data": [
+        "rst_deassert",
+        "cfg_apply",
+        "REAL_A start",
+        "REAL_A sample",
+        "REAL_B start",
+        "REAL_B sample",
+        "REAL_C start",
+        "REAL_C sample"
+      ]
+    }
+  ]
+}

@@ -364,8 +364,10 @@ TB_TOP     = tb_top
 
 TEST ?= hist_smoke_test
 SEED ?= random
+VCD_FILE ?= $(TEST).vcd
+WAVE_SCOPE ?= /tb_top/*
 
-.PHONY: compile run run_cov clean
+.PHONY: compile run run_cov run_vcd wave_index clean
 
 compile: $(WORK)/_vmake
 
@@ -406,7 +408,10 @@ run_vcd: compile
     $(VSIM) -c -work $(WORK) -t ps -voptargs=+acc \
       -suppress 19 -suppress 3009 -suppress 3473 \
       +UVM_TESTNAME=$(TEST) -sv_seed $(SEED) \
-      -do "vcd file $(TEST).vcd; vcd add -r /tb_top/dut/*; run -all; vcd flush; quit -f" $(TB_TOP)
+      -do "vcd file $(VCD_FILE); vcd add -r $(WAVE_SCOPE); run -all; vcd flush; quit -f" $(TB_TOP)
+
+wave_index:
+    python3 scripts/build_wave_manifest.py
 
 merge_cov:
     $(QUESTA_HOME)/bin/vcover merge merged.ucdb *.ucdb
@@ -415,3 +420,17 @@ merge_cov:
 clean:
     rm -rf $(WORK) transcript vsim.wlf *.ucdb *.vcd cov_html
 ```
+
+### 8.1 Waveform Publication
+
+Phase-4 waveform reporting is implemented as a small static package under
+`tb/waves/`:
+
+1. Generate a VCD in the UVM harness with `make run_vcd TEST=<test> SEED=<seed> VCD_FILE=../waves/generated/<case>.vcd`
+2. Register or refresh the case metadata with `python3 scripts/publish_wave_case.py`
+3. Rebuild `tb/waves/manifest.json` with `make wave_index`
+4. Open `tb/waves/index.html` to browse published cases, notes, and artifact links
+
+The published package is intentionally small. Only baseline and promoted
+long-run cases are indexed, and the checked-in GTKWave file is a reusable
+template rather than a per-case fully curated save file.

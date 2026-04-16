@@ -1,0 +1,40 @@
+{
+  "case_id": "P141-REAL-TRIAD",
+  "title": "Promoted real-hit triad long-run anchor",
+  "kind": "uvm",
+  "group": "performance",
+  "alias": "hist_real_hit_rand_test",
+  "status": "published",
+  "published_at": "2026-04-12T10:05:10.830361+00:00",
+  "artifacts": [
+    {
+      "label": "VCD",
+      "type": "vcd",
+      "href": "waves/generated/P141-REAL-TRIAD.vcd"
+    },
+    {
+      "label": "GTKWave Save",
+      "type": "gtkw",
+      "href": "waves/templates/histogram_wave_template.gtkw"
+    },
+    {
+      "label": "WaveDrom",
+      "type": "wavedrom",
+      "href": "waves/cases/P141-REAL-TRIAD/wavedrom.svg"
+    },
+    {
+      "label": "Summary",
+      "type": "markdown",
+      "href": "waves/cases/P141-REAL-TRIAD/summary.md"
+    }
+  ],
+  "markers": [
+    "T0",
+    "REAL_A",
+    "REAL_B",
+    "REAL_C",
+    "queue_peak",
+    "final_swap"
+  ],
+  "notes": "Promoted closure case using +HIST_REAL_PROFILE=triad +HIST_REAL_HITS=2048."
+}

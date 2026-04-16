@@ -1,0 +1,27 @@
+{
+  "config": { "hscale": 2 },
+  "head": { "text": "HIST-SMOKE signature waveform" },
+  "signal": [
+    { "name": "clk", "wave": "p..............." },
+    { "name": "rst", "wave": "10.............." },
+    { "name": "cfg_apply_pending", "wave": "0...10.........." },
+    { "name": "measure_clear_pulse", "wave": "0....10........." },
+    { "name": "queue_hit_valid", "wave": "0........10....." },
+    { "name": "queue_drain_valid", "wave": "0.........10...." },
+    { "name": "interval_pulse", "wave": "0............10." },
+    { "name": "hist_readdatavalid", "wave": "0..............10" },
+    {
+      "name": "event",
+      "wave": "x.=.=.=.=.=.=.=.",
+      "data": [
+        "rst_deassert",
+        "cfg_apply",
+        "measure_clear",
+        "first_hit",
+        "queue_drain",
+        "bank_swap",
+        "burst_read"
+      ]
+    }
+  ]
+}

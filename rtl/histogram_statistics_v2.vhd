@@ -84,7 +84,7 @@ entity histogram_statistics_v2 is
         avs_hist_bin_waitrequest        : out std_logic;
         avs_hist_bin_write              : in  std_logic;
         avs_hist_bin_writedata          : in  std_logic_vector(31 downto 0);
-        avs_hist_bin_burstcount         : in  std_logic_vector(AVS_ADDR_WIDTH - 1 downto 0);
+        avs_hist_bin_burstcount         : in  std_logic_vector(AVS_ADDR_WIDTH downto 0);
         avs_hist_bin_readdatavalid      : out std_logic;
         avs_hist_bin_writeresponsevalid : out std_logic;
         avs_hist_bin_response           : out std_logic_vector(1 downto 0);

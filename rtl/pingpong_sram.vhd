@@ -42,7 +42,7 @@ entity pingpong_sram is
         o_upd_ready          : out std_logic;
         i_hist_read          : in  std_logic;
         i_hist_address       : in  unsigned(clog2(N_BINS) - 1 downto 0);
-        i_hist_burstcount    : in  unsigned(clog2(N_BINS) - 1 downto 0);
+        i_hist_burstcount    : in  unsigned(clog2(N_BINS) downto 0);
         o_hist_readdata      : out std_logic_vector(31 downto 0);
         o_hist_readdatavalid : out std_logic;
         o_active_bank        : out std_logic;

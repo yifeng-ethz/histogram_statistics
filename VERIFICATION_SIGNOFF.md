@@ -1,12 +1,11 @@
 # Verification Signoff: histogram_statistics_v2
 
-Status: `PASS AGAINST DV_PLAN WITH WORKFLOW GAPS`
+Status: `PASS AGAINST DV_PLAN; STRICT CLAUDE DV WORKFLOW BLOCKED ONLY BY EXTERNAL QUESTA_FE ENTITLEMENT`
 
 This signoff uses the current-tree `v7` regression baseline plus a promoted
 long-run coverage farm. The DUT correctness and code-coverage gates are closed
-against `tb/DV_PLAN.md`. The remaining open items are workflow/environment
-gaps: exact non-Starter simulator-tier closure on this host, and Phase-4
-waveform publication.
+against `tb/DV_PLAN.md`. The remaining open item is workflow/environment
+exactness: non-Starter simulator-tier closure on this host.
 
 ## Scope
 
@@ -24,6 +23,9 @@ waveform publication.
   - [tb/uvm/cov_runs/signoff_longrun_v1/summary.md](tb/uvm/cov_runs/signoff_longrun_v1/summary.md)
   - [tb/uvm/cov_runs/signoff_longrun_v1/suite/suite_trend.csv](tb/uvm/cov_runs/signoff_longrun_v1/suite/suite_trend.csv)
   - [tb/uvm/cov_runs/signoff_longrun_v1/suite/suite_trend.png](tb/uvm/cov_runs/signoff_longrun_v1/suite/suite_trend.png)
+  - [tb/waves/README.md](tb/waves/README.md)
+  - [tb/waves/index.html](tb/waves/index.html)
+  - [tb/waves/manifest.json](tb/waves/manifest.json)
 
 ## Environment
 
@@ -39,6 +41,12 @@ waveform publication.
 - `questa_fe` is installed and reports the correct Edition banner, and
   `mtiverification` is check-outable through `lmutil lmdiag`, but live `vsim`
   startup still fails with `Invalid license environment` on this host.
+- The FE-specific diagnostic target
+  `make fe_runtime_probe QUESTA_PREFER_FE=1` isolates the blocker further:
+  `msimhdlsim` and `mtiverification` are available, but the FE runtime feature
+  `intelqsim` is not available from either the ETH server or the local Intel
+  fixed-node license files. The resulting `vsim` failure is therefore an
+  external entitlement gap, not a repo-local Makefile or testbench bug.
 
 Practical interpretation:
 
@@ -188,6 +196,25 @@ These misses do not block signoff against the project coverage targets. Future
 work, if needed, should be UNR/exclusion review or alternate-generic harnesses,
 not blind runtime growth.
 
+## Waveform Publication
+
+Phase-4 publication collateral is now present in-tree:
+
+- static browser index at [tb/waves/index.html](tb/waves/index.html)
+- manifest automation through `make -C tb/uvm wave_index`
+- case registration through `tb/uvm/scripts/publish_wave_case.py`
+- reproducible VCD capture through `tb/uvm/scripts/run_vcd_case.sh`
+- rendered WaveDrom summaries for the published seed cases
+
+Published seed cases:
+
+- `HIST-SMOKE`: deterministic bring-up anchor
+- `P141-REAL-TRIAD`: promoted long-run coverage anchor
+
+The VCD files themselves live under `tb/waves/generated/` and are intentionally
+git-ignored, but the publication package, summaries, metadata, and GTKWave
+template are checked in.
+
 ## Remaining Workflow Gaps
 
 The earlier major verification blockers are closed:
@@ -196,13 +223,13 @@ The earlier major verification blockers are closed:
 - statement, branch, toggle, and functional coverage targets are met
 - long-run promotion is based on measured coverage-vs-wall-clock data
 - the promoted routine closure suite is defined and justified
+- Phase-4 waveform publication collateral now exists in-tree
 
 Still open:
 
 - exact non-Starter simulator-tier closure on this host
   - `questa_fe` is installed but live runtime checkout still fails
-- Phase-4 waveform publication
-  - VCD/GTKWave/WaveDrom handoff is not yet produced
+  - the concrete missing FE runtime feature is `intelqsim`
 
 ## Signoff Conclusion
 
@@ -215,5 +242,5 @@ What can be claimed now:
 What should not be overstated:
 
 - this is not yet exact closure of the stricter external DV workflow
-- the blocking gaps are the `questa_fe` runtime checkout issue and missing
-  waveform-publication collateral
+- the only remaining blocking gap is external `questa_fe` runtime entitlement on
+  this host; the in-repo waveform/publication and coverage-closure work is done

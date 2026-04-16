@@ -1,0 +1,74 @@
+[*] GTKWave Analyzer save file - template
+[dumpfile] REPLACE_WITH_VCD
+[dumpfile_mtime] 0
+[savefile] histogram_wave_template.gtkw
+[timestart] 0
+[size] 1600 900
+[pos] -1 -1
+*-1 0
+[treeopen] tb_top.
+@200
+- top-level markers should use T0/T1/T2 naming
+@28
+tb_top.i_clk
+[color] 0
+@28
+tb_top.i_rst
+[color] 1
+@200
+- interval / apply control
+@28
+tb_top.dut.measure_clear_pulse
+[color] 3
+@28
+tb_top.dut.interval_pulse
+[color] 3
+@28
+tb_top.dut.cfg_apply_pending
+[color] 3
+@28
+tb_top.dut.active_bank
+[color] 5
+@200
+- queue activity
+@28
+tb_top.dut.queue_hit_valid
+[color] 3
+@24
+tb_top.dut.queue_hit_bin[7:0]
+[color] 0
+@28
+tb_top.dut.queue_drain_valid
+[color] 3
+@24
+tb_top.dut.queue_drain_bin[7:0]
+[color] 0
+@24
+tb_top.dut.queue_drain_count[7:0]
+[color] 4
+@24
+tb_top.dut.queue_occupancy[8:0]
+[color] 4
+@24
+tb_top.dut.queue_occupancy_max[8:0]
+[color] 4
+@24
+tb_top.dut.queue_overflow_count[15:0]
+[color] 1
+@200
+- divider / readout
+@28
+tb_top.dut.divider_valid
+[color] 3
+@24
+tb_top.dut.divider_bin_index[7:0]
+[color] 0
+@28
+tb_top.dut.hist_readdatavalid
+[color] 3
+@22
+tb_top.dut.avs_hist_bin_readdata[31:0]
+[color] 5
+@22
+tb_top.dut.csr_coal_status[31:0]
+[color] 5

@@ -1,0 +1,40 @@
+{
+  "case_id": "HIST-SMOKE",
+  "title": "Directed hist_smoke_test bring-up",
+  "kind": "uvm",
+  "group": "smoke",
+  "alias": "hist_smoke_test",
+  "status": "published",
+  "published_at": "2026-04-12T10:05:10.820174+00:00",
+  "artifacts": [
+    {
+      "label": "VCD",
+      "type": "vcd",
+      "href": "waves/generated/HIST-SMOKE.vcd"
+    },
+    {
+      "label": "GTKWave Save",
+      "type": "gtkw",
+      "href": "waves/templates/histogram_wave_template.gtkw"
+    },
+    {
+      "label": "WaveDrom",
+      "type": "wavedrom",
+      "href": "waves/cases/HIST-SMOKE/wavedrom.svg"
+    },
+    {
+      "label": "Summary",
+      "type": "markdown",
+      "href": "waves/cases/HIST-SMOKE/summary.md"
+    }
+  ],
+  "markers": [
+    "T0",
+    "rst_deassert",
+    "cfg_apply",
+    "first_hit",
+    "bank_swap",
+    "burst_read"
+  ],
+  "notes": "Reference bring-up waveform with full tb_top scope."
+}

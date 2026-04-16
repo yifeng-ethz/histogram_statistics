@@ -2,9 +2,9 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  1
-set VERSION_PATCH_DEFAULT_CONST  0
-set BUILD_DEFAULT_CONST          411
-set VERSION_DATE_DEFAULT_CONST   20260411
+set VERSION_PATCH_DEFAULT_CONST  1
+set BUILD_DEFAULT_CONST          416
+set VERSION_DATE_DEFAULT_CONST   20260416
 set VERSION_GIT_DEFAULT_CONST    72231161
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
@@ -408,6 +408,10 @@ proc elaborate {} {
 
     set_parameter_property DEF_BIN_WIDTH ALLOWED_RANGES 1:65535
     set_parameter_property AVS_ADDR_WIDTH ALLOWED_RANGES ${min_hist_addr_w}:16
+
+    # hist_bin burstcount needs AVS_ADDR_WIDTH+1 bits to represent burst=N_BINS
+    set avs_addr_w [get_parameter_value AVS_ADDR_WIDTH]
+    set_port_property avs_hist_bin_burstcount WIDTH_EXPR [expr {$avs_addr_w + 1}]
     set_parameter_property VERSION_MAJOR ENABLED false
     set_parameter_property VERSION_MINOR ENABLED false
     set_parameter_property VERSION_PATCH ENABLED false
@@ -846,7 +850,7 @@ add_interface_port hist_bin avs_hist_bin_writedata writedata Input 32
 add_interface_port hist_bin avs_hist_bin_readdata readdata Output 32
 add_interface_port hist_bin avs_hist_bin_readdatavalid readdatavalid Output 1
 add_interface_port hist_bin avs_hist_bin_waitrequest waitrequest Output 1
-add_interface_port hist_bin avs_hist_bin_burstcount burstcount Input AVS_ADDR_WIDTH
+add_interface_port hist_bin avs_hist_bin_burstcount burstcount Input 1
 add_interface_port hist_bin avs_hist_bin_response response Output 2
 add_interface_port hist_bin avs_hist_bin_writeresponsevalid writeresponsevalid Output 1
 set_interface_assignment hist_bin embeddedsw.configuration.isFlash 0

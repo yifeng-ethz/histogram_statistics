@@ -53,6 +53,8 @@ MERGED_UCDB ?= merged.ucdb
 COV_HTML_DIR ?= cov_html
 COVERAGE ?= 0
 PLUSARGS ?=
+VCD_FILE ?= $(TEST).vcd
+WAVE_SCOPE ?= /tb_top/*
 CASE_ID ?= P141_real_triad
 POINTS ?= 256,512,1024,2048
 PLUSARGS_TEMPLATE ?= +HIST_REAL_PROFILE=triad +HIST_REAL_HITS={hits}
@@ -75,7 +77,7 @@ SV_SRCS = \
 
 TB_INCLUDE_DEPS = $(sort $(wildcard *.sv) $(wildcard tests/*.sv) $(wildcard sva/*.sv))
 
-.PHONY: check_license license_diag full_questa_probe compile compile_cov run run_cov run_vcd merge_cov cov_trend cov_farm clean
+.PHONY: check_license license_diag full_questa_probe fe_runtime_probe compile compile_cov run run_cov run_vcd merge_cov wave_index cov_trend cov_farm clean
 
 check_license:
 	@echo "=== Checking Mentor floating license features ==="
@@ -128,6 +130,39 @@ full_questa_probe:
 	$(VLOG) -sv -work "$$tmpdir/work" "$$tmpdir/full_questa_probe.sv" && \
 	$(VSIM) -c -work "$$tmpdir/work" full_questa_probe -do "run -all; quit -f"; \
 	status=$$?; rm -rf "$$tmpdir"; exit $$status
+
+fe_runtime_probe:
+	@if [ "$(QUESTA_FLAVOR)" != "questa_fe" ]; then \
+	  echo "fe_runtime_probe requires QUESTA_PREFER_FE=1"; \
+	  exit 2; \
+	fi
+	@echo "=== Probing questa_fe runtime entitlement ==="
+	@tmpdir=$$(mktemp -d); \
+	mkdir -p "$$tmpdir/logs"; \
+	printf '%s\n' \
+'module fe_runtime_probe;' \
+'  initial begin' \
+'    $$display("FE_RUNTIME_PROBE_OK");' \
+'    $$finish;' \
+'  end' \
+'endmodule' > "$$tmpdir/fe_runtime_probe.sv"; \
+	echo "--- mgls_ok msimhdlsim ---"; \
+	"$(QUESTA_HOME)/linux_x86_64/mgls_ok" msimhdlsim || true; \
+	echo "--- mgls_ok mtiverification ---"; \
+	"$(QUESTA_HOME)/linux_x86_64/mgls_ok" mtiverification || true; \
+	echo "--- mgls_ok intelqsim ---"; \
+	int_status=0; \
+	"$(QUESTA_HOME)/linux_x86_64/mgls_ok" intelqsim || int_status=$$?; \
+	"$(VLIB)" "$$tmpdir/work" >/dev/null; \
+	"$(VLOG)" -sv -work "$$tmpdir/work" "$$tmpdir/fe_runtime_probe.sv" >/dev/null; \
+	vsim_status=0; \
+	SALT_LOGGING_DIR="$$tmpdir/logs" "$(VSIM)" -c -work "$$tmpdir/work" fe_runtime_probe -do "run -all; quit -f" >"$$tmpdir/vsim.log" 2>&1 || vsim_status=$$?; \
+	echo "--- vsim output ---"; \
+	sed -n '1,120p' "$$tmpdir/vsim.log"; \
+	echo "--- SALT logs ---"; \
+	find "$$tmpdir/logs" -maxdepth 2 -type f | sort | sed -n '1,40p'; \
+	rm -rf "$$tmpdir"; \
+	test $$int_status -eq 0 -a $$vsim_status -eq 0
 
 compile: $(BUILD_STAMP)
 
@@ -199,13 +234,16 @@ run_vcd: compile
 	$(VSIM) -c -work $(WORK) -t ps -dpicpppath $(DPI_CPP) -sv_lib $(UVM_DPI_LIB) -voptargs=+acc \
 	  -suppress 19 -suppress 3009 -suppress 3473 \
 	  +UVM_TESTNAME=$(TEST) -sv_seed $(SEED) $(PLUSARGS) \
-	  -do "quietly set NumericStdNoWarnings 1; quietly set StdArithNoWarnings 1; vcd file $(TEST).vcd; vcd add -r /tb_top/dut/*; run -all; vcd flush; quit -f" \
+	  -do "quietly set NumericStdNoWarnings 1; quietly set StdArithNoWarnings 1; vcd file $(VCD_FILE); vcd add -r $(WAVE_SCOPE); run -all; vcd flush; quit -f" \
 	  $(TB_TOP)
 
 merge_cov:
 	$(VCOVER) merge $(MERGED_UCDB) *.ucdb
 	$(VCOVER) report -html -output $(COV_HTML_DIR) $(MERGED_UCDB)
 	@echo "=== Coverage report at $(COV_HTML_DIR)/index.html ==="
+
+wave_index:
+	python3 scripts/build_wave_manifest.py
 
 cov_trend: compile_cov
 	python3 scripts/run_hist_cov_trend.py $(CASE_ID) --uvm-dir . --test $(TEST) --seed $(SEED) --points "$(POINTS)" --outdir $(OUTDIR) --plusargs-template "$(PLUSARGS_TEMPLATE)"
