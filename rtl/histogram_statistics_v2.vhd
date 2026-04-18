@@ -185,7 +185,9 @@ end entity histogram_statistics_v2;
 architecture rtl of histogram_statistics_v2 is
 
     constant MAX_PORTS_CONST        : natural := HS_MAX_PORTS_CONST;
-    constant FIFO_ADDR_WIDTH_CONST  : natural := 4;
+    -- Keep the ingress queue deep enough that bursty measurement traffic
+    -- does not get dropped before it reaches the divider/coalescer.
+    constant FIFO_ADDR_WIDTH_CONST  : natural := 8;
     constant BIN_INDEX_WIDTH_CONST  : natural := clog2(N_BINS);
     constant KICK_WIDTH_CONST       : natural := 8;
     constant COUNT_WIDTH_CONST      : natural := MAX_COUNT_BITS;
