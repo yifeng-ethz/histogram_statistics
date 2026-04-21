@@ -1,11 +1,15 @@
 # Verification Signoff: histogram_statistics_v2
 
-Status: `PASS AGAINST DV_PLAN; STRICT CLAUDE DV WORKFLOW BLOCKED ONLY BY EXTERNAL QUESTA_FE ENTITLEMENT`
+Status: `HISTORICAL SIGNOFF BASELINE PASS; ACTIVE QUESTAONE 2026 FULL TOOLCHAIN VALIDATION PASS`
 
-This signoff uses the current-tree `v7` regression baseline plus a promoted
-long-run coverage farm. The DUT correctness and code-coverage gates are closed
-against `tb/DV_PLAN.md`. The remaining open item is workflow/environment
-exactness: non-Starter simulator-tier closure on this host.
+This signoff records the historical `v7` regression baseline plus a promoted
+long-run coverage farm. Those signoff artifacts remain useful evidence for DUT
+correctness against `tb/DV_PLAN.md`. The active simulator-tier status on this
+host is now simpler: the supported QuestaOne 2026 runtime is in place, and the
+current tree has been rerun through a fresh `54 / 54` toolchain-validation pass
+on that runtime. A follow-up smoke rerun also passes after the local
+`modelsim.ini` write-path fix, so the current flow no longer relies on editing
+the shared simulator installation tree.
 
 ## Scope
 
@@ -18,6 +22,8 @@ exactness: non-Starter simulator-tier closure on this host.
   - [tb/uvm/scripts/merge_hist_cov_suite.py](tb/uvm/scripts/merge_hist_cov_suite.py)
   - [tb/uvm/scripts/run_hist_cov_farm.py](tb/uvm/scripts/run_hist_cov_farm.py)
 - Primary artifacts:
+  - [tb/uvm/cov_runs/toolchain_validation_2026_04_21/summary.md](tb/uvm/cov_runs/toolchain_validation_2026_04_21/summary.md)
+  - [tb/uvm/cov_runs/toolchain_validation_2026_04_21/summary.json](tb/uvm/cov_runs/toolchain_validation_2026_04_21/summary.json)
   - [tb/uvm/cov_runs/signoff_run_v7_fullquesta/summary.md](tb/uvm/cov_runs/signoff_run_v7_fullquesta/summary.md)
   - [tb/uvm/cov_runs/signoff_run_v7_fullquesta/summary.json](tb/uvm/cov_runs/signoff_run_v7_fullquesta/summary.json)
   - [tb/uvm/cov_runs/signoff_longrun_v1/summary.md](tb/uvm/cov_runs/signoff_longrun_v1/summary.md)
@@ -29,31 +35,26 @@ exactness: non-Starter simulator-tier closure on this host.
 
 ## Environment
 
-- Installed simulators on this host:
-  - `/data1/intelFPGA_pro/23.1/questa_fse`
-  - `/data1/intelFPGA_pro/23.1/questa_fe`
-- Default rerunnable path in [tb/uvm/Makefile](tb/uvm/Makefile) is still
-  `questa_fse`, because that is the verified working runtime on this host.
+- Supported simulator runtime on this host:
+  - `/data1/questaone_sim/questasim`
 - `make full_questa_probe` passes on the default path and proves working
   `rand`, `constraint`, and `covergroup` execution.
-- `make run TEST=hist_smoke_test SEED=111` passes on the default path after the
-  FE-aware Makefile/script cleanup.
-- `questa_fe` is installed and reports the correct Edition banner, and
-  `mtiverification` is check-outable through `lmutil lmdiag`, but live `vsim`
-  startup still fails with `Invalid license environment` on this host.
-- The FE-specific diagnostic target
-  `make fe_runtime_probe QUESTA_PREFER_FE=1` isolates the blocker further:
-  `msimhdlsim` and `mtiverification` are available, but the FE runtime feature
-  `intelqsim` is not available from either the ETH server or the local Intel
-  fixed-node license files. The resulting `vsim` failure is therefore an
-  external entitlement gap, not a repo-local Makefile or testbench bug.
+- `tb/uvm/cov_runs/toolchain_validation_2026_04_21` reruns the full `54 / 54`
+  suite on the supported QuestaOne 2026 runtime and passes on `2026-04-21`.
+- `make -C tb/uvm clean run TEST=hist_smoke_test SEED=1` passes after the local
+  writable-`modelsim.ini` fix on `2026-04-21`.
+- Intel simulation libraries are now sourced from Quartus `sim_lib` or the
+  repo helper flow rather than from the deprecated FE/FSE runtime trees.
 
 Practical interpretation:
 
 - the measured signoff results below are real and rerunnable on the current host
-- they are based on the working `questa_fse` runtime path
-- exact compliance with the stricter external DV workflow remains open until the
-  `questa_fe` runtime checkout problem is resolved
+- they are based on the supported QuestaOne 2026 runtime path
+- there is no remaining FE/FSE runtime dependency in the active rerun flow
+- the active migration validation in this turn is a fresh `54 / 54`
+  toolchain-validation rerun, not just a smoke probe
+- the post-fix local-`modelsim.ini` smoke confirms the writable work-dir flow
+  that the new runtime expects
 
 ## Baseline Result
 
@@ -84,6 +85,22 @@ Deterministic merged DUT coverage:
 
 This baseline already closed statement and branch. Toggle closure still required
 promotion of at least one long-run case.
+
+Active toolchain-validation refresh:
+[toolchain_validation_2026_04_21](tb/uvm/cov_runs/toolchain_validation_2026_04_21)
+
+- `54 / 54` executed cases pass on the supported QuestaOne 2026 runtime
+- merged DUT coverage is `statement=98.36%`, `branch=91.46%`,
+  `condition=56.25%`, `expression=84.61%`, `toggle=80.04%`,
+  `assertions=69.38%`, `covergroups=100.00%`
+- runtime from `summary.md`:
+  - total wall `133.56 s`
+  - deterministic wall `122.85 s`
+  - random wall `10.71 s`
+
+This refreshed run is the current host-validation evidence for the supported
+toolchain. The historical `signoff_run_v7_fullquesta` plus long-run promotion
+data remain the signoff basis for the promoted coverage-closure argument below.
 
 ## Long-Run Farm
 
@@ -227,9 +244,7 @@ The earlier major verification blockers are closed:
 
 Still open:
 
-- exact non-Starter simulator-tier closure on this host
-  - `questa_fe` is installed but live runtime checkout still fails
-  - the concrete missing FE runtime feature is `intelqsim`
+- no active simulator-tier blocker remains after the QuestaOne migration
 
 ## Signoff Conclusion
 
@@ -241,6 +256,5 @@ What can be claimed now:
 
 What should not be overstated:
 
-- this is not yet exact closure of the stricter external DV workflow
-- the only remaining blocking gap is external `questa_fe` runtime entitlement on
-  this host; the in-repo waveform/publication and coverage-closure work is done
+- this does not claim any extra RTL or coverage beyond the recorded evidence
+- the simulator/runtime migration is closed on the supported QuestaOne path

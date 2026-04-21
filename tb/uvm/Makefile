@@ -1,50 +1,15 @@
-QUESTA_PREFER_FE ?= 0
-ifeq ($(QUESTA_PREFER_FE),1)
-ifneq ($(wildcard /data1/intelFPGA_pro/23.1/questa_fe),)
-QUESTA_HOME ?= /data1/intelFPGA_pro/23.1/questa_fe
-else
-QUESTA_HOME ?= /data1/intelFPGA_pro/23.1/questa_fse
-endif
-else
-ifneq ($(wildcard /data1/intelFPGA_pro/23.1/questa_fse),)
-QUESTA_HOME ?= /data1/intelFPGA_pro/23.1/questa_fse
-else
-QUESTA_HOME ?= /data1/intelFPGA_pro/23.1/questa_fe
-endif
-endif
-QUESTA_FLAVOR   := $(notdir $(QUESTA_HOME))
-QUESTA_LICENSE  ?= $(firstword $(wildcard $(QUESTA_HOME)/LR-*_License.dat /data1/intelFPGA/LR-*_License.dat))
-ETH_LIC_SERVER  := 8161@lic-mentor.ethz.ch
-TB_LICENSE_CHAIN := $(ETH_LIC_SERVER)
-ifneq ($(wildcard $(QUESTA_LICENSE)),)
-TB_LICENSE_CHAIN := $(ETH_LIC_SERVER):$(QUESTA_LICENSE)
-endif
-LMUTIL          := $(firstword $(wildcard $(QUESTA_HOME)/linux_x86_64/lmutil $(QUESTA_HOME)/bin/lmutil))
-
-# ETH floating license first so coverage/UVM features do not fall back to the local base license.
-export LM_LICENSE_FILE := $(TB_LICENSE_CHAIN)
-ifeq ($(QUESTA_FLAVOR),questa_fe)
-export MGLS_LICENSE_FILE := $(TB_LICENSE_CHAIN)
-export SALT_LICENSE_SERVER := $(ETH_LIC_SERVER)
-endif
-
-VLIB = $(firstword $(wildcard $(QUESTA_HOME)/bin/vlib $(QUESTA_HOME)/linux_x86_64/vlib))
-VMAP = $(firstword $(wildcard $(QUESTA_HOME)/bin/vmap $(QUESTA_HOME)/linux_x86_64/vmap))
-VCOM = $(firstword $(wildcard $(QUESTA_HOME)/bin/vcom $(QUESTA_HOME)/linux_x86_64/vcom))
-VLOG = $(firstword $(wildcard $(QUESTA_HOME)/bin/vlog $(QUESTA_HOME)/linux_x86_64/vlog))
-VSIM = $(firstword $(wildcard $(QUESTA_HOME)/bin/vsim $(QUESTA_HOME)/linux_x86_64/vsim))
-VCOVER = $(firstword $(wildcard $(QUESTA_HOME)/bin/vcover $(QUESTA_HOME)/linux_x86_64/vcover))
+include ../../../scripts/questa_one.mk
 
 IP_SRC     = $(realpath ../..)
-INTEL_LIBS = $(firstword $(wildcard $(QUESTA_HOME)/intel/vhdl $(QUESTA_HOME)/../questa_fse/intel/vhdl))
-UVM_HOME   = $(firstword $(wildcard $(QUESTA_HOME)/verilog_src/uvm-1.2 $(QUESTA_HOME)/uvm-1.2))
-UVM_DPI_SO = $(firstword $(wildcard $(QUESTA_HOME)/uvm-1.2/linux_x86_64/uvm_dpi.so $(QUESTA_HOME)/verilog_src/uvm-1.2/linux_x86_64/uvm_dpi.so))
+UVM_HOME   = $(QUESTA_UVM_HOME)
+UVM_DPI_SO = $(QUESTA_UVM_DPI_SO)
 UVM_DPI_LIB = $(basename $(UVM_DPI_SO))
 DPI_CPP    ?= /usr/bin/gcc
 WORK       = work_hist_uvm
 TB_TOP     = tb_top
 BUILD_STAMP = $(WORK)/_vmake
 COV_BUILD_STAMP = $(WORK)/_vmake_cov
+MODELSIM_INI := $(abspath $(WORK))/modelsim.ini
 
 TEST ?= hist_smoke_test
 SEED ?= random
@@ -77,24 +42,23 @@ SV_SRCS = \
 
 TB_INCLUDE_DEPS = $(sort $(wildcard *.sv) $(wildcard tests/*.sv) $(wildcard sva/*.sv))
 
-.PHONY: check_license license_diag full_questa_probe fe_runtime_probe compile compile_cov run run_cov run_vcd merge_cov wave_index cov_trend cov_farm clean
+.PHONY: check_license license_diag full_questa_probe compile compile_cov run run_cov run_vcd merge_cov wave_index cov_trend cov_farm clean
 
 check_license:
 	@echo "=== Checking Mentor floating license features ==="
-	@$(LMUTIL) lmstat -f msimhdlmix -c $(ETH_LIC_SERVER)
-	@$(LMUTIL) lmstat -f msimcoverage -c $(ETH_LIC_SERVER)
-	@$(LMUTIL) lmstat -f mtiverification -c $(ETH_LIC_SERVER)
+	@$(LMUTIL) lmstat -f msimhdlmix -c $(QUESTA_LICENSE_SERVER)
+	@$(LMUTIL) lmstat -f msimcoverage -c $(QUESTA_LICENSE_SERVER)
+	@$(LMUTIL) lmstat -f mtiverification -c $(QUESTA_LICENSE_SERVER)
 
 license_diag:
 	@echo "QUESTA_HOME=$(QUESTA_HOME)"
-	@echo "QUESTA_FLAVOR=$(QUESTA_FLAVOR)"
 	@echo "LM_LICENSE_FILE=$(LM_LICENSE_FILE)"
 	@echo "MGLS_LICENSE_FILE=$(MGLS_LICENSE_FILE)"
 	@echo "SALT_LICENSE_SERVER=$(SALT_LICENSE_SERVER)"
 	@echo "--- vsim banner ---"
 	@$(VSIM) -version
 	@echo "--- mtiverification availability ---"
-	@$(LMUTIL) lmdiag -c $(ETH_LIC_SERVER) -n mtiverification || true
+	@$(LMUTIL) lmdiag -c $(QUESTA_LICENSE_SERVER) -n mtiverification || true
 
 full_questa_probe:
 	@echo "=== Probing full Questa features (rand/constraint/covergroup) ==="
@@ -132,37 +96,8 @@ full_questa_probe:
 	status=$$?; rm -rf "$$tmpdir"; exit $$status
 
 fe_runtime_probe:
-	@if [ "$(QUESTA_FLAVOR)" != "questa_fe" ]; then \
-	  echo "fe_runtime_probe requires QUESTA_PREFER_FE=1"; \
-	  exit 2; \
-	fi
-	@echo "=== Probing questa_fe runtime entitlement ==="
-	@tmpdir=$$(mktemp -d); \
-	mkdir -p "$$tmpdir/logs"; \
-	printf '%s\n' \
-'module fe_runtime_probe;' \
-'  initial begin' \
-'    $$display("FE_RUNTIME_PROBE_OK");' \
-'    $$finish;' \
-'  end' \
-'endmodule' > "$$tmpdir/fe_runtime_probe.sv"; \
-	echo "--- mgls_ok msimhdlsim ---"; \
-	"$(QUESTA_HOME)/linux_x86_64/mgls_ok" msimhdlsim || true; \
-	echo "--- mgls_ok mtiverification ---"; \
-	"$(QUESTA_HOME)/linux_x86_64/mgls_ok" mtiverification || true; \
-	echo "--- mgls_ok intelqsim ---"; \
-	int_status=0; \
-	"$(QUESTA_HOME)/linux_x86_64/mgls_ok" intelqsim || int_status=$$?; \
-	"$(VLIB)" "$$tmpdir/work" >/dev/null; \
-	"$(VLOG)" -sv -work "$$tmpdir/work" "$$tmpdir/fe_runtime_probe.sv" >/dev/null; \
-	vsim_status=0; \
-	SALT_LOGGING_DIR="$$tmpdir/logs" "$(VSIM)" -c -work "$$tmpdir/work" fe_runtime_probe -do "run -all; quit -f" >"$$tmpdir/vsim.log" 2>&1 || vsim_status=$$?; \
-	echo "--- vsim output ---"; \
-	sed -n '1,120p' "$$tmpdir/vsim.log"; \
-	echo "--- SALT logs ---"; \
-	find "$$tmpdir/logs" -maxdepth 2 -type f | sort | sed -n '1,40p'; \
-	rm -rf "$$tmpdir"; \
-	test $$int_status -eq 0 -a $$vsim_status -eq 0
+	@echo "legacy FE runtime probing is deprecated; the only supported simulator is $(QUESTA_HOME)." >&2
+	@exit 2
 
 compile: $(BUILD_STAMP)
 
@@ -183,23 +118,33 @@ COMPILE_DEPS = $(IP_SRC)/rtl/histogram_statistics_v2_pkg.vhd \
 define DO_COMPILE
 	@echo "=== Compiling histogram_statistics_v2 UVM testbench ==="
 	rm -rf $(WORK)
+	mkdir -p $(WORK)
+	cp $(QUESTA_MODELSIM_INI) $(MODELSIM_INI)
+	chmod u+w $(MODELSIM_INI)
 	$(VLIB) $(WORK)
-	$(VMAP) $(WORK) $(WORK)
-	$(VMAP) lpm $(INTEL_LIBS)/220model
+	$(VLIB) lpm
+	$(VLIB) altera_mf
+	$(VMAP) -modelsimini $(MODELSIM_INI) $(WORK) $(WORK)
+	$(VMAP) -modelsimini $(MODELSIM_INI) lpm lpm
+	$(VMAP) -modelsimini $(MODELSIM_INI) altera_mf altera_mf
+	$(VCOM) -modelsimini $(MODELSIM_INI) -work lpm -2008 $(QUARTUS_SIM_LIB)/220pack.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) -work lpm -2008 $(QUARTUS_SIM_LIB)/220model.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) -work altera_mf -2008 $(QUARTUS_SIM_LIB)/altera_mf_components.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) -work altera_mf -2008 $(QUARTUS_SIM_LIB)/altera_mf.vhd
 	@echo "--- VHDL DUT sources ---"
-	$(VCOM) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/histogram_statistics_v2_pkg.vhd
-	$(VCOM) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/true_dual_port_ram_single_clock.vhd
-	$(VCOM) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/alt_dpram/alt_dpram_true.vhd
-	$(VCOM) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/hit_fifo.vhd
-	$(VCOM) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/rr_arbiter.vhd
-	$(VCOM) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/bin_divider.vhd
-	$(VCOM) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/coalescing_queue.vhd
-	$(VCOM) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/pingpong_sram.vhd
-	$(VCOM) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/histogram_statistics_v2.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/histogram_statistics_v2_pkg.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/true_dual_port_ram_single_clock.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/alt_dpram/alt_dpram_true.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/hit_fifo.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/rr_arbiter.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/bin_divider.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/coalescing_queue.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/pingpong_sram.vhd
+	$(VCOM) -modelsimini $(MODELSIM_INI) $(VCOM_COV_FLAGS) -work $(WORK) -2008 $(IP_SRC)/rtl/histogram_statistics_v2.vhd
 	@echo "--- UVM library ---"
-	$(VLOG) -work $(WORK) -sv $(UVM_HOME)/src/uvm_pkg.sv +incdir+$(UVM_HOME)/src
+	$(VLOG) -modelsimini $(MODELSIM_INI) -work $(WORK) -sv $(UVM_HOME)/src/uvm_pkg.sv +incdir+$(UVM_HOME)/src
 	@echo "--- Testbench sources ---"
-	$(VLOG) $(VLOG_COV_FLAGS) -work $(WORK) -sv +incdir+. +incdir+$(UVM_HOME)/src $(SV_SRCS)
+	$(VLOG) -modelsimini $(MODELSIM_INI) $(VLOG_COV_FLAGS) -work $(WORK) -sv +incdir+. +incdir+$(UVM_HOME)/src $(SV_SRCS)
 endef
 
 $(BUILD_STAMP): $(COMPILE_DEPS)
@@ -214,7 +159,7 @@ $(COV_BUILD_STAMP): $(COMPILE_DEPS)
 
 run: compile
 	@echo "=== Running TEST=$(TEST) SEED=$(SEED) ==="
-	$(VSIM) -c -work $(WORK) -t ps -dpicpppath $(DPI_CPP) -sv_lib $(UVM_DPI_LIB) -voptargs=+acc \
+	$(VSIM) -modelsimini $(MODELSIM_INI) -c -work $(WORK) -t ps -dpicpppath $(DPI_CPP) -sv_lib $(UVM_DPI_LIB) -voptargs=+acc \
 	  -suppress 19 -suppress 3009 -suppress 3473 \
 	  +UVM_TESTNAME=$(TEST) -sv_seed $(SEED) $(PLUSARGS) \
 	  -do "quietly set NumericStdNoWarnings 1; quietly set StdArithNoWarnings 1; run -all; quit -f" \
@@ -222,7 +167,7 @@ run: compile
 
 run_cov: compile_cov
 	@echo "=== Running TEST=$(TEST) SEED=$(SEED) with coverage ==="
-	$(VSIM) -c -work $(WORK) -t ps -dpicpppath $(DPI_CPP) -sv_lib $(UVM_DPI_LIB) -voptargs=+acc \
+	$(VSIM) -modelsimini $(MODELSIM_INI) -c -work $(WORK) -t ps -dpicpppath $(DPI_CPP) -sv_lib $(UVM_DPI_LIB) -voptargs=+acc \
 	  -suppress 19 -suppress 3009 -suppress 3473 \
 	  -coverage \
 	  +UVM_TESTNAME=$(TEST) -sv_seed $(SEED) $(PLUSARGS) \
@@ -231,7 +176,7 @@ run_cov: compile_cov
 
 run_vcd: compile
 	@echo "=== Running TEST=$(TEST) SEED=$(SEED) with VCD ==="
-	$(VSIM) -c -work $(WORK) -t ps -dpicpppath $(DPI_CPP) -sv_lib $(UVM_DPI_LIB) -voptargs=+acc \
+	$(VSIM) -modelsimini $(MODELSIM_INI) -c -work $(WORK) -t ps -dpicpppath $(DPI_CPP) -sv_lib $(UVM_DPI_LIB) -voptargs=+acc \
 	  -suppress 19 -suppress 3009 -suppress 3473 \
 	  +UVM_TESTNAME=$(TEST) -sv_seed $(SEED) $(PLUSARGS) \
 	  -do "quietly set NumericStdNoWarnings 1; quietly set StdArithNoWarnings 1; vcd file $(VCD_FILE); vcd add -r $(WAVE_SCOPE); run -all; vcd flush; quit -f" \
