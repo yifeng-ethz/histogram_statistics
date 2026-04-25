@@ -1,0 +1,126 @@
+traffic,active_bins,stall_cycles,hit_probability_per_cycle,no_drop_worst_case_depth,depth_for_drop_le_5pct,depth_for_drop_le_1pct,depth_for_drop_le_0p1pct,depth_for_drop_le_1ppm,default_depth_160_drop_probability,kick_saturation_probability_exact_when_active_bins_1,definition
+single_bin_hotspot,1,16,0.10,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,16,0.25,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,16,0.50,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,16,0.75,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,16,1.00,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,64,0.10,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,64,0.25,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,64,0.50,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,64,0.75,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,64,1.00,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,128,0.10,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,128,0.25,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,128,0.50,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,128,0.75,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,128,1.00,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,256,0.10,1,1,1,1,1,0,1e-256,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,256,0.25,1,1,1,1,1,0,7.4583407312e-155,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,256,0.50,1,1,1,1,1,0,8.63616855509e-78,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,256,0.75,1,1,1,1,1,0,1.03677240235e-32,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,256,1.00,1,1,1,1,1,0,1,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,512,0.10,1,1,1,1,1,0,1.02665016272e-115,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,512,0.25,1,1,1,1,1,0,5.46013420246e-34,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,512,0.50,1,1,1,1,1,0,0.517622317743,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,512,0.75,1,1,1,1,1,0,1,iid over one bin; queue depth cannot fix kick saturation
+single_bin_hotspot,1,512,1.00,1,1,1,1,1,0,1,iid over one bin; queue depth cannot fix kick saturation
+cluster8_local,8,16,0.10,8,3,4,5,7,0,,iid over one physical 8-channel cluster
+cluster8_local,8,16,0.25,8,5,6,7,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,16,0.50,8,7,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,16,0.75,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,16,1.00,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,64,0.10,8,7,7,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,64,0.25,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,64,0.50,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,64,0.75,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,64,1.00,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,128,0.10,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,128,0.25,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,128,0.50,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,128,0.75,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,128,1.00,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,256,0.10,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,256,0.25,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,256,0.50,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,256,0.75,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,256,1.00,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,512,0.10,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,512,0.25,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,512,0.50,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,512,0.75,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+cluster8_local,8,512,1.00,8,8,8,8,8,0,,iid over one physical 8-channel cluster
+port32_uniform,32,16,0.10,16,4,5,6,9,0,,iid over one MuTRiG channel slice
+port32_uniform,32,16,0.25,16,6,8,9,12,0,,iid over one MuTRiG channel slice
+port32_uniform,32,16,0.50,16,10,11,12,15,0,,iid over one MuTRiG channel slice
+port32_uniform,32,16,0.75,16,13,14,15,16,0,,iid over one MuTRiG channel slice
+port32_uniform,32,16,1.00,16,15,16,16,16,0,,iid over one MuTRiG channel slice
+port32_uniform,32,64,0.10,32,9,11,13,17,0,,iid over one MuTRiG channel slice
+port32_uniform,32,64,0.25,32,17,18,20,24,0,,iid over one MuTRiG channel slice
+port32_uniform,32,64,0.50,32,24,26,27,30,0,,iid over one MuTRiG channel slice
+port32_uniform,32,64,0.75,32,28,29,30,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,64,1.00,32,30,31,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,128,0.10,32,15,17,19,23,0,,iid over one MuTRiG channel slice
+port32_uniform,32,128,0.25,32,24,26,28,31,0,,iid over one MuTRiG channel slice
+port32_uniform,32,128,0.50,32,30,31,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,128,0.75,32,32,32,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,128,1.00,32,32,32,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,256,0.10,32,22,24,26,29,0,,iid over one MuTRiG channel slice
+port32_uniform,32,256,0.25,32,31,31,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,256,0.50,32,32,32,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,256,0.75,32,32,32,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,256,1.00,32,32,32,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,512,0.10,32,29,30,31,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,512,0.25,32,32,32,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,512,0.50,32,32,32,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,512,0.75,32,32,32,32,32,0,,iid over one MuTRiG channel slice
+port32_uniform,32,512,1.00,32,32,32,32,32,0,,iid over one MuTRiG channel slice
+half_detector128,128,16,0.10,16,4,5,6,9,0,,iid over four MuTRiG channel slices
+half_detector128,128,16,0.25,16,7,8,10,13,0,,iid over four MuTRiG channel slices
+half_detector128,128,16,0.50,16,11,12,14,16,0,,iid over four MuTRiG channel slices
+half_detector128,128,16,0.75,16,14,15,16,16,0,,iid over four MuTRiG channel slices
+half_detector128,128,16,1.00,16,16,16,16,16,0,,iid over four MuTRiG channel slices
+half_detector128,128,64,0.10,64,10,12,14,19,0,,iid over four MuTRiG channel slices
+half_detector128,128,64,0.25,64,20,23,25,31,0,,iid over four MuTRiG channel slices
+half_detector128,128,64,0.50,64,34,37,39,45,0,,iid over four MuTRiG channel slices
+half_detector128,128,64,0.75,64,45,48,50,55,0,,iid over four MuTRiG channel slices
+half_detector128,128,64,1.00,64,55,56,58,62,0,,iid over four MuTRiG channel slices
+half_detector128,128,128,0.10,128,18,20,23,29,0,,iid over four MuTRiG channel slices
+half_detector128,128,128,0.25,128,35,38,42,49,0,,iid over four MuTRiG channel slices
+half_detector128,128,128,0.50,128,58,61,64,71,0,,iid over four MuTRiG channel slices
+half_detector128,128,128,0.75,128,74,77,80,86,0,,iid over four MuTRiG channel slices
+half_detector128,128,128,1.00,128,87,89,92,98,0,,iid over four MuTRiG channel slices
+half_detector128,128,256,0.10,128,30,33,37,45,0,,iid over four MuTRiG channel slices
+half_detector128,128,256,0.25,128,59,62,66,74,0,,iid over four MuTRiG channel slices
+half_detector128,128,256,0.50,128,89,92,95,102,0,,iid over four MuTRiG channel slices
+half_detector128,128,256,0.75,128,106,108,111,117,0,,iid over four MuTRiG channel slices
+half_detector128,128,256,1.00,128,116,118,120,124,0,,iid over four MuTRiG channel slices
+half_detector128,128,512,0.10,128,51,54,58,67,0,,iid over four MuTRiG channel slices
+half_detector128,128,512,0.25,128,89,93,96,104,0,,iid over four MuTRiG channel slices
+half_detector128,128,512,0.50,128,116,119,121,125,0,,iid over four MuTRiG channel slices
+half_detector128,128,512,0.75,128,125,126,128,128,0,,iid over four MuTRiG channel slices
+half_detector128,128,512,1.00,128,128,128,128,128,0,,iid over four MuTRiG channel slices
+uniform256,256,16,0.10,16,4,5,6,9,0,,iid over all histogram bins
+uniform256,256,16,0.25,16,7,8,10,13,0,,iid over all histogram bins
+uniform256,256,16,0.50,16,11,12,14,16,0,,iid over all histogram bins
+uniform256,256,16,0.75,16,14,15,16,16,0,,iid over all histogram bins
+uniform256,256,16,1.00,16,16,16,16,16,0,,iid over all histogram bins
+uniform256,256,64,0.10,64,10,12,15,20,0,,iid over all histogram bins
+uniform256,256,64,0.25,64,21,24,26,32,0,,iid over all histogram bins
+uniform256,256,64,0.50,64,36,39,42,48,0,,iid over all histogram bins
+uniform256,256,64,0.75,64,49,51,54,59,0,,iid over all histogram bins
+uniform256,256,64,1.00,64,60,62,63,64,0,,iid over all histogram bins
+uniform256,256,128,0.10,128,18,21,24,30,0,,iid over all histogram bins
+uniform256,256,128,0.25,128,38,41,45,53,0,,iid over all histogram bins
+uniform256,256,128,0.50,128,65,68,72,80,0,,iid over all histogram bins
+uniform256,256,128,0.75,128,88,91,94,101,0,,iid over all histogram bins
+uniform256,256,128,1.00,128,107,109,112,118,0,,iid over all histogram bins
+uniform256,256,256,0.10,256,32,35,39,48,2.07330741943e-121,,iid over all histogram bins
+uniform256,256,256,0.25,256,66,71,75,85,4.07981024632e-62,,iid over all histogram bins
+uniform256,256,256,0.50,256,111,115,120,130,5.83414668424e-23,,iid over all histogram bins
+uniform256,256,256,0.75,256,144,148,153,162,2.96484785113e-06,,iid over all histogram bins
+uniform256,256,256,1.00,256,170,174,177,185,0.619276021992,,iid over all histogram bins
+uniform256,256,512,0.10,256,56,60,65,76,3.13119240621e-64,,iid over all histogram bins
+uniform256,256,512,0.25,256,112,117,123,134,1.86839979447e-17,,iid over all histogram bins
+uniform256,256,512,0.50,256,173,177,182,192,0.587383357567,,iid over all histogram bins
+uniform256,256,512,0.75,256,208,212,216,224,0.999999999995,,iid over all histogram bins
+uniform256,256,512,1.00,256,229,232,235,242,1,,iid over all histogram bins
