@@ -2,110 +2,82 @@
 
 Date: 2026-04-25
 
-## Scope
-
-This report covers the first modeling gate for the `histogram_statistics_v2`
-coalescing queue: analytical/TLM queue-depth modeling and cycle-level RTL
-simulation comparison. DV expansion and synthesis trade-off work are deferred
-until this TLM/RTL basis is stable.
-
-## RTL Contract Modeled
+This report is the inline presentation for the first
+`histogram_statistics_v2` coalescing-queue modeling gate. The evidence stack is
+analytical model, executable TLM, then RTL simulation. No board evidence is
+claimed here.
 
 Source RTL: [`../rtl/coalescing_queue.vhd`](../rtl/coalescing_queue.vhd)
 
+Model contract:
+
 - one post-divider hit can arrive per clock;
 - one queued element can drain per clock when `i_drain_ready=1`;
-- queue entries are bin tags;
-- each tag has an 8-bit saturating kick counter;
-- repeated hits to a queued tag increment `kick_count`;
-- new tags allocate queue slots;
+- queue entries are histogram-bin tags;
+- each queued tag has an 8-bit saturating kick counter;
+- repeated hits to a queued tag coalesce by incrementing `kick_count`;
+- a new tag allocates one queue slot;
 - overflow is either queue-full/new-tag or kick-counter saturation.
 
-The TLM intentionally models the registered RTL observable behavior, including
-`o_drain_count` reflecting the current head-bin kick value even when
-`o_drain_valid=0`.
+## Set 1: Analytical Queue Depth Regions
 
-## Exact Analytical Depth Regions
+![Analytical queue depth regions](artifacts/queue_depth_quantiles_8mutrig.png)
 
-Artifact: [`artifacts/queue_depth_exact_regions.csv`](artifacts/queue_depth_exact_regions.csv)
+Data:
+[`artifacts/queue_depth_quantiles_8mutrig.csv`](artifacts/queue_depth_quantiles_8mutrig.csv)
 
-The exact table computes the distribution of distinct queued tags for iid
-traffic during a bounded no-drain window. For each traffic class, stall length,
-and hit probability per cycle, it reports:
+For iid traffic over `m` active channels, let `D_t` be the number of distinct
+tags seen during a no-drain window after `t` cycles. With per-cycle hit
+probability `p`, the exact occupancy distribution follows
+$P_{t+1}(k)=P_t(k)(1-p+p k/m)+P_t(k-1)p(m-k+1)/m$. The queue-full
+probability at depth `d` is $P_{\mathrm{full}}(d)=\Pr[D_T>d]$, so the depth for
+a target tail probability is
+$d_\epsilon=\min\{d:P_{\mathrm{full}}(d)\le\epsilon\}$.
 
-- worst-case no-drop queue depth;
-- minimum depth for queue-overflow probability <= 5%, 1%, 0.1%, and 1 ppm;
-- default-depth-160 overflow probability;
-- exact single-bin kick-saturation probability where applicable.
+Sanity check: this is the right abstraction for queue-slot sizing because
+coalescing makes queue occupancy depend on distinct tags, not raw hit count.
+For `T=256`, `p=1`, and `m=256`, the worst-case no-drop depth is 256, but the
+1 ppm iid tail depth is 185. The default depth 160 is therefore not a
+1 ppm-safe all-channel iid stall depth, although it covers localized 8-channel
+physical hits.
 
-Key `stall_cycles=256`, `hit_probability_per_cycle=1.00` rows:
+Key analytical rows at `T=256`, `p=1`:
 
-| traffic | worst-case no-drop depth | depth at <= 1 ppm queue overflow | depth-160 queue overflow probability | kick saturation probability |
-|---|---:|---:|---:|---:|
-| single-bin hotspot | 1 | 1 | 0 | 1 |
-| local cluster-8 | 8 | 8 | 0 | n/a |
-| one-port 32-bin uniform | 32 | 32 | 0 | n/a |
-| uniform 256-bin iid | 256 | 185 | 0.619276021992 | n/a |
+| active channels | no-drop depth | depth at <= 1 ppm queue-full probability |
+|---:|---:|---:|
+| 1 | 1 | 1 |
+| 8 | 8 | 8 |
+| 32 | 32 | 32 |
+| 128 | 128 | 124 |
+| 256 | 256 | 185 |
 
-Interpretation:
+## Set 2: Loss Fraction at the 8-MuTRiG Link Cap
 
-- `COAL_QUEUE_DEPTH=160` is enough for local-cluster and one-port 32-bin stall
-  windows at this stress point.
-- `COAL_QUEUE_DEPTH=160` is not enough for iid all-256 traffic during a
-  256-cycle no-drain window at one hit per cycle; the exact queue-overflow
-  probability is about 61.9%.
-- `COAL_QUEUE_DEPTH=256` is the exact no-drop queue-slot depth for adversarial
-  all-bin traffic with 256 active bins.
-- No queue depth can prevent single-bin kick saturation if more than 255 hits
-  accumulate for that tag before it drains.
+![Queue loss versus depth](artifacts/queue_loss_vs_depth_8mutrig.png)
 
-## TLM Sweep
+Data:
+[`artifacts/queue_loss_vs_depth_8mutrig.csv`](artifacts/queue_loss_vs_depth_8mutrig.csv)
 
-Artifact: [`artifacts/queue_depth_sweep_tlm.csv`](artifacts/queue_depth_sweep_tlm.csv)
+This plot uses the physical link cap requested for 8 MuTRiG inputs:
+`8 * 25 Mhit/s = 200 Mhit/s` aggregate, 256 histogram channels, and a saturated
+256-cycle no-drain window. The y-axis is lost offered-hit fraction, not just
+the probability that the queue ever became full.
 
-The executable TLM sweep covers:
+The iid curve is computed from the same distinct-tag recurrence while
+accumulating expected lost hits. In compact form,
+$L_{\mathrm{iid}}(d)=\mathbb{E}[\mathrm{lost\ hits\ during\ }T\mathrm{\ cycles}]/(Tp)$.
+The deterministic traffic bounds are $L_{\mathrm{phys}}(d)=\max(0,(8-d)/8)$ for
+an 8-channel physical cluster and $L_{\mathrm{inj}}(d)=\max(0,(256-d)/256)$ for
+all-channel injection.
 
-- traffic profiles: single-bin hotspot, local cluster-8, 32-bin, 128-bin,
-  uniform 256-bin, and sequential 256-bin scan;
-- queue depths: 1 through 256, including 128, 144, 160, 192, 224, and 256;
-- hit probabilities per cycle: 0.10, 0.25, 0.50, 0.75, 1.00;
-- periodic drain stalls of 0, 64, 128, and 256 cycles per 1024-cycle window.
+Sanity check: the iid queue-full probability and the iid lost-hit fraction are
+different metrics. At depth 160, the all-256 iid queue-full probability during
+the stall is about 61.9%, but the expected lost-hit fraction is about 1.27%,
+because many later hits land on tags already in the coalescing queue. That
+makes sense and should not be read as a contradiction. In contrast, all-channel
+injection is adversarial and still loses 37.5% at depth 160.
 
-The sweep is intentionally short enough to keep the TLM/RTL gate interactive.
-The exact-region CSV above is the signoff source for iid queue-depth
-probabilities.
-
-## DISLIN Queue-Loss Plot
-
-Renderer: [`scripts/render_queue_plots.sh`](scripts/render_queue_plots.sh)
-
-Source CSV: [`artifacts/queue_loss_vs_depth_8mutrig.csv`](artifacts/queue_loss_vs_depth_8mutrig.csv)
-
-DISLIN artifacts:
-
-- [`artifacts/queue_loss_vs_depth_8mutrig.png`](artifacts/queue_loss_vs_depth_8mutrig.png)
-- [`artifacts/queue_loss_vs_depth_8mutrig.svg`](artifacts/queue_loss_vs_depth_8mutrig.svg)
-- [`artifacts/queue_dislin_png.log`](artifacts/queue_dislin_png.log)
-- [`artifacts/queue_dislin_svg.log`](artifacts/queue_dislin_svg.log)
-
-Plot definition:
-
-- x-axis: coalescing queue depth in entries, 1 through 256;
-- y-axis: lost offered-hit fraction during a saturated 256-cycle no-drain
-  window;
-- link limit: 8 MuTRiG inputs at 25 Mhit/s each, 200 Mhit/s aggregate, modeled
-  as one post-divider offered hit per clock while backpressured;
-- bin space: 256 channels, one channel per histogram bin.
-
-Traffic legends in the DISLIN plot:
-
-| legend | model meaning |
-|---|---|
-| iid 256-channel | exact expected loss for iid dark-count tags over all 256 channels |
-| physical 8-channel hit | localized physical hit crossing 8 channels; repeated cluster during the stall window |
-| injection all-channel | deterministic all-channel injection/superburst over all 256 channels |
-
-Selected points from the rendered CSV:
+Selected values:
 
 | queue depth | iid 256-channel | physical 8-channel hit | injection all-channel |
 |---:|---:|---:|---:|
@@ -114,22 +86,25 @@ Selected points from the rendered CSV:
 | 185 | 0.00000000573193 | 0 | 0.27734375 |
 | 256 | 0 | 0 | 0 |
 
-The PNG and SVG renders were visually inspected. DISLIN 11.5.2 reported zero
-warnings for both outputs.
+## Set 3: TLM and RTL Cycle Agreement
 
-## RTL Simulation Match
+![TLM RTL trace agreement](artifacts/queue_trace_tlm_rtl_match.png)
 
-Runner: [`scripts/run_queue_tlm_rtl.sh`](scripts/run_queue_tlm_rtl.sh)
-
-RTL bench: [`rtl_sim/tb_coalescing_queue_trace.vhd`](rtl_sim/tb_coalescing_queue_trace.vhd)
-
-Comparison artifacts:
+Artifacts:
 
 - [`artifacts/queue_trace_stimulus.csv`](artifacts/queue_trace_stimulus.csv)
 - [`artifacts/queue_trace_expected_tlm.csv`](artifacts/queue_trace_expected_tlm.csv)
 - [`artifacts/queue_trace_observed_rtl.csv`](artifacts/queue_trace_observed_rtl.csv)
 - [`artifacts/queue_trace_compare.csv`](artifacts/queue_trace_compare.csv)
-- [`artifacts/queue_trace_rtl.log`](artifacts/queue_trace_rtl.log)
+
+The executable TLM uses the RTL state update order. Queue occupancy evolves as
+$q_{t+1}=q_t+I[\mathrm{new\ tag\ accepted}]-I[\mathrm{drain\ fire}]$, while a
+repeated hit to a queued tag updates $kick_b(t+1)=\min(kick_b(t)+1,255)$.
+Overflow increments when a new tag arrives with no queue slot available, or
+when a queued tag is hit after its kick counter is already saturated.
+
+The comparison metric is
+$N_{\mathrm{mismatch}}=\sum_t I[y_{\mathrm{TLM}}(t)\ne y_{\mathrm{RTL}}(t)]$.
 
 Result:
 
@@ -140,18 +115,22 @@ vsim: Errors 0, Warnings 0
 TLM/RTL comparison PASS: 1190 cycles, 0 mismatches
 ```
 
-The validation trace includes:
+Sanity check: this trace proves that the current TLM matches the RTL for the
+targeted coalescing, queue-full, kick-saturation, and drain sequences in this
+gate. It is not a full randomized DV closure claim.
 
-- repeated same-bin coalescing while drain is ready;
-- queue-full/new-tag overflow at `QUEUE_DEPTH=160`;
-- long same-bin no-drain burst that triggers kick saturation;
-- full drain after each stress segment.
+## Figure Quality Gate
 
-## Next Gate
+DISLIN renderer: [`scripts/render_queue_plots.sh`](scripts/render_queue_plots.sh)
 
-The next step is to add DISLIN plots for the modeled variable space:
+All presentation PNGs are rendered at `1800 x 1112`, giving an aspect ratio of
+`1.619`, within rounding of the golden ratio. SVG versions are generated from
+the same renderer:
 
-- 1D loss probability versus hit rate, with `Model/TLM` and `RTL SIM` traces;
-- 2D loss probability versus hit rate and burstiness/active-bin count, using
-  identical axes and color scale;
-- later, a third `BOARD` legend entry once on-board data exists.
+- [`artifacts/queue_depth_quantiles_8mutrig.svg`](artifacts/queue_depth_quantiles_8mutrig.svg)
+- [`artifacts/queue_loss_vs_depth_8mutrig.svg`](artifacts/queue_loss_vs_depth_8mutrig.svg)
+- [`artifacts/queue_trace_tlm_rtl_match.svg`](artifacts/queue_trace_tlm_rtl_match.svg)
+
+DISLIN 11.5.2 reported zero warnings for PNG and SVG renders. The final visual
+pass checked that axes are readable, legends do not cover data, line styles are
+visible when TLM and RTL traces overlap, and title/axis text is not clipped.

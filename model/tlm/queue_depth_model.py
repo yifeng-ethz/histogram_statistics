@@ -424,6 +424,63 @@ def write_loss_vs_depth_8mutrig(out_dir: Path) -> None:
                 )
 
 
+def write_depth_quantiles_8mutrig(out_dir: Path) -> None:
+    """Write analytical queue-depth quantiles for the presentation report."""
+
+    with (out_dir / "queue_depth_quantiles_8mutrig.csv").open("w", newline="", encoding="utf-8") as f:
+        fieldnames = [
+            "series",
+            "legend",
+            "active_channels",
+            "required_depth",
+            "stall_cycles",
+            "hit_probability_per_cycle",
+            "definition",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        for traffic, active_bins, traffic_definition in TRAFFIC_PROFILES:
+            pmf = distinct_pmf_iid_bernoulli(active_bins, REALISTIC_STALL_CYCLES, 1.0)
+            rows = [
+                (
+                    "worst_case",
+                    "no-drop worst case",
+                    min(active_bins, REALISTIC_STALL_CYCLES),
+                    "all active channels can appear during the stall",
+                ),
+                (
+                    "drop_le_5pct",
+                    "drop prob <= 5%",
+                    depth_for_threshold(pmf, 5.0e-2),
+                    "minimum depth where queue-full probability is at most 5%",
+                ),
+                (
+                    "drop_le_1pct",
+                    "drop prob <= 1%",
+                    depth_for_threshold(pmf, 1.0e-2),
+                    "minimum depth where queue-full probability is at most 1%",
+                ),
+                (
+                    "drop_le_1ppm",
+                    "drop prob <= 1 ppm",
+                    depth_for_threshold(pmf, 1.0e-6),
+                    "minimum depth where queue-full probability is at most 1 ppm",
+                ),
+            ]
+            for series, legend, depth, definition in rows:
+                writer.writerow(
+                    {
+                        "series": series,
+                        "legend": legend,
+                        "active_channels": active_bins,
+                        "required_depth": depth,
+                        "stall_cycles": REALISTIC_STALL_CYCLES,
+                        "hit_probability_per_cycle": "1.00",
+                        "definition": f"{definition}; traffic={traffic}: {traffic_definition}",
+                    }
+                )
+
+
 def validation_rows() -> list[tuple[int, int, int, int]]:
     rows: list[tuple[int, int, int, int]] = []
     cycle = 0
@@ -541,6 +598,7 @@ def main() -> int:
     write_exact_regions(args.out_dir)
     write_tlm_sweep(args.out_dir)
     write_loss_vs_depth_8mutrig(args.out_dir)
+    write_depth_quantiles_8mutrig(args.out_dir)
     write_validation_trace(args.out_dir, args.queue_depth)
     return 0
 

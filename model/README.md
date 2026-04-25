@@ -38,6 +38,9 @@ order as the RTL and is compared cycle-by-cycle against a VHDL RTL simulation.
 | Artifact | Meaning |
 |---|---|
 | `queue_depth_exact_regions.csv` | exact iid depth quantiles for no-drop, 5%, 1%, 0.1%, and 1 ppm queue-overflow probability |
+| `queue_depth_quantiles_8mutrig.csv` | presentation CSV for required depth versus active channels at 8-MuTRiG saturation |
+| `queue_depth_quantiles_8mutrig.png` | DISLIN PNG plot for analytical queue-depth regions |
+| `queue_depth_quantiles_8mutrig.svg` | DISLIN SVG plot for analytical queue-depth regions |
 | `queue_depth_sweep_tlm.csv` | executable TLM sweep over depths, traffic profiles, rates, and periodic drain stalls |
 | `queue_loss_vs_depth_8mutrig.csv` | 8-MuTRiG, 256-channel loss fraction versus queue depth for iid, physical-hit, and injection traffic |
 | `queue_loss_vs_depth_8mutrig.png` | DISLIN PNG plot of `queue_loss_vs_depth_8mutrig.csv` |
@@ -48,6 +51,8 @@ order as the RTL and is compared cycle-by-cycle against a VHDL RTL simulation.
 | `queue_trace_expected_tlm.csv` | cycle-level expected TLM outputs |
 | `queue_trace_observed_rtl.csv` | cycle-level RTL outputs from `coalescing_queue.vhd` |
 | `queue_trace_compare.csv` | cycle-level mismatch report; PASS requires zero mismatches |
+| `queue_trace_tlm_rtl_match.png` | DISLIN PNG plot of TLM/RTL occupancy and overflow agreement |
+| `queue_trace_tlm_rtl_match.svg` | DISLIN SVG plot of TLM/RTL occupancy and overflow agreement |
 
 Queue depth cannot fix kick-counter saturation. The exact-region CSV reports
 queue-slot overflow separately from hotspot kick saturation risk where it can be

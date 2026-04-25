@@ -1,0 +1,21 @@
+series,legend,active_channels,required_depth,stall_cycles,hit_probability_per_cycle,definition
+worst_case,no-drop worst case,1,1,256,1.00,all active channels can appear during the stall; traffic=single_bin_hotspot: iid over one bin; queue depth cannot fix kick saturation
+drop_le_5pct,drop prob <= 5%,1,1,256,1.00,minimum depth where queue-full probability is at most 5%; traffic=single_bin_hotspot: iid over one bin; queue depth cannot fix kick saturation
+drop_le_1pct,drop prob <= 1%,1,1,256,1.00,minimum depth where queue-full probability is at most 1%; traffic=single_bin_hotspot: iid over one bin; queue depth cannot fix kick saturation
+drop_le_1ppm,drop prob <= 1 ppm,1,1,256,1.00,minimum depth where queue-full probability is at most 1 ppm; traffic=single_bin_hotspot: iid over one bin; queue depth cannot fix kick saturation
+worst_case,no-drop worst case,8,8,256,1.00,all active channels can appear during the stall; traffic=cluster8_local: iid over one physical 8-channel cluster
+drop_le_5pct,drop prob <= 5%,8,8,256,1.00,minimum depth where queue-full probability is at most 5%; traffic=cluster8_local: iid over one physical 8-channel cluster
+drop_le_1pct,drop prob <= 1%,8,8,256,1.00,minimum depth where queue-full probability is at most 1%; traffic=cluster8_local: iid over one physical 8-channel cluster
+drop_le_1ppm,drop prob <= 1 ppm,8,8,256,1.00,minimum depth where queue-full probability is at most 1 ppm; traffic=cluster8_local: iid over one physical 8-channel cluster
+worst_case,no-drop worst case,32,32,256,1.00,all active channels can appear during the stall; traffic=port32_uniform: iid over one MuTRiG channel slice
+drop_le_5pct,drop prob <= 5%,32,32,256,1.00,minimum depth where queue-full probability is at most 5%; traffic=port32_uniform: iid over one MuTRiG channel slice
+drop_le_1pct,drop prob <= 1%,32,32,256,1.00,minimum depth where queue-full probability is at most 1%; traffic=port32_uniform: iid over one MuTRiG channel slice
+drop_le_1ppm,drop prob <= 1 ppm,32,32,256,1.00,minimum depth where queue-full probability is at most 1 ppm; traffic=port32_uniform: iid over one MuTRiG channel slice
+worst_case,no-drop worst case,128,128,256,1.00,all active channels can appear during the stall; traffic=half_detector128: iid over four MuTRiG channel slices
+drop_le_5pct,drop prob <= 5%,128,116,256,1.00,minimum depth where queue-full probability is at most 5%; traffic=half_detector128: iid over four MuTRiG channel slices
+drop_le_1pct,drop prob <= 1%,128,118,256,1.00,minimum depth where queue-full probability is at most 1%; traffic=half_detector128: iid over four MuTRiG channel slices
+drop_le_1ppm,drop prob <= 1 ppm,128,124,256,1.00,minimum depth where queue-full probability is at most 1 ppm; traffic=half_detector128: iid over four MuTRiG channel slices
+worst_case,no-drop worst case,256,256,256,1.00,all active channels can appear during the stall; traffic=uniform256: iid over all histogram bins
+drop_le_5pct,drop prob <= 5%,256,170,256,1.00,minimum depth where queue-full probability is at most 5%; traffic=uniform256: iid over all histogram bins
+drop_le_1pct,drop prob <= 1%,256,174,256,1.00,minimum depth where queue-full probability is at most 1%; traffic=uniform256: iid over all histogram bins
+drop_le_1ppm,drop prob <= 1 ppm,256,185,256,1.00,minimum depth where queue-full probability is at most 1 ppm; traffic=uniform256: iid over all histogram bins

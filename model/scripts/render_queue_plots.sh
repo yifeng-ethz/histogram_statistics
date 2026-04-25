@@ -20,17 +20,48 @@ gcc -O2 -Wall -Wextra -std=c11 \
   -ldislin -lm \
   -o "$BUILD_DIR/queue_dislin_plots"
 
-"$BUILD_DIR/queue_dislin_plots" \
-  "$ART_DIR/queue_loss_vs_depth_8mutrig.csv" \
-  "$ART_DIR/queue_loss_vs_depth_8mutrig.png" \
-  | tee "$ART_DIR/queue_dislin_png.log"
+: > "$ART_DIR/queue_dislin_png.log"
+: > "$ART_DIR/queue_dislin_svg.log"
 
-"$BUILD_DIR/queue_dislin_plots" \
+render_png() {
+  "$BUILD_DIR/queue_dislin_plots" "$@" | tee -a "$ART_DIR/queue_dislin_png.log"
+}
+
+render_svg() {
+  "$BUILD_DIR/queue_dislin_plots" "$@" | tee -a "$ART_DIR/queue_dislin_svg.log"
+}
+
+render_png loss \
   "$ART_DIR/queue_loss_vs_depth_8mutrig.csv" \
-  "$ART_DIR/queue_loss_vs_depth_8mutrig.svg" \
-  | tee "$ART_DIR/queue_dislin_svg.log"
+  "$ART_DIR/queue_loss_vs_depth_8mutrig.png"
+
+render_svg loss \
+  "$ART_DIR/queue_loss_vs_depth_8mutrig.csv" \
+  "$ART_DIR/queue_loss_vs_depth_8mutrig.svg"
+
+render_png quantiles \
+  "$ART_DIR/queue_depth_quantiles_8mutrig.csv" \
+  "$ART_DIR/queue_depth_quantiles_8mutrig.png"
+
+render_svg quantiles \
+  "$ART_DIR/queue_depth_quantiles_8mutrig.csv" \
+  "$ART_DIR/queue_depth_quantiles_8mutrig.svg"
+
+render_png trace \
+  "$ART_DIR/queue_trace_expected_tlm.csv" \
+  "$ART_DIR/queue_trace_observed_rtl.csv" \
+  "$ART_DIR/queue_trace_tlm_rtl_match.png"
+
+render_svg trace \
+  "$ART_DIR/queue_trace_expected_tlm.csv" \
+  "$ART_DIR/queue_trace_observed_rtl.csv" \
+  "$ART_DIR/queue_trace_tlm_rtl_match.svg"
 
 perl -0pi -e 's/\n+\z/\n/' "$ART_DIR/queue_dislin_png.log" "$ART_DIR/queue_dislin_svg.log"
 
 printf 'Wrote %s\n' "$ART_DIR/queue_loss_vs_depth_8mutrig.png"
 printf 'Wrote %s\n' "$ART_DIR/queue_loss_vs_depth_8mutrig.svg"
+printf 'Wrote %s\n' "$ART_DIR/queue_depth_quantiles_8mutrig.png"
+printf 'Wrote %s\n' "$ART_DIR/queue_depth_quantiles_8mutrig.svg"
+printf 'Wrote %s\n' "$ART_DIR/queue_trace_tlm_rtl_match.png"
+printf 'Wrote %s\n' "$ART_DIR/queue_trace_tlm_rtl_match.svg"
