@@ -14,6 +14,8 @@ KICK_WIDTH = 8
 KICK_MAX = (1 << KICK_WIDTH) - 1
 OVERFLOW_MAX = (1 << 16) - 1
 DEFAULT_QUEUE_DEPTH = 160
+REALISTIC_LINK_RATE_MHIT = 200.0
+REALISTIC_STALL_CYCLES = 256
 
 RATES = [0.10, 0.25, 0.50, 0.75, 1.00]
 STALL_CYCLES = [16, 64, 128, 256, 512]
@@ -320,6 +322,108 @@ def write_tlm_sweep(out_dir: Path) -> None:
                         )
 
 
+def expected_iid_loss_fraction(active_bins: int, depth: int, cycles: int, hit_probability: float) -> float:
+    """Exact expected lost-hit fraction for iid tags during a no-drain window."""
+
+    if depth >= active_bins:
+        return 0.0
+    prob = [0.0] * (active_bins + 1)
+    loss_mass = [0.0] * (active_bins + 1)
+    prob[0] = 1.0
+    for _ in range(cycles):
+        next_prob = [0.0] * (active_bins + 1)
+        next_loss = [0.0] * (active_bins + 1)
+        for distinct, p_state in enumerate(prob):
+            if p_state == 0.0:
+                continue
+            l_state = loss_mass[distinct]
+
+            # No offered hit this cycle.
+            stay_p = p_state * (1.0 - hit_probability)
+            next_prob[distinct] += stay_p
+            next_loss[distinct] += l_state * (1.0 - hit_probability)
+
+            if hit_probability <= 0.0:
+                continue
+
+            existing_p = distinct / active_bins if active_bins else 0.0
+            new_p = 1.0 - existing_p
+
+            # Hit to an already queued tag: accepted.
+            next_prob[distinct] += p_state * hit_probability * existing_p
+            next_loss[distinct] += l_state * hit_probability * existing_p
+
+            # Hit to a new tag: allocate if depth remains, otherwise drop.
+            if distinct < depth:
+                next_prob[distinct + 1] += p_state * hit_probability * new_p
+                next_loss[distinct + 1] += l_state * hit_probability * new_p
+            else:
+                next_prob[distinct] += p_state * hit_probability * new_p
+                next_loss[distinct] += (l_state + p_state) * hit_probability * new_p
+        prob = next_prob
+        loss_mass = next_loss
+
+    offered = cycles * hit_probability
+    if offered == 0.0:
+        return 0.0
+    return sum(loss_mass) / offered
+
+
+def write_loss_vs_depth_8mutrig(out_dir: Path) -> None:
+    """Write the requested 1D loss-vs-queue-depth view at the 8-MuTRiG cap."""
+
+    with (out_dir / "queue_loss_vs_depth_8mutrig.csv").open("w", newline="", encoding="utf-8") as f:
+        fieldnames = [
+            "traffic",
+            "legend",
+            "queue_depth",
+            "loss_rate",
+            "link_rate_mhit_s",
+            "stall_cycles",
+            "active_channels",
+            "definition",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        for depth in range(1, N_BINS + 1):
+            rows = [
+                (
+                    "iid_256",
+                    "iid 256-channel",
+                    expected_iid_loss_fraction(N_BINS, depth, REALISTIC_STALL_CYCLES, 1.0),
+                    N_BINS,
+                    "exact expected lost-hit fraction for iid dark-count tags over all 256 channels",
+                ),
+                (
+                    "physical_cluster8",
+                    "physical 8-channel hit",
+                    max(0.0, (8.0 - float(depth)) / 8.0),
+                    8,
+                    "localized physical hit crossing 8 channels; repeated cluster during the stall window",
+                ),
+                (
+                    "injection_all256",
+                    "injection all-channel",
+                    max(0.0, (float(N_BINS) - float(depth)) / float(N_BINS)),
+                    N_BINS,
+                    "deterministic all-channel injection/superburst over all 256 channels",
+                ),
+            ]
+            for traffic, legend, loss_rate, active_channels, definition in rows:
+                writer.writerow(
+                    {
+                        "traffic": traffic,
+                        "legend": legend,
+                        "queue_depth": depth,
+                        "loss_rate": f"{loss_rate:.12g}",
+                        "link_rate_mhit_s": f"{REALISTIC_LINK_RATE_MHIT:.1f}",
+                        "stall_cycles": REALISTIC_STALL_CYCLES,
+                        "active_channels": active_channels,
+                        "definition": definition,
+                    }
+                )
+
+
 def validation_rows() -> list[tuple[int, int, int, int]]:
     rows: list[tuple[int, int, int, int]] = []
     cycle = 0
@@ -436,6 +540,7 @@ def main() -> int:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     write_exact_regions(args.out_dir)
     write_tlm_sweep(args.out_dir)
+    write_loss_vs_depth_8mutrig(args.out_dir)
     write_validation_trace(args.out_dir, args.queue_depth)
     return 0
 

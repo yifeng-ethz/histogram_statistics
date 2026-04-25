@@ -75,6 +75,48 @@ The sweep is intentionally short enough to keep the TLM/RTL gate interactive.
 The exact-region CSV above is the signoff source for iid queue-depth
 probabilities.
 
+## DISLIN Queue-Loss Plot
+
+Renderer: [`scripts/render_queue_plots.sh`](scripts/render_queue_plots.sh)
+
+Source CSV: [`artifacts/queue_loss_vs_depth_8mutrig.csv`](artifacts/queue_loss_vs_depth_8mutrig.csv)
+
+DISLIN artifacts:
+
+- [`artifacts/queue_loss_vs_depth_8mutrig.png`](artifacts/queue_loss_vs_depth_8mutrig.png)
+- [`artifacts/queue_loss_vs_depth_8mutrig.svg`](artifacts/queue_loss_vs_depth_8mutrig.svg)
+- [`artifacts/queue_dislin_png.log`](artifacts/queue_dislin_png.log)
+- [`artifacts/queue_dislin_svg.log`](artifacts/queue_dislin_svg.log)
+
+Plot definition:
+
+- x-axis: coalescing queue depth in entries, 1 through 256;
+- y-axis: lost offered-hit fraction during a saturated 256-cycle no-drain
+  window;
+- link limit: 8 MuTRiG inputs at 25 Mhit/s each, 200 Mhit/s aggregate, modeled
+  as one post-divider offered hit per clock while backpressured;
+- bin space: 256 channels, one channel per histogram bin.
+
+Traffic legends in the DISLIN plot:
+
+| legend | model meaning |
+|---|---|
+| iid 256-channel | exact expected loss for iid dark-count tags over all 256 channels |
+| physical 8-channel hit | localized physical hit crossing 8 channels; repeated cluster during the stall window |
+| injection all-channel | deterministic all-channel injection/superburst over all 256 channels |
+
+Selected points from the rendered CSV:
+
+| queue depth | iid 256-channel | physical 8-channel hit | injection all-channel |
+|---:|---:|---:|---:|
+| 8 | 0.93805440291 | 0 | 0.96875 |
+| 160 | 0.0127214992353 | 0 | 0.375 |
+| 185 | 0.00000000573193 | 0 | 0.27734375 |
+| 256 | 0 | 0 | 0 |
+
+The PNG and SVG renders were visually inspected. DISLIN 11.5.2 reported zero
+warnings for both outputs.
+
 ## RTL Simulation Match
 
 Runner: [`scripts/run_queue_tlm_rtl.sh`](scripts/run_queue_tlm_rtl.sh)

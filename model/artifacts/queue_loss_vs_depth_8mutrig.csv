@@ -1,0 +1,769 @@
+traffic,legend,queue_depth,loss_rate,link_rate_mhit_s,stall_cycles,active_channels,definition
+iid_256,iid 256-channel,1,0.992202758789,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,1,0.875,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,1,0.99609375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,2,0.984420836206,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,2,0.75,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,2,0.9921875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,3,0.976654292559,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,3,0.625,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,3,0.98828125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,4,0.968903188636,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,4,0.5,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,4,0.984375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,5,0.961167585705,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,5,0.375,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,5,0.98046875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,6,0.953447545523,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,6,0.25,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,6,0.9765625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,7,0.945743130341,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,7,0.125,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,7,0.97265625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,8,0.93805440291,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,8,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,8,0.96875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,9,0.930381426487,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,9,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,9,0.96484375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,10,0.922724264841,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,10,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,10,0.9609375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,11,0.91508298226,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,11,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,11,0.95703125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,12,0.907457643557,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,12,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,12,0.953125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,13,0.899848314075,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,13,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,13,0.94921875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,14,0.892255059696,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,14,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,14,0.9453125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,15,0.884677946846,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,15,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,15,0.94140625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,16,0.877117042503,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,16,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,16,0.9375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,17,0.869572414201,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,17,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,17,0.93359375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,18,0.862044130041,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,18,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,18,0.9296875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,19,0.854532258696,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,19,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,19,0.92578125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,20,0.847036869419,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,20,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,20,0.921875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,21,0.839558032048,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,21,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,21,0.91796875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,22,0.832095817018,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,22,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,22,0.9140625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,23,0.824650295364,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,23,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,23,0.91015625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,24,0.817221538732,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,24,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,24,0.90625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,25,0.809809619384,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,25,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,25,0.90234375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,26,0.802414610209,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,26,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,26,0.8984375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,27,0.79503658473,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,27,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,27,0.89453125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,28,0.787675617111,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,28,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,28,0.890625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,29,0.780331782168,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,29,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,29,0.88671875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,30,0.773005155374,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,30,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,30,0.8828125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,31,0.765695812872,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,31,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,31,0.87890625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,32,0.758403831482,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,32,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,32,0.875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,33,0.751129288707,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,33,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,33,0.87109375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,34,0.743872262749,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,34,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,34,0.8671875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,35,0.736632832511,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,35,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,35,0.86328125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,36,0.729411077613,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,36,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,36,0.859375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,37,0.722207078397,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,37,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,37,0.85546875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,38,0.715020915938,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,38,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,38,0.8515625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,39,0.707852672058,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,39,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,39,0.84765625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,40,0.700702429329,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,40,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,40,0.84375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,41,0.693570271092,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,41,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,41,0.83984375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,42,0.686456281459,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,42,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,42,0.8359375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,43,0.679360545331,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,43,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,43,0.83203125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,44,0.672283148404,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,44,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,44,0.828125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,45,0.665224177185,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,45,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,45,0.82421875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,46,0.658183718999,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,46,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,46,0.8203125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,47,0.651161862004,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,47,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,47,0.81640625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,48,0.6441586952,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,48,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,48,0.8125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,49,0.637174308445,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,49,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,49,0.80859375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,50,0.630208792462,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,50,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,50,0.8046875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,51,0.623262238858,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,51,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,51,0.80078125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,52,0.616334740131,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,52,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,52,0.796875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,53,0.60942638969,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,53,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,53,0.79296875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,54,0.602537281859,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,54,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,54,0.7890625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,55,0.595667511899,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,55,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,55,0.78515625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,56,0.588817176019,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,56,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,56,0.78125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,57,0.581986371389,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,57,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,57,0.77734375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,58,0.575175196156,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,58,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,58,0.7734375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,59,0.568383749458,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,59,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,59,0.76953125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,60,0.56161213144,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,60,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,60,0.765625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,61,0.55486044327,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,61,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,61,0.76171875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,62,0.54812878715,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,62,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,62,0.7578125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,63,0.54141726634,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,63,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,63,0.75390625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,64,0.534725985168,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,64,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,64,0.75,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,65,0.528055049047,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,65,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,65,0.74609375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,66,0.521404564497,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,66,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,66,0.7421875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,67,0.514774639158,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,67,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,67,0.73828125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,68,0.508165381807,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,68,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,68,0.734375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,69,0.501576902383,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,69,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,69,0.73046875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,70,0.495009311996,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,70,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,70,0.7265625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,71,0.488462722953,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,71,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,71,0.72265625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,72,0.481937248775,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,72,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,72,0.71875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,73,0.475433004216,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,73,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,73,0.71484375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,74,0.468950105286,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,74,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,74,0.7109375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,75,0.462488669268,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,75,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,75,0.70703125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,76,0.456048814742,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,76,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,76,0.703125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,77,0.449630661604,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,77,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,77,0.69921875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,78,0.443234331092,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,78,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,78,0.6953125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,79,0.436859945805,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,79,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,79,0.69140625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,80,0.430507629727,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,80,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,80,0.6875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,81,0.424177508252,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,81,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,81,0.68359375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,82,0.417869708205,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,82,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,82,0.6796875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,83,0.41158435787,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,83,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,83,0.67578125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,84,0.405321587015,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,84,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,84,0.671875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,85,0.399081526916,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,85,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,85,0.66796875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,86,0.392864310385,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,86,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,86,0.6640625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,87,0.386670071794,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,87,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,87,0.66015625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,88,0.380498947109,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,88,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,88,0.65625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,89,0.374351073912,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,89,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,89,0.65234375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,90,0.368226591433,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,90,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,90,0.6484375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,91,0.362125640581,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,91,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,91,0.64453125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,92,0.356048363972,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,92,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,92,0.640625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,93,0.34999490596,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,93,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,93,0.63671875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,94,0.343965412672,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,94,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,94,0.6328125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,95,0.337960032038,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,95,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,95,0.62890625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,96,0.331978913827,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,96,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,96,0.625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,97,0.326022209678,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,97,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,97,0.62109375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,98,0.320090073139,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,98,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,98,0.6171875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,99,0.314182659701,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,99,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,99,0.61328125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,100,0.308300126837,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,100,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,100,0.609375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,101,0.302442634037,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,101,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,101,0.60546875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,102,0.296610342849,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,102,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,102,0.6015625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,103,0.290803416922,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,103,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,103,0.59765625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,104,0.28502202204,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,104,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,104,0.59375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,105,0.279266326171,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,105,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,105,0.58984375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,106,0.273536499508,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,106,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,106,0.5859375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,107,0.267832714511,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,107,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,107,0.58203125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,108,0.262155145957,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,108,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,108,0.578125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,109,0.256503970985,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,109,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,109,0.57421875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,110,0.250879369141,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,110,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,110,0.5703125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,111,0.245281522435,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,111,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,111,0.56640625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,112,0.239710615383,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,112,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,112,0.5625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,113,0.234166835068,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,113,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,113,0.55859375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,114,0.228650371187,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,114,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,114,0.5546875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,115,0.223161416108,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,115,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,115,0.55078125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,116,0.21770016493,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,116,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,116,0.546875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,117,0.212266815537,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,117,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,117,0.54296875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,118,0.206861568663,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,118,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,118,0.5390625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,119,0.201484627948,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,119,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,119,0.53515625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,120,0.196136200007,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,120,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,120,0.53125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,121,0.190816494492,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,121,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,121,0.52734375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,122,0.185525724163,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,122,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,122,0.5234375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,123,0.180264104952,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,123,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,123,0.51953125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,124,0.175031856043,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,124,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,124,0.515625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,125,0.169829199937,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,125,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,125,0.51171875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,126,0.164656362533,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,126,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,126,0.5078125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,127,0.159513573205,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,127,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,127,0.50390625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,128,0.154401064886,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,128,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,128,0.5,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,129,0.149319074145,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,129,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,129,0.49609375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,130,0.144267841278,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,130,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,130,0.4921875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,131,0.139247610395,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,131,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,131,0.48828125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,132,0.134258629514,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,132,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,132,0.484375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,133,0.129301150653,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,133,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,133,0.48046875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,134,0.124375429938,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,134,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,134,0.4765625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,135,0.119481727714,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,135,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,135,0.47265625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,136,0.114620308691,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,136,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,136,0.46875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,137,0.10979144217,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,137,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,137,0.46484375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,138,0.104995402436,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,138,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,138,0.4609375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,139,0.100232469599,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,139,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,139,0.45703125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,140,0.0955029314014,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,140,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,140,0.453125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,141,0.0908070871498,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,141,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,141,0.44921875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,142,0.0861452560099,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,142,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,142,0.4453125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,143,0.0815177938423,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,143,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,143,0.44140625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,144,0.0769251258545,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,144,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,144,0.4375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,145,0.0723678069224,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,145,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,145,0.43359375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,146,0.0678466274577,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,146,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,146,0.4296875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,147,0.0633627894426,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,147,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,147,0.42578125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,148,0.0589181828759,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,148,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,148,0.421875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,149,0.0545157940329,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,149,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,149,0.41796875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,150,0.0501602690175,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,150,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,150,0.4140625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,151,0.0458586340892,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,151,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,151,0.41015625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,152,0.0416211349156,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,152,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,152,0.40625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,153,0.037462101466,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,153,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,153,0.40234375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,154,0.0334006822204,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,154,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,154,0.3984375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,155,0.0294612375041,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,155,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,155,0.39453125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,156,0.0256731599135,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,156,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,156,0.390625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,157,0.0220699225402,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,157,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,157,0.38671875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,158,0.0186872558984,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,158,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,158,0.3828125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,159,0.0155605160047,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,159,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,159,0.37890625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,160,0.0127214992353,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,160,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,160,0.375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,161,0.0101951350632,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,161,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,161,0.37109375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,162,0.00799659001575,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,162,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,162,0.3671875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,163,0.00612930278534,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,163,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,163,0.36328125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,164,0.00458432985821,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,164,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,164,0.359375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,165,0.00334114091057,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,165,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,165,0.35546875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,166,0.00236972408465,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,166,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,166,0.3515625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,167,0.00163361727809,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,167,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,167,0.34765625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,168,0.0010933355929,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,168,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,168,0.34375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,169,0.000709648047321,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,169,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,169,0.33984375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,170,0.000446259606894,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,170,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,170,0.3359375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,171,0.000271635590344,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,171,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,171,0.33203125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,172,0.000159907242818,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,172,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,172,0.328125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,173,9.09673599743e-05,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,173,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,173,0.32421875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,174,4.99707465806e-05,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,174,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,174,0.3203125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,175,2.64884354761e-05,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,175,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,175,0.31640625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,176,1.35401236763e-05,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,176,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,176,0.3125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,177,6.67031510137e-06,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,177,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,177,0.30859375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,178,3.16499324576e-06,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,178,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,178,0.3046875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,179,1.44563643255e-06,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,179,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,179,0.30078125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,180,6.35290559899e-07,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,180,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,180,0.296875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,181,2.68465371987e-07,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,181,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,181,0.29296875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,182,1.09040823604e-07,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,182,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,182,0.2890625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,183,4.25464054945e-08,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,183,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,183,0.28515625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,184,1.59404925616e-08,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,184,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,184,0.28125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,185,5.73193232249e-09,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,185,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,185,0.27734375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,186,1.97723491185e-09,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,186,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,186,0.2734375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,187,6.53991303442e-10,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,187,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,187,0.26953125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,188,2.07319909645e-10,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,188,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,188,0.265625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,189,6.29598476446e-11,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,189,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,189,0.26171875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,190,1.83078311953e-11,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,190,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,190,0.2578125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,191,5.09513387918e-12,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,191,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,191,0.25390625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,192,1.35647538859e-12,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,192,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,192,0.25,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,193,3.45298422522e-13,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,193,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,193,0.24609375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,194,8.40017469317e-14,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,194,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,194,0.2421875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,195,1.95196985646e-14,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,195,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,195,0.23828125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,196,4.3303568916e-15,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,196,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,196,0.234375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,197,9.16661311877e-16,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,197,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,197,0.23046875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,198,1.85050841455e-16,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,198,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,198,0.2265625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,199,3.56061792735e-17,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,199,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,199,0.22265625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,200,6.52618340202e-18,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,200,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,200,0.21875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,201,1.13875896413e-18,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,201,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,201,0.21484375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,202,1.89048378527e-19,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,202,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,202,0.2109375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,203,2.98402833696e-20,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,203,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,203,0.20703125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,204,4.47539645877e-21,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,204,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,204,0.203125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,205,6.373194591e-22,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,205,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,205,0.19921875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,206,8.61125416837e-23,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,206,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,206,0.1953125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,207,1.10314545716e-23,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,207,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,207,0.19140625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,208,1.33880115931e-24,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,208,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,208,0.1875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,209,1.5380176488e-25,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,209,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,209,0.18359375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,210,1.67108177668e-26,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,210,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,210,0.1796875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,211,1.71568480093e-27,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,211,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,211,0.17578125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,212,1.66293336038e-28,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,212,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,212,0.171875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,213,1.52014281101e-29,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,213,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,213,0.16796875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,214,1.30924191611e-30,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,214,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,214,0.1640625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,215,1.06123773543e-31,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,215,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,215,0.16015625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,216,8.08667286247e-33,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,216,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,216,0.15625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,217,5.78592179604e-34,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,217,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,217,0.15234375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,218,3.88216250603e-35,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,218,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,218,0.1484375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,219,2.43947237505e-36,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,219,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,219,0.14453125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,220,1.43360263608e-37,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,220,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,220,0.140625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,221,7.86731045837e-39,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,221,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,221,0.13671875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,222,4.02534820617e-40,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,222,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,222,0.1328125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,223,1.91704798653e-41,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,223,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,223,0.12890625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,224,8.48284021837e-43,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,224,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,224,0.125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,225,3.48100031247e-44,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,225,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,225,0.12109375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,226,1.32202997561e-45,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,226,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,226,0.1171875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,227,4.63672796694e-47,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,227,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,227,0.11328125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,228,1.49832410004e-48,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,228,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,228,0.109375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,229,4.44978726115e-50,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,229,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,229,0.10546875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,230,1.21127788304e-51,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,230,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,230,0.1015625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,231,3.01340470672e-53,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,231,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,231,0.09765625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,232,6.82988269784e-55,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,232,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,232,0.09375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,233,1.40548294273e-56,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,233,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,233,0.08984375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,234,2.61622190267e-58,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,234,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,234,0.0859375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,235,4.38719836191e-60,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,235,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,235,0.08203125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,236,6.59804400624e-62,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,236,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,236,0.078125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,237,8.85538493898e-64,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,237,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,237,0.07421875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,238,1.05481840276e-65,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,238,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,238,0.0703125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,239,1.10831696195e-67,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,239,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,239,0.06640625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,240,1.02018382118e-69,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,240,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,240,0.0625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,241,8.16289478726e-72,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,241,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,241,0.05859375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,242,5.62749160237e-74,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,242,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,242,0.0546875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,243,3.30879541011e-76,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,243,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,243,0.05078125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,244,1.63974690185e-78,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,244,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,244,0.046875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,245,6.75468037037e-81,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,245,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,245,0.04296875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,246,2.2749277888e-83,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,246,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,246,0.0390625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,247,6.13984624783e-86,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,247,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,247,0.03515625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,248,1.29540652713e-88,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,248,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,248,0.03125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,249,2.07040865586e-91,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,249,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,249,0.02734375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,250,2.40557662134e-94,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,250,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,250,0.0234375,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,251,1.92064800866e-97,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,251,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,251,0.01953125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,252,9.71192681848e-101,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,252,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,252,0.015625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,253,2.73372964543e-104,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,253,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,253,0.01171875,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,254,3.38465198994e-108,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,254,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,254,0.0078125,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,255,1.03686915723e-112,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,255,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,255,0.00390625,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels
+iid_256,iid 256-channel,256,0,200.0,256,256,exact expected lost-hit fraction for iid dark-count tags over all 256 channels
+physical_cluster8,physical 8-channel hit,256,0,200.0,256,8,localized physical hit crossing 8 channels; repeated cluster during the stall window
+injection_all256,injection all-channel,256,0,200.0,256,256,deterministic all-channel injection/superburst over all 256 channels

@@ -9,6 +9,12 @@ The first closure step is TLM versus RTL simulation:
 bash histogram_statistics/model/scripts/run_queue_tlm_rtl.sh
 ```
 
+The DISLIN plot requested for the realistic 8-MuTRiG link cap is generated with:
+
+```bash
+bash histogram_statistics/model/scripts/render_queue_plots.sh
+```
+
 Generated artifacts are written to `histogram_statistics/model/artifacts/`.
 
 ## Model Contract
@@ -33,6 +39,11 @@ order as the RTL and is compared cycle-by-cycle against a VHDL RTL simulation.
 |---|---|
 | `queue_depth_exact_regions.csv` | exact iid depth quantiles for no-drop, 5%, 1%, 0.1%, and 1 ppm queue-overflow probability |
 | `queue_depth_sweep_tlm.csv` | executable TLM sweep over depths, traffic profiles, rates, and periodic drain stalls |
+| `queue_loss_vs_depth_8mutrig.csv` | 8-MuTRiG, 256-channel loss fraction versus queue depth for iid, physical-hit, and injection traffic |
+| `queue_loss_vs_depth_8mutrig.png` | DISLIN PNG plot of `queue_loss_vs_depth_8mutrig.csv` |
+| `queue_loss_vs_depth_8mutrig.svg` | DISLIN SVG plot of `queue_loss_vs_depth_8mutrig.csv` |
+| `queue_dislin_png.log` | DISLIN render log for the PNG output |
+| `queue_dislin_svg.log` | DISLIN render log for the SVG output |
 | `queue_trace_stimulus.csv` | deterministic validation trace driven into both TLM and RTL |
 | `queue_trace_expected_tlm.csv` | cycle-level expected TLM outputs |
 | `queue_trace_observed_rtl.csv` | cycle-level RTL outputs from `coalescing_queue.vhd` |
