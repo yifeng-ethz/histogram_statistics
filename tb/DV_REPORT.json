@@ -1,0 +1,25 @@
+{
+  "dut": "histogram_statistics_v2",
+  "date": "2026-04-27",
+  "scope": "Phase-5 queue-depth gate",
+  "result": "pass",
+  "standalone_dv": {
+    "command": "make -C histogram_statistics/tb run_all",
+    "passed": 27,
+    "failed": 0
+  },
+  "configuration": {
+    "n_ports": 8,
+    "channels_per_port": 32,
+    "n_bins": 256,
+    "fifo_addr_width": 8,
+    "per_port_fifo_depth": 256,
+    "coal_queue_depth": 256
+  },
+  "integration": {
+    "dp_e2e_passed": 7,
+    "dp_e2e_failed": 0,
+    "histogram_total": 506,
+    "histogram_dropped": 0
+  }
+}

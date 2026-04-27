@@ -347,17 +347,19 @@ $(VSIM) -sv_lib libhist_ref ...
 ## 8. Makefile Structure
 
 ```makefile
-QUESTA_HOME ?= /data1/intelFPGA_pro/23.1/questa_fse
+QUESTA_HOME ?= /data1/questaone_sim/questasim
 export LM_LICENSE_FILE := 8161@lic-mentor.ethz.ch
+export MGLS_LICENSE_FILE := 8161@lic-mentor.ethz.ch
+export SALT_LICENSE_SERVER := 8161@lic-mentor.ethz.ch
 
-VLIB = $(QUESTA_HOME)/bin/vlib
-VMAP = $(QUESTA_HOME)/bin/vmap
-VCOM = $(QUESTA_HOME)/bin/vcom
-VLOG = $(QUESTA_HOME)/bin/vlog
-VSIM = $(QUESTA_HOME)/bin/vsim
+VLIB = $(firstword $(wildcard $(QUESTA_HOME)/bin/vlib $(QUESTA_HOME)/linux_x86_64/vlib))
+VMAP = $(firstword $(wildcard $(QUESTA_HOME)/bin/vmap $(QUESTA_HOME)/linux_x86_64/vmap))
+VCOM = $(firstword $(wildcard $(QUESTA_HOME)/bin/vcom $(QUESTA_HOME)/linux_x86_64/vcom))
+VLOG = $(firstword $(wildcard $(QUESTA_HOME)/bin/vlog $(QUESTA_HOME)/linux_x86_64/vlog))
+VSIM = $(firstword $(wildcard $(QUESTA_HOME)/bin/vsim $(QUESTA_HOME)/linux_x86_64/vsim))
 
 IP_SRC     = $(realpath ../..)
-INTEL_LIBS = $(QUESTA_HOME)/intel/vhdl
+QUARTUS_SIM_LIB ?= /data1/intelFPGA_pro/23.1/quartus/eda/sim_lib
 UVM_HOME   = $(QUESTA_HOME)/verilog_src/uvm-1.2
 WORK       = work_hist_uvm
 TB_TOP     = tb_top

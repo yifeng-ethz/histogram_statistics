@@ -30,9 +30,8 @@ timing/resource result below is conservative relative to the packaged preset.
 
 - Current standalone verification status is summarized in
   [VERIFICATION_SIGNOFF.md](VERIFICATION_SIGNOFF.md).
-- The current verification evidence closes the project DV plan, but exact
-  simulator-tier workflow closure is still blocked by the `questa_fe` runtime
-  checkout issue on this host.
+- The current verification evidence closes the project DV plan, and the active
+  simulator-tier flow now runs on the supported QuestaOne 2026 runtime.
 - That simulator-tier issue does not change the Quartus timing/utilization
   evidence summarized here.
 

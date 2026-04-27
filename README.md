@@ -4,7 +4,7 @@ Multi-port coalescing histogram with pipelined bin index and ping-pong rate read
 Drop-in replacement for per-ASIC channel rate counter arrays in the Mu3e online data
 acquisition system.
 
-**Version:** 26.1.0.0411
+**Version:** 26.1.2.0425
 **Module name:** `histogram_statistics_v2`
 **Platform Designer group:** Mu3e Data Plane / Modules
 
@@ -53,7 +53,7 @@ Typical deployment:
 |-------|-----------|---------|-------------|
 | 1 | `ingress_comb` | 0 (comb) | Key extraction, filter evaluation, signed/unsigned conversion |
 | 2 | `ingress_stage_reg` | 1 cycle | Registered ingress pipeline cut for timing closure |
-| 3 | `hit_fifo` (x N_PORTS) | 1 cycle | Per-port elastic FIFO (depth 16) absorbs arbiter stalls |
+| 3 | `hit_fifo` (x N_PORTS) | 1 cycle | Per-port elastic FIFO (`2^FIFO_ADDR_WIDTH` entries) absorbs arbiter stalls and bursty passive taps |
 | 4 | `rr_arbiter` | 1 cycle | Round-robin grant across all non-empty FIFOs |
 | 5 | `divider_pipe` | 3 cycles | Key offset, port-channel offset, bin-width preparation |
 | 6 | `bin_divider` | BIN_INDEX_WIDTH cycles | Pipelined restoring divider: `(key - left_bound) / bin_width` |
@@ -341,6 +341,7 @@ quartus_sh --flow compile histogram_statistics_v2_standalone
 
 | Version | Date | Change |
 |---------|------|--------|
+| 26.1.2.0425 | 2026-04-25 | Parameterized/deepened per-port ingress FIFO depth for bursty FEB post-stack histogram taps and saturated `PORT_STATUS.fifo_level_max` |
 | 26.1.0.0411 | 2026-04-11 | Cleaned the Parameter Editor packaging, refreshed per-tab screenshots, and aligned the delivered GUI/docs with the packaged contract |
 | 26.1.0.0410 | 2026-04-10 | Upgraded `_hw.tcl` to rich IP packaging format (tabbed GUI, presets, CSR register map, resource estimates) |
 | 26.0.321 | 2026-03-21 | Restored v2 from `feb_system_v2` generated RTL |

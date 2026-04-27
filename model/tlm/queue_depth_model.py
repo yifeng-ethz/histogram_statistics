@@ -13,7 +13,7 @@ N_BINS = 256
 KICK_WIDTH = 8
 KICK_MAX = (1 << KICK_WIDTH) - 1
 OVERFLOW_MAX = (1 << 16) - 1
-DEFAULT_QUEUE_DEPTH = 160
+DEFAULT_QUEUE_DEPTH = 256
 REALISTIC_LINK_RATE_MHIT = 200.0
 REALISTIC_STALL_CYCLES = 256
 
@@ -195,7 +195,7 @@ def write_exact_regions(out_dir: Path) -> None:
             "depth_for_drop_le_1pct",
             "depth_for_drop_le_0p1pct",
             "depth_for_drop_le_1ppm",
-            "default_depth_160_drop_probability",
+            "configured_depth_drop_probability",
             "kick_saturation_probability_exact_when_active_bins_1",
             "definition",
         ]
@@ -221,7 +221,7 @@ def write_exact_regions(out_dir: Path) -> None:
                             "depth_for_drop_le_1pct": depths[1],
                             "depth_for_drop_le_0p1pct": depths[2],
                             "depth_for_drop_le_1ppm": depths[3],
-                            "default_depth_160_drop_probability": f"{tail_probability(pmf, DEFAULT_QUEUE_DEPTH):.12g}",
+                            "configured_depth_drop_probability": f"{tail_probability(pmf, DEFAULT_QUEUE_DEPTH):.12g}",
                             "kick_saturation_probability_exact_when_active_bins_1": kick_prob,
                             "definition": definition,
                         }

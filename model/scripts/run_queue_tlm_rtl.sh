@@ -13,7 +13,7 @@ mkdir -p "$ART_DIR" "$WORK_DIR"
 
 python3 "$MODEL_DIR/tlm/queue_depth_model.py" \
   --out-dir "$ART_DIR" \
-  --queue-depth 160
+  --queue-depth 256
 
 rm -rf "$WORK_DIR/work"
 (
@@ -26,7 +26,7 @@ rm -rf "$WORK_DIR/work"
   "${VCOM}" -ini modelsim.ini -work work -2008 "$ROOT_DIR/rtl/coalescing_queue.vhd"
   "${VCOM}" -ini modelsim.ini -work work -2008 "$MODEL_DIR/rtl_sim/tb_coalescing_queue_trace.vhd"
   "${VSIM}" -ini modelsim.ini -c -work work \
-    -gQUEUE_DEPTH_G=160 \
+    -gQUEUE_DEPTH_G=256 \
     -gSTIM_FILE_G="$ART_DIR/queue_trace_stimulus.csv" \
     -gOUT_FILE_G="$ART_DIR/queue_trace_observed_rtl.csv" \
     tb_coalescing_queue_trace \

@@ -1,5 +1,6 @@
-# histogram_statistics_v2 DV -- Basic Functional Cases
+# histogram_statistics_v2 DV — Basic Functional Cases
 
+**Companion docs:** [DV_PLAN.md](DV_PLAN.md), [DV_HARNESS.md](DV_HARNESS.md), [DV_REPORT.md](DV_REPORT.md)
 **ID Range:** B001-B999
 **Total:** 150 cases
 
@@ -158,8 +159,8 @@ The bin_divider computes bin_index = (key - left_bound) / bin_width using a pipe
 | B080 | D | All hits on port 0 only (other ports idle) | 1 | 8 hits on port 0. | 8 hits processed. Round-robin arbiter does not block when only 1 FIFO has data. |
 | B081 | D | 2 hits per port, all 8 ports, simultaneous injection | 1 | 16 hits total (2 per port in same cycle if possible; else consecutive). | All 16 processed. total_hits == 16. Arbiter round-robins fairly. |
 | B082 | D | Port 0 and port 7 only, alternating hits | 1 | 4 hits alternating: port 0, port 7, port 0, port 7. | All 4 processed. Arbiter alternates between the two active ports. |
-| B083 | D | FIFO backpressure: inject 16 hits on port 0 back-to-back | 1 | 16 hits at line rate. FIFO depth is 16. | All 16 processed without drop. FIFO level peaks at or near 16. fifo_level_max >= 14. |
-| B084 | D | FIFO overflow: inject 17+ hits on port 0 without pipeline drain | 1 | Stall downstream (measure_clear to pause pipeline), inject 17 hits on port 0. | 16 enter FIFO, hit 17 triggers drop_pulse. dropped_hits >= 1. |
+| B083 | D | FIFO backpressure: inject 256 hits on port 0 back-to-back | 1 | 256 hits at line rate. FIFO depth is 256. | All 256 processed without drop. FIFO level peaks near 256. fifo_level_max >= 240. |
+| B084 | D | FIFO overflow: inject 257+ hits on port 0 without pipeline drain | 1 | Stall downstream (measure_clear to pause pipeline), inject 257 hits on port 0. | 256 enter FIFO, hit 257 triggers drop_pulse. dropped_hits >= 1. |
 | B085 | D | Port offset correctness for each port | 1 | Inject 1 hit per port, raw key = left_bound. Expected effective keys = {left_bound, left_bound+32, ..., left_bound+224}. | 8 bins updated at calculated offsets. |
 | B086 | D | Round-robin fairness: 4 hits per port, all 8 ports | 1 | 32 hits total. Monitor arbiter output port sequence. | Each port served 4 times. No port starved. |
 | B087 | D | Port ready deasserted during config apply | 1 | Start continuous hits on all ports. Trigger config apply. | All port_ready signals go low during cfg_apply_pending. Hits resume after apply completes. No data lost. |

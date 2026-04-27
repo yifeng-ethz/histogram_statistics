@@ -1,10 +1,10 @@
 # DV Plan: histogram_statistics_v2 (Standalone IP)
 
-**DUT:** `histogram_statistics_v2` (Rev 1.2)
+**DUT:** `histogram_statistics_v2` (Rev 1.4 / Phase-5 queue-depth update)
 **IP source:** `mu3e-ip-cores/histogram_statistics/histogram_statistics_v2.vhd`
 **Author:** Yifeng Wang (yifenwan@phys.ethz.ch)
-**Date:** 2026-04-09
-**Status:** Approved for implementation and signoff updates (chief architect signoff recorded 2026-04-12)
+**Date:** 2026-04-27
+**Status:** Phase-5 standalone DV and synthesis closure recorded in [DV_REPORT.md](DV_REPORT.md) and [../syn/SYN_REPORT.md](../syn/SYN_REPORT.md)
 
 ---
 
@@ -25,7 +25,7 @@ ingress_comb → ingress_stage_reg → hit_fifo (×8) → rr_arbiter
 | Component | File | Key Parameters |
 |-----------|------|---------------|
 | `histogram_statistics_v2` | `histogram_statistics_v2.vhd` | N_BINS=256, N_PORTS=8, SAR_TICK_WIDTH=32, SAR_KEY_WIDTH=16, COAL_QUEUE_DEPTH=256 |
-| `hit_fifo` | `hit_fifo.vhd` | DATA_WIDTH=32, FIFO_ADDR_WIDTH=4 (depth=16) |
+| `hit_fifo` | `hit_fifo.vhd` | DATA_WIDTH=32, FIFO_ADDR_WIDTH=8, delivered depth=256 |
 | `rr_arbiter` | `rr_arbiter.vhd` | N_PORTS=8, DATA_WIDTH=32 |
 | `bin_divider` | `bin_divider.vhd` | TICK_WIDTH=32, BIN_INDEX_WIDTH=8, COUNT_WIDTH=8 |
 | `coalescing_queue` | `coalescing_queue.vhd` | N_BINS=256, QUEUE_DEPTH=256, KICK_WIDTH=8 |
@@ -85,6 +85,7 @@ ingress_comb → ingress_stage_reg → hit_fifo (×8) → rr_arbiter
 | F07 | Ping-pong bank swap | pingpong_sram timer-driven swap | bank_status CSR, bin data |
 | F08 | Coalescing queue | coalescing_queue same-bin merge | per-bin count accuracy |
 | F09 | FIFO backpressure | hit_fifo full → drop_pulse | dropped_hits CSR |
+| P03 | Wire-speed burst absorption | single-port passive tap burst at one hit/clock | total/dropped/PORT_STATUS CSR |
 | F10 | CSR apply mechanism | cfg_apply_request → cfg_apply_pending → shadow copy | CONTROL readback bit[1] |
 | F11 | Measure clear | clear_pulse → measure_clear_pulse → full module reset | bin readback all-zero |
 | F12 | Snoop passthrough | port 0 → fill_out (SNOOP_EN=true) | fill_out valid/data |
@@ -99,6 +100,8 @@ ingress_comb → ingress_stage_reg → hit_fifo (×8) → rr_arbiter
 | F21 | Identity header (UID) | csr_read_comb word 0 returns IP_UID generic | CSR word 0 readback = 0x48495354 |
 | F22 | Identity header (META mux) | csr_meta_sel selects VERSION/DATE/GIT/INSTANCE_ID | CSR word 1 readback cycles through 4 pages |
 | F23 | UID immutability | Write to word 0 is ignored (read-only) | CSR word 0 unchanged after write |
+| F24 | Phase-5 MuTRiG all-channel frame | 8 ports x 32-channel port offset into 256 bins | P04 in standalone tb: 256 accepted, 0 dropped, all bins match |
+| F25 | Phase-5 FIFO depth gate | hit_fifo default depth 256 | FIFO absorbs one full 32-channel frame per 8 ports; over-depth burst is characterized, not hidden |
 
 ---
 
@@ -126,10 +129,10 @@ ingress_comb → ingress_stage_reg → hit_fifo (×8) → rr_arbiter
 
 | Item | Value |
 |------|-------|
-| Simulator | Questa FSE 2022.4 (`/data1/intelFPGA_pro/23.1/questa_fse/`) |
+| Simulator | QuestaOne 2026 (`/data1/questaone_sim/questasim/`) |
 | License | Full Mentor floating (`8161@lic-mentor.ethz.ch`) |
 | Capabilities | `rand`/`constraint`, `covergroup`/`cross`, DPI-C, full UVM 1.2 |
-| Intel VHDL libs | `$(QUESTA_HOME)/intel/vhdl/220model` |
+| Intel VHDL libs | Quartus `sim_lib` compiled into local `lpm` / `altera_mf` work libraries |
 
 ---
 
@@ -154,6 +157,15 @@ Statistics counters (total_hits, dropped_hits, underflow_count, overflow_count) 
 - Bank swap (interval_pulse) resets all stats counters
 - Measure clear (clear_pulse or i_interval_reset) also resets stats counters
 - Reading stats must happen BEFORE the next interval/clear event
+
+### 8.1a Phase-5 Queue/FIFO Depth
+
+The Phase-5 delivered configuration uses `FIFO_ADDR_WIDTH=8` on every ingress
+FIFO and `COAL_QUEUE_DEPTH=256`. This matches the MuTRiG all-channel injection
+bound of `8 ports * 32 channels = 256` accepted hits in one injected frame.
+The standalone regression includes `P04_all_channel_injection_frame`, which
+checks 256 accepted hits, zero `DROPPED_HITS`, zero coalescing overflow, and
+all 256 bins after bank swap.
 
 ### 8.2 Port Offset
 

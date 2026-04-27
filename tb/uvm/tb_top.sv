@@ -109,7 +109,7 @@ module tb_top;
     .avs_hist_bin_waitrequest        (bin_if.waitrequest),
     .avs_hist_bin_write              (bin_if.write),
     .avs_hist_bin_writedata          (bin_if.writedata),
-    .avs_hist_bin_burstcount         (bin_if.burstcount),
+    .avs_hist_bin_burstcount         ({1'b0, bin_if.burstcount}),
     .avs_hist_bin_readdatavalid      (bin_if.readdatavalid),
     .avs_hist_bin_writeresponsevalid (bin_if.writeresponsevalid),
     .avs_hist_bin_response           (bin_if.response),

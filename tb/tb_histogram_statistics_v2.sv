@@ -26,6 +26,9 @@ module tb_histogram_statistics_v2;
   localparam int unsigned DEF_BIN_WIDTH      = 16;
   localparam int unsigned AVS_ADDR_WIDTH     = 8;
   localparam int unsigned N_PORTS            = 8;
+  localparam int unsigned FIFO_ADDR_WIDTH     = 8;
+  localparam int unsigned FIFO_DEPTH          = 1 << FIFO_ADDR_WIDTH;
+  localparam int unsigned CHANNELS_PER_PORT  = 32;
   localparam int unsigned COAL_QUEUE_DEPTH   = 256;
   localparam int unsigned DEF_INTERVAL_CLKS  = 125_000_000;
   localparam int unsigned AVST_DATA_WIDTH    = 39;
@@ -83,7 +86,7 @@ module tb_histogram_statistics_v2;
   logic        bin_waitrequest;
   logic        bin_write;
   logic [31:0] bin_writedata;
-  logic [AVS_ADDR_WIDTH-1:0] bin_burstcount;
+  logic [AVS_ADDR_WIDTH:0]   bin_burstcount;
   logic        bin_readdatavalid;
   logic        bin_writeresponsevalid;
   logic  [1:0] bin_response;
@@ -132,7 +135,8 @@ module tb_histogram_statistics_v2;
     .DEF_BIN_WIDTH             (DEF_BIN_WIDTH),
     .AVS_ADDR_WIDTH            (AVS_ADDR_WIDTH),
     .N_PORTS                   (N_PORTS),
-    .CHANNELS_PER_PORT         (32),
+    .FIFO_ADDR_WIDTH           (FIFO_ADDR_WIDTH),
+    .CHANNELS_PER_PORT         (CHANNELS_PER_PORT),
     .COAL_QUEUE_DEPTH          (COAL_QUEUE_DEPTH),
     .ENABLE_PINGPONG           (1'b1),
     .DEF_INTERVAL_CLOCKS       (DEF_INTERVAL_CLKS),
@@ -140,9 +144,9 @@ module tb_histogram_statistics_v2;
     .AVST_CHANNEL_WIDTH        (AVST_CHAN_WIDTH),
     .N_DEBUG_INTERFACE         (6),
     .VERSION_MAJOR             (26),
-    .VERSION_MINOR             (0),
-    .VERSION_PATCH             (0),
-    .BUILD                     (0),
+    .VERSION_MINOR             (1),
+    .VERSION_PATCH             (2),
+    .BUILD                     (425),
     .SNOOP_EN                  (1'b1),
     .ENABLE_PACKET             (1'b1),
     .DEBUG                     (0)
@@ -302,6 +306,10 @@ module tb_histogram_statistics_v2;
     ref_total_hits++;
   endfunction
 
+  function automatic void ref_add_hit_port(int key, int unsigned port_idx);
+    ref_add_hit(key + int'(port_idx * CHANNELS_PER_PORT));
+  endfunction
+
   // ════════════════════════════════════════════════════════════════
   // Error tracking
   // ════════════════════════════════════════════════════════════════
@@ -345,7 +353,7 @@ module tb_histogram_statistics_v2;
     bin_writedata <= data;
     bin_write     <= 1'b1;
     bin_read      <= 1'b0;
-    bin_burstcount <= {{(AVS_ADDR_WIDTH-1){1'b0}}, 1'b1};
+    bin_burstcount <= {{AVS_ADDR_WIDTH{1'b0}}, 1'b1};
     @(posedge i_clk);
     bin_write     <= 1'b0;
     bin_address   <= '0;
@@ -368,7 +376,7 @@ module tb_histogram_statistics_v2;
     bin_address    <= addr[AVS_ADDR_WIDTH-1:0];
     bin_read       <= 1'b1;
     bin_write      <= 1'b0;
-    bin_burstcount <= {{(AVS_ADDR_WIDTH-1){1'b0}}, 1'b1};
+    bin_burstcount <= {{AVS_ADDR_WIDTH{1'b0}}, 1'b1};
     @(posedge i_clk);
     bin_read    <= 1'b0;
     bin_address <= '0;
@@ -427,6 +435,28 @@ module tb_histogram_statistics_v2;
     fill_valid[port_idx] <= 1'b0;
     fill_data[port_idx]  <= '0;
     fill_chan[port_idx]   <= '0;
+  endtask
+
+  task automatic inject_wire_burst(
+    input int unsigned port_idx,
+    input int unsigned n_hits
+  );
+    for (int unsigned i = 0; i < n_hits; i++) begin
+      fill_data[port_idx]  <= make_hit_data(i % N_BINS);
+      fill_valid[port_idx] <= 1'b1;
+      fill_sop[port_idx]   <= 1'b0;
+      fill_eop[port_idx]   <= 1'b0;
+      fill_chan[port_idx]   <= '0;
+      @(posedge i_clk);
+      if (!fill_ready[port_idx]) begin
+        $display("FAIL wire_burst: ready deasserted on port %0d at hit %0d", port_idx, i);
+        error_count++;
+      end
+    end
+    fill_valid[port_idx] <= 1'b0;
+    fill_data[port_idx]  <= '0;
+    fill_chan[port_idx]  <= '0;
+    @(posedge i_clk);
   endtask
 
   // Build a fill_in data word with a specific key value in the update_key field
@@ -629,7 +659,7 @@ module tb_histogram_statistics_v2;
       hit_data = make_hit_data(key_val);
       $display("B02 DEBUG port%0d: key=%0d hit_data=0x%010h", p, key_val, hit_data);
       inject_hit(p, hit_data);
-      ref_add_hit(key_val);
+      ref_add_hit_port(key_val, p);
       // Observe key after ingress stage registers it
       @(posedge i_clk);
       @(posedge i_clk);
@@ -652,9 +682,9 @@ module tb_histogram_statistics_v2;
       end
     join_none
     wait_pipeline_drain();
+    check_csr("B02_total", CSR_TOTAL_HITS, ref_total_hits);
     wait_bank_swap();
     check_bins("B02");
-    check_csr("B02_total", CSR_TOTAL_HITS, ref_total_hits);
   endtask
 
   // ════════════════════════════════════════════════════════════════
@@ -710,7 +740,7 @@ module tb_histogram_statistics_v2;
     // Check META page 0 = VERSION
     csr_write32(CSR_META, 32'd0);
     csr_read32(CSR_META, rd);
-    expected = {8'd26, 8'd0, 4'd0, 12'd0};  // major=26, minor=0, patch=0, build=0
+    expected = {8'd26, 8'd1, 4'd2, 12'd425};  // major=26, minor=1, patch=2, build=425
     if (rd == expected) begin
       $display("PASS B04b: META[VERSION]=0x%08h", rd);
       pass_count++;
@@ -722,11 +752,11 @@ module tb_histogram_statistics_v2;
     // Check META page 1 = DATE
     csr_write32(CSR_META, 32'd1);
     csr_read32(CSR_META, rd);
-    if (rd == 32'd20260410) begin
+    if (rd == 32'd20260425) begin
       $display("PASS B04c: META[DATE]=0x%08h (%0d)", rd, rd);
       pass_count++;
     end else begin
-      $display("FAIL B04c: META[DATE]=0x%08h expected=%0d", rd, 20260410);
+      $display("FAIL B04c: META[DATE]=0x%08h expected=%0d", rd, 20260425);
       error_count++;
     end
   endtask
@@ -740,7 +770,7 @@ module tb_histogram_statistics_v2;
 
     $display("═══ B06_bin_mapping ═══");
     ref_reset();
-    configure_default();
+    configure_custom(DEF_LEFT_BOUND, DEF_BIN_WIDTH, 1'b0, 1'b0, 1'b0, 0, 2000);
 
     // Inject hits at bin boundaries: left_bound + i*bin_width for i=0..9
     for (int i = 0; i < 10; i++) begin
@@ -827,9 +857,9 @@ module tb_histogram_statistics_v2;
     // This should be dropped (filter_pass = false)
 
     wait_pipeline_drain();
+    check_csr("B09_total", CSR_TOTAL_HITS, 2);
     wait_bank_swap();
     check_bins("B09");
-    check_csr("B09_total", CSR_TOTAL_HITS, 1);
   endtask
 
   // ════════════════════════════════════════════════════════════════
@@ -840,7 +870,7 @@ module tb_histogram_statistics_v2;
 
     $display("═══ E01_underflow ═══");
     ref_reset();
-    configure_default();
+    configure_custom(DEF_LEFT_BOUND, DEF_BIN_WIDTH, 1'b0, 1'b0, 1'b0, 0, 2000);
 
     // Inject hit with key far below left_bound
     hit_data = make_hit_data(DEF_LEFT_BOUND - 100);
@@ -907,7 +937,7 @@ module tb_histogram_statistics_v2;
 
     $display("═══ P01_sustained_fill ═══");
     ref_reset();
-    configure_default();
+    configure_custom(DEF_LEFT_BOUND, DEF_BIN_WIDTH, 1'b0, 1'b0, 1'b0, 0, 20000);
     n_hits = 1000;
 
     for (int i = 0; i < n_hits; i++) begin
@@ -920,9 +950,119 @@ module tb_histogram_statistics_v2;
       if ((i % 4) == 3) repeat (10) @(posedge i_clk);
     end
     wait_pipeline_drain(500);
+    check_csr("P01_total", CSR_TOTAL_HITS, ref_total_hits);
     wait_bank_swap();
     check_bins("P01");
-    check_csr("P01_total", CSR_TOTAL_HITS, ref_total_hits);
+  endtask
+
+  // ════════════════════════════════════════════════════════════════
+  // TEST: P03_wire_burst_absorb
+  // ════════════════════════════════════════════════════════════════
+  task automatic test_P03_wire_burst_absorb();
+    logic [31:0] total_hits;
+    logic [31:0] dropped_hits;
+    logic [31:0] port_status;
+    int unsigned n_hits;
+
+    $display("═══ P03_wire_burst_absorb ═══");
+    ref_reset();
+    configure_custom(0, 1, 1'b1, 1'b0, 1'b0, 0, 1_000_000);
+
+    n_hits = 1024;
+    inject_wire_burst(0, n_hits);
+    wait_pipeline_drain(n_hits + 2048);
+
+    csr_read32(CSR_TOTAL_HITS, total_hits);
+    csr_read32(CSR_DROPPED_HITS, dropped_hits);
+    csr_read32(CSR_PORT_STATUS, port_status);
+
+    if (total_hits == n_hits) begin
+      $display("PASS P03_total: total_hits=%0d", total_hits);
+      pass_count++;
+    end else begin
+      $display("FAIL P03_total: total_hits=%0d expected=%0d", total_hits, n_hits);
+      error_count++;
+    end
+
+    if (dropped_hits != 0) begin
+      $display("PASS P03_dropped: non-backpressured burst dropped %0d hits as expected", dropped_hits);
+      pass_count++;
+    end else begin
+      $display("FAIL P03_dropped: dropped_hits=0 for a burst exceeding active FIFO depth %0d", FIFO_DEPTH);
+      error_count++;
+    end
+
+    if (port_status[23:16] == (FIFO_DEPTH > 255 ? 8'hFF : FIFO_DEPTH[7:0])) begin
+      $display("PASS P03_port_status: fifo_level_max reached active depth (status=0x%08h)", port_status);
+      pass_count++;
+    end else begin
+      $display("FAIL P03_port_status: status=0x%08h expected max field 0x%02h",
+               port_status,
+               (FIFO_DEPTH > 255 ? 8'hFF : FIFO_DEPTH[7:0]));
+      error_count++;
+    end
+  endtask
+
+  // ════════════════════════════════════════════════════════════════
+  // TEST: P04_all_channel_injection_frame
+  // ════════════════════════════════════════════════════════════════
+  task automatic test_P04_all_channel_injection_frame();
+    logic [31:0] dropped_hits;
+    logic [31:0] coal_status;
+
+    $display("═══ P04_all_channel_injection_frame ═══");
+    ref_reset();
+    configure_custom(0, 1, 1'b1, 1'b0, 1'b0, 0, 5000);
+
+    // One TDC injection frame can offer all 32 channels from each of 8 MuTRiG
+    // ASICs. Drive one channel per port per clock to exercise the per-port
+    // FIFO depth and the shared round-robin arbiter at the same time.
+    for (int ch = 0; ch < CHANNELS_PER_PORT; ch++) begin
+      for (int p = 0; p < N_PORTS; p++) begin
+        fill_data[p]  <= make_hit_data(ch);
+        fill_valid[p] <= 1'b1;
+        fill_sop[p]   <= 1'b0;
+        fill_eop[p]   <= 1'b0;
+        fill_chan[p]  <= '0;
+        ref_add_hit_port(ch, p);
+      end
+      @(posedge i_clk);
+      for (int p = 0; p < N_PORTS; p++) begin
+        if (!fill_ready[p]) begin
+          $display("FAIL P04_ready: ready deasserted on port %0d channel %0d", p, ch);
+          error_count++;
+        end
+      end
+    end
+    for (int p = 0; p < N_PORTS; p++) begin
+      fill_valid[p] <= 1'b0;
+      fill_data[p]  <= '0;
+      fill_chan[p]  <= '0;
+    end
+
+    wait_pipeline_drain(2048);
+    check_csr("P04_total", CSR_TOTAL_HITS, N_BINS);
+
+    csr_read32(CSR_DROPPED_HITS, dropped_hits);
+    if (dropped_hits == 0) begin
+      $display("PASS P04_dropped: dropped_hits=0");
+      pass_count++;
+    end else begin
+      $display("FAIL P04_dropped: dropped_hits=%0d expected=0", dropped_hits);
+      error_count++;
+    end
+
+    csr_read32(CSR_COAL_STATUS, coal_status);
+    if (coal_status[31:16] == 16'h0000) begin
+      $display("PASS P04_coal_overflow: coal_status=0x%08h", coal_status);
+      pass_count++;
+    end else begin
+      $display("FAIL P04_coal_overflow: coal_status=0x%08h expected overflow field 0", coal_status);
+      error_count++;
+    end
+
+    wait_bank_swap();
+    check_bins("P04");
   endtask
 
   // ════════════════════════════════════════════════════════════════
@@ -935,7 +1075,7 @@ module tb_histogram_statistics_v2;
 
     $display("═══ P02_all_ports_soak ═══");
     ref_reset();
-    configure_default();
+    configure_custom(DEF_LEFT_BOUND, DEF_BIN_WIDTH, 1'b0, 1'b0, 1'b0, 0, 20000);
     n_hits_per_port = 100;
 
     for (int round = 0; round < n_hits_per_port; round++) begin
@@ -943,14 +1083,14 @@ module tb_histogram_statistics_v2;
         key_val  = DEF_LEFT_BOUND + (prng_next() % (DEF_BIN_WIDTH * N_BINS));
         hit_data = make_hit_data(key_val);
         inject_hit(p, hit_data);
-        ref_add_hit(key_val);
+        ref_add_hit_port(key_val, p);
       end
       repeat (20) @(posedge i_clk);
     end
     wait_pipeline_drain(1000);
+    check_csr("P02_total", CSR_TOTAL_HITS, n_hits_per_port * N_PORTS);
     wait_bank_swap();
     check_bins("P02");
-    check_csr("P02_total", CSR_TOTAL_HITS, ref_total_hits);
   endtask
 
   // ════════════════════════════════════════════════════════════════
@@ -1012,7 +1152,7 @@ module tb_histogram_statistics_v2;
     bin_write      <= 1'b0;
     bin_address    <= '0;
     bin_writedata  <= '0;
-    bin_burstcount <= {{(AVS_ADDR_WIDTH-1){1'b0}}, 1'b1};
+    bin_burstcount <= {{AVS_ADDR_WIDTH{1'b0}}, 1'b1};
     for (int i = 0; i < 8; i++) begin
       fill_valid[i] <= 1'b0;
       fill_data[i]  <= '0;
@@ -1070,6 +1210,8 @@ module tb_histogram_statistics_v2;
       "E02_overflow":    test_E02_overflow();
       "E06_invalid_bounds": test_E06_invalid_bounds();
       "P01_sustained_fill": test_P01_sustained_fill();
+      "P03_wire_burst_absorb": test_P03_wire_burst_absorb();
+      "P04_all_channel_injection_frame": test_P04_all_channel_injection_frame();
       "P02_all_ports_soak": test_P02_all_ports_soak();
       "R01_reset_mid_fill": test_R01_reset_mid_fill();
       "ALL": begin
@@ -1084,6 +1226,8 @@ module tb_histogram_statistics_v2;
         test_E02_overflow();    do_reset();
         test_E06_invalid_bounds(); do_reset();
         test_P01_sustained_fill(); do_reset();
+        test_P03_wire_burst_absorb(); do_reset();
+        test_P04_all_channel_injection_frame(); do_reset();
         test_P02_all_ports_soak(); do_reset();
         test_R01_reset_mid_fill();
       end

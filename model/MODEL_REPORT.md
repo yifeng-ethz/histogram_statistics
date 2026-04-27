@@ -37,9 +37,10 @@ $d_\epsilon=\min\{d:P_{\mathrm{full}}(d)\le\epsilon\}$.
 Sanity check: this is the right abstraction for queue-slot sizing because
 coalescing makes queue occupancy depend on distinct tags, not raw hit count.
 For `T=256`, `p=1`, and `m=256`, the worst-case no-drop depth is 256, but the
-1 ppm iid tail depth is 185. The default depth 160 is therefore not a
+1 ppm iid tail depth is 185. The former 160-entry queue is therefore not a
 1 ppm-safe all-channel iid stall depth, although it covers localized 8-channel
-physical hits.
+physical hits. The Phase-5 build uses `COAL_QUEUE_DEPTH=256`, which covers the
+adversarial all-channel injection case with no queue-full loss.
 
 Key analytical rows at `T=256`, `p=1`:
 
@@ -75,7 +76,8 @@ different metrics. At depth 160, the all-256 iid queue-full probability during
 the stall is about 61.9%, but the expected lost-hit fraction is about 1.27%,
 because many later hits land on tags already in the coalescing queue. That
 makes sense and should not be read as a contradiction. In contrast, all-channel
-injection is adversarial and still loses 37.5% at depth 160.
+injection is adversarial and still loses 37.5% at depth 160, but loses 0 at the
+Phase-5 depth of 256.
 
 Selected values:
 

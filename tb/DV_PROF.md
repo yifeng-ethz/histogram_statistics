@@ -1,6 +1,7 @@
-# histogram_statistics_v2 DV -- Performance and Stress Cases
+# histogram_statistics_v2 DV — Performance and Stress Cases
 
 **Parent:** DV_PLAN.md
+**Companion docs:** [DV_PLAN.md](DV_PLAN.md), [DV_REPORT.md](DV_REPORT.md), [DV_CROSS.md](DV_CROSS.md)
 **ID Range:** P001-P148
 **Total:** 148 cases
 **Method:** R (constrained-random), S (sweep), K (soak)
@@ -10,19 +11,24 @@ These tests characterize throughput limits, stress conditions, and long-running 
 **General methodology:** Each test runs a parameterised sequence with LCG-seeded stimulus (Questa FSE: no `rand`/`constraint`). Cycle-accurate throughput, drop rates, and bin counts are measured by the scoreboard and counter-based coverage. Results are compared against analytical bounds derived from pipeline structure.
 
 **Key architectural constants:**
-- N_BINS=256, N_PORTS=8, FIFO depth=16 (2^4), COAL_QUEUE_DEPTH=256, KICK_WIDTH=8 (max coalesced=255)
+- N_BINS=256, N_PORTS=8, FIFO depth=256 (FIFO_ADDR_WIDTH=8), COAL_QUEUE_DEPTH=256, KICK_WIDTH=8 (max coalesced=255)
 - Pipeline latency: ingress(1) + arb_pipe(1) + key_pipe(1) + divider_in(1) + bin_divider(8) + queue_hit_pipe(1) = 13 cycles from FIFO read to queue entry
 - Arbiter: round-robin, 1 grant/cycle, skips port that was just output (back-to-back same-port suppression)
 - Pingpong update pipeline: 4 stages (issue/read/add+sum/write) with RAW forwarding
 - Bank clear: 256 cycles (N_BINS), upd_ready=0 during clear
 
+**Phase-5 MuTRiG injection pre-gate:** the active regression includes
+`P04_all_channel_injection_frame`, driving 8 ports x 32 channels in one frame.
+Expected result is 256 accepted hits, zero dropped hits, zero coalescing
+overflow, and all 256 bins matching after bank swap.
+
 ---
 
 ## 1. Single-Port Throughput (SPT) -- 12 cases
 
-Sweep injection rate on a single port (port 0) to characterize the maximum sustainable ingress rate before the FIFO-depth=16 buffer overflows and drops begin. The arbiter sees only one non-empty FIFO so it grants every cycle, making this a pure FIFO-depth test.
+Sweep injection rate on a single port (port 0) to characterize the maximum sustainable ingress rate before the FIFO-depth=256 buffer overflows and drops begin. The arbiter sees only one non-empty FIFO so it grants every cycle, making this a pure FIFO-depth test.
 
-**Why this section exists:** The per-port FIFO is only 16 deep. If ingress delivers a burst longer than 16 keys before the arbiter drains one, drops occur. This section quantifies exactly where that threshold lies for a single port, which is the baseline for all multi-port analysis.
+**Why this section exists:** The per-port FIFO is 256 deep in the Phase-5 build. If ingress delivers a burst longer than the active FIFO depth before the arbiter drains it, drops occur. This section quantifies exactly where that threshold lies for a single port, which is the baseline for all multi-port analysis.
 
 **Output per test:** `{injected_hits, accepted_hits, dropped_hits, fifo_level_max, bin_accuracy_pct}`.
 
@@ -34,9 +40,9 @@ Sweep injection rate on a single port (port 0) to characterize the maximum susta
 | P004 | S | 50% injection rate: 1 hit per 2 cycles | 10k hits | Port 0, uniform bins | Zero drops; fifo_level_max < 10 |
 | P005 | S | 75% injection rate: 3 hits per 4 cycles | 10k hits | Port 0, uniform bins | Zero drops; arbiter drains at 1/cycle so FIFO stays bounded |
 | P006 | S | 100% injection rate: back-to-back hits | 10k hits | Port 0, uniform bins | Possible drops once FIFO fills; measure drop onset latency |
-| P007 | S | Burst-16: 16 back-to-back then 16-cycle gap | 5k bursts | Port 0, uniform bins | Zero drops: burst exactly matches FIFO depth |
-| P008 | S | Burst-17: 17 back-to-back then 15-cycle gap | 5k bursts | Port 0, uniform bins | Exactly 1 drop per burst (FIFO overflow on 17th); verify drop counter |
-| P009 | S | Burst-32: 32 back-to-back then 32-cycle gap | 2k bursts | Port 0, uniform bins | 16 drops per burst; verify FIFO stays full for 16 cycles |
+| P007 | S | Burst-256: 256 back-to-back then 256-cycle gap | 5k bursts | Port 0, uniform bins | Zero drops: burst matches Phase-5 FIFO depth |
+| P008 | S | Burst-257: 257 back-to-back then 255-cycle gap | 5k bursts | Port 0, uniform bins | Exactly 1 drop per burst if no same-cycle drain room is available; verify drop counter |
+| P009 | S | Burst-512: 512 back-to-back then 512-cycle gap | 2k bursts | Port 0, uniform bins | Over-depth burst is characterized; verify FIFO reaches active depth and drop count is monotone |
 | P010 | R | Random injection rate 50-100% with LCG gaps | 20k hits | Port 0, LCG bin dist | Drop rate matches analytical model; bins correct for accepted hits |
 | P011 | S | Ramp 0%->100%->0% over 20k cycles | 20k cycles | Port 0, linear ramp | No drops during ramp-up phase until FIFO fills; recovery after ramp-down |
 | P012 | S | Square-wave: 100% for 32 cycles, 0% for 32 cycles | 5k waves | Port 0, uniform bins | Drops only during high phase when burst > 16; FIFO drains completely during low phase |
@@ -124,7 +130,7 @@ The ping-pong SRAM swaps active/frozen bank on each interval timer expiry. Durin
 
 ## 5. Backpressure Characterization (BPC) -- 12 cases
 
-Each ingress port has a 16-deep FIFO. When the FIFO is full, new hits are dropped (drop_pulse asserts). The FIFO drains at 1 entry/cycle (arbiter grant) but fills at up to 1 entry/cycle (port ingress). With multiple ports, the drain rate per port is 1/N_active_ports. This section maps the exact FIFO fill dynamics and drop thresholds.
+Each ingress port has a 256-deep FIFO in the Phase-5 build. When the FIFO is full, new hits are dropped (drop_pulse asserts). The FIFO drains at 1 entry/cycle (arbiter grant) but fills at up to 1 entry/cycle (port ingress). With multiple ports, the drain rate per port is 1/N_active_ports. This section maps the exact FIFO fill dynamics and drop thresholds.
 
 **Why this section exists:** The system must quantify the maximum sustained per-port injection rate that avoids drops, which depends on the number of active ports. With 1 active port, the FIFO drains at 1/cycle so 100% injection rate is sustainable (net fill rate = 0). With 8 active ports, each port gets 1/8 drain rate, so maximum sustainable rate is 12.5%. These tests validate this analytical model and expose any off-by-one errors in FIFO full detection.
 
@@ -139,8 +145,8 @@ Each ingress port has a 16-deep FIFO. When the FIFO is full, new hits are droppe
 | P057 | S | 8 ports at 13% each (aggregate 104%) | 10k hits/port | All ports | Drops begin slowly; measure cycles until first drop; verify drop rate ~4% |
 | P058 | S | 8 ports at 15% each (aggregate 120%) | 5k hits/port | All ports | Steady-state drops; fifo_level_max approaches 16; drop rate ~20% |
 | P059 | S | 8 ports at 25% each (aggregate 200%) | 2k hits/port | All ports | Heavy drops; FIFO permanently full; drop rate ~50% |
-| P060 | S | FIFO full → empty transition: burst 16 then stop | 100 bursts | Port 0 only | FIFO hits full (level=16), then drains to 0 in exactly 16 cycles; no off-by-one |
-| P061 | S | FIFO write during full: verify drop counter accuracy | 100 bursts of 20 | Port 0 only | Exactly 4 drops per burst (20-16); csr_dropped_hits == 400 total |
+| P060 | S | FIFO full to empty transition: burst 256 then stop | 100 bursts | Port 0 only | FIFO reaches active depth, then drains cleanly to 0; no off-by-one |
+| P061 | S | FIFO write during full: verify drop counter accuracy | 100 bursts of 260 | Port 0 only | Over-depth writes increment `DROPPED_HITS` exactly for the non-accepted tail |
 | P062 | R | Random multi-port injection with LCG timing | 50k cycles | All ports, LCG rates 5-30% | Per-port drop count matches analytical model within 5% |
 | P063 | S | Arbiter stall: sink_ready hardwired to 1, but queue drain_ready goes low | 10k hits | Port 0, 50% rate | FIFO fills because arbiter output is always consumed but queue back-pressures; verify arbiter itself never stalls (sink_ready=1 always) |
 | P064 | S | Clear during FIFO full: issue measure_clear while all FIFOs full | 10 iterations | All ports at 100% rate | FIFOs reset to empty; drop counters reset; no residual data after clear |

@@ -2,10 +2,10 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  1
-set VERSION_PATCH_DEFAULT_CONST  1
-set BUILD_DEFAULT_CONST          416
-set VERSION_DATE_DEFAULT_CONST   20260416
-set VERSION_GIT_DEFAULT_CONST    72231161
+set VERSION_PATCH_DEFAULT_CONST  2
+set BUILD_DEFAULT_CONST          425
+set VERSION_DATE_DEFAULT_CONST   20260425
+set VERSION_GIT_DEFAULT_CONST    1929539473
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
     $VERSION_MINOR_DEFAULT_CONST \
@@ -19,7 +19,7 @@ set_module_property VERSION $VERSION_STRING_DEFAULT_CONST
 set_module_property DESCRIPTION "Histogram Statistics Mu3e IP Core"
 set_module_property GROUP "Mu3e Data Plane/Modules"
 set_module_property AUTHOR "Yifeng Wang"
-set_module_property ICON_PATH ../quartus_system/logo/mu3e_logo.png
+set_module_property ICON_PATH ../quartus_system/misc/logo/mu3e_logo.png
 set_module_property INTERNAL false
 set_module_property OPAQUE_ADDRESS_MAP true
 set_module_property INSTANTIATE_IN_SYSTEM_MODULE true
@@ -207,6 +207,8 @@ proc compute_derived_values {} {
     set coal_depth     [get_parameter_value COAL_QUEUE_DEPTH]
     set enable_pp      [get_parameter_value ENABLE_PINGPONG]
     set n_ports        [get_parameter_value N_PORTS]
+    set fifo_addr_w    [get_parameter_value FIFO_ADDR_WIDTH]
+    set fifo_depth     [expr {1 << $fifo_addr_w}]
 
     set min_hist_addr_w 1
     if {$n_bins > 1} {
@@ -245,7 +247,7 @@ proc compute_derived_values {} {
         if {[string equal -nocase $enable_pp "true"]} {
             set pp_status "enabled"
         }
-        set_display_item_property runtime_html TEXT "<html><b>Runtime behaviour</b><br/>Active ingress ports: <b>${n_ports}</b><br/>Coalescing queue depth: <b>${coal_depth}</b> entries<br/>Ping-pong rate readout: <b>${pp_status}</b><br/>A clear or interval swap can require up to <b>${flush_cycles}</b> cycles to walk the full histogram depth.</html>"
+        set_display_item_property runtime_html TEXT "<html><b>Runtime behaviour</b><br/>Active ingress ports: <b>${n_ports}</b><br/>Ingress FIFO depth: <b>${fifo_depth}</b> entries per enabled port<br/>Coalescing queue depth: <b>${coal_depth}</b> entries<br/>Ping-pong rate readout: <b>${pp_status}</b><br/>A clear or interval swap can require up to <b>${flush_cycles}</b> cycles to walk the full histogram depth.</html>"
     }
 }
 
@@ -266,6 +268,7 @@ proc validate {} {
     set sar_tick       [get_parameter_value SAR_TICK_WIDTH]
     set sar_key        [get_parameter_value SAR_KEY_WIDTH]
     set n_ports        [get_parameter_value N_PORTS]
+    set fifo_addr_w    [get_parameter_value FIFO_ADDR_WIDTH]
     set channels_per_port [get_parameter_value CHANNELS_PER_PORT]
     set coal_depth     [get_parameter_value COAL_QUEUE_DEPTH]
     set avst_w         [get_parameter_value AVST_DATA_WIDTH]
@@ -323,6 +326,9 @@ proc validate {} {
     }
     if {$n_ports != 1 && $n_ports != 2 && $n_ports != 4 && $n_ports != 8} {
         send_message error "N_PORTS must stay in the set {1 2 4 8}."
+    }
+    if {$fifo_addr_w < 4 || $fifo_addr_w > 12} {
+        send_message error "FIFO_ADDR_WIDTH must stay in the range 4..12."
     }
     if {$channels_per_port < 1 || $channels_per_port > 256} {
         send_message error "CHANNELS_PER_PORT must stay in the range 1..256."
@@ -541,6 +547,13 @@ set_parameter_property N_PORTS ALLOWED_RANGES {1 2 4 8}
 set_parameter_property N_PORTS HDL_PARAMETER true
 set_parameter_property N_PORTS DESCRIPTION "Number of Avalon-ST ingress ports. Ports beyond N_PORTS are disabled by the elaboration callback."
 
+add_parameter FIFO_ADDR_WIDTH NATURAL 8
+set_parameter_property FIFO_ADDR_WIDTH DISPLAY_NAME "Ingress FIFO Address Width"
+set_parameter_property FIFO_ADDR_WIDTH UNITS Bits
+set_parameter_property FIFO_ADDR_WIDTH ALLOWED_RANGES 4:12
+set_parameter_property FIFO_ADDR_WIDTH HDL_PARAMETER true
+set_parameter_property FIFO_ADDR_WIDTH DESCRIPTION "Address width of each per-port ingress FIFO. Depth is 2^FIFO_ADDR_WIDTH entries. The Phase-5 default is 8 (256 entries), which absorbs the refreshed datapath integration burst while staying materially smaller than the old 1024-entry passive-tap setting."
+
 add_parameter CHANNELS_PER_PORT NATURAL 32
 set_parameter_property CHANNELS_PER_PORT DISPLAY_NAME "Channels per Port"
 set_parameter_property CHANNELS_PER_PORT UNITS None
@@ -737,11 +750,12 @@ add_display_item "Key Extraction" SAR_KEY_WIDTH parameter
 add_html_text "Key Extraction" key_html {<html><b>Default slices</b><br/>The delivered package bins the default update-key slice <b>data[29:17]</b> and compares the default filter-key slice <b>data[38:35]</b>. Both slices are runtime-programmable through <b>KEY_LOC</b>.<br/><br/><b>Signed / unsigned</b><br/><b>UPDATE_KEY_REPRESENTATION</b> controls the power-on interpretation of the update key. The live datapath can be switched at runtime through <b>CONTROL.key_unsigned</b>.</html>}
 
 add_display_item "Ingress" N_PORTS parameter
+add_display_item "Ingress" FIFO_ADDR_WIDTH parameter
 add_display_item "Ingress" CHANNELS_PER_PORT parameter
 add_display_item "Ingress" COAL_QUEUE_DEPTH parameter
 add_display_item "Ingress" AVST_DATA_WIDTH parameter
 add_display_item "Ingress" AVST_CHANNEL_WIDTH parameter
-add_html_text "Ingress" ingress_html {<html><b>Port scaling</b><br/>Each enabled ingress port owns an elastic FIFO before the shared round-robin arbiter. Ports above <b>N_PORTS</b> stay disabled in the Platform Designer interface contract.<br/><br/><b>Channel stride</b><br/><b>CHANNELS_PER_PORT</b> is added as a per-port offset before binning so multiple ingress links can be flattened into one histogram namespace.</html>}
+add_html_text "Ingress" ingress_html {<html><b>Port scaling</b><br/>Each enabled ingress port owns an elastic FIFO before the shared round-robin arbiter. Ports above <b>N_PORTS</b> stay disabled in the Platform Designer interface contract.<br/><br/><b>FIFO depth</b><br/><b>FIFO_ADDR_WIDTH</b> sets the per-port FIFO depth as 2^width entries. Deepen this for passive post-stack taps that receive frame-bursty traffic and cannot backpressure the primary datapath.<br/><br/><b>Channel stride</b><br/><b>CHANNELS_PER_PORT</b> is added as a per-port offset before binning so multiple ingress links can be flattened into one histogram namespace.</html>}
 
 add_display_item "Ping-Pong / Interval" ENABLE_PINGPONG parameter
 add_display_item "Ping-Pong / Interval" DEF_INTERVAL_CLOCKS parameter

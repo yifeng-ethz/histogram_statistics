@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<device schemaVersion="1.3" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd">
+  <vendor>Mu3e</vendor>
+  <vendorID>MU3E</vendorID>
+  <name>MU3E_HISTOGRAM_INGRESS_BRIDGE</name>
+  <series>MU3E_FPGA_IP</series>
+  <version>26.0.2.0425</version>
+  <description>CMSIS-SVD description of the histogram ingress selector bridge CSR aperture. BaseAddress is 0 because this file describes the relative CSR aperture of the IP; system integration supplies the live slave base address.</description>
+  <addressUnitBits>8</addressUnitBits>
+  <width>32</width>
+  <size>32</size>
+  <access>read-write</access>
+  <resetValue>0x00000000</resetValue>
+  <resetMask>0xFFFFFFFF</resetMask>
+  <peripherals>
+    <peripheral>
+      <name>HISTOGRAM_INGRESS_BRIDGE_CSR</name>
+      <description>Relative 4-word CSR aperture for the histogram ingress selector bridge.</description>
+      <groupName>MU3E_HISTOGRAM_INGRESS_BRIDGE</groupName>
+      <baseAddress>0x0</baseAddress>
+      <addressBlock>
+        <offset>0x0</offset>
+        <size>0x10</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <register>
+          <name>UID</name>
+          <description>Software-visible IP identifier. Default ASCII &quot;HISB&quot; (0x48495342).</description>
+          <addressOffset>0x00</addressOffset>
+          <access>read-only</access>
+          <resetValue>0x48495342</resetValue>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Compile-time or integration-time UID word. Default ASCII &quot;HISB&quot;.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>META</name>
+          <description>Read-multiplexed metadata word. Write meta_sel[1:0] before reading back: 0=VERSION, 1=DATE, 2=GIT, 3=INSTANCE_ID.</description>
+          <addressOffset>0x04</addressOffset>
+          <access>read-write</access>
+          <fields>
+            <field>
+              <name>meta_sel</name>
+              <description>Selects the META read page.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>reserved</name>
+              <description>Reserved, read as zero on selector writeback.</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>30</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CONTROL</name>
+          <description>Requested histogram source. The bridge applies a change only once both packet streams are idle.</description>
+          <addressOffset>0x08</addressOffset>
+          <access>read-write</access>
+          <fields>
+            <field>
+              <name>select_post</name>
+              <description>0 selects pre-hit-stack traffic, 1 selects post-hit-stack traffic.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>reserved</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>31</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>STATUS</name>
+          <description>Live selector state and packet-idle visibility for safe source switching.</description>
+          <addressOffset>0x0C</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>live_select_post</name>
+              <description>Currently active histogram source. 0=pre, 1=post.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>requested_select_post</name>
+              <description>Last requested histogram source from CONTROL.select_post.</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>switch_pending</name>
+              <description>1 while the requested source differs from the live source.</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>reserved0</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>pre_packet_active</name>
+              <description>1 while the forwarded pre-hit-stack path is inside a packet.</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>post_packet_active</name>
+              <description>1 while the forwarded post-hit-stack path is inside a packet.</description>
+              <bitOffset>9</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>post_hit_filter_enabled</name>
+              <description>1 when the post-hit-stack histogram tap is configured to forward only real hit words after K23.7 subheaders.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>post_hit_region</name>
+              <description>Current post-stream parser state. 1 after a K23.7 subheader until the next frame header or trailer.</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>reserved1</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>12</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+  </peripherals>
+</device>

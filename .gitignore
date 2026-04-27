@@ -1,6 +1,8 @@
 *.*~
 *.bak
 greybox_tmp/
+__pycache__/
+*.pyc
 syn/quartus/db/
 syn/quartus/incremental_db/
 syn/quartus/output_files/

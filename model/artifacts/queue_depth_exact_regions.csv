@@ -1,4 +1,4 @@
-traffic,active_bins,stall_cycles,hit_probability_per_cycle,no_drop_worst_case_depth,depth_for_drop_le_5pct,depth_for_drop_le_1pct,depth_for_drop_le_0p1pct,depth_for_drop_le_1ppm,default_depth_160_drop_probability,kick_saturation_probability_exact_when_active_bins_1,definition
+traffic,active_bins,stall_cycles,hit_probability_per_cycle,no_drop_worst_case_depth,depth_for_drop_le_5pct,depth_for_drop_le_1pct,depth_for_drop_le_0p1pct,depth_for_drop_le_1ppm,configured_depth_drop_probability,kick_saturation_probability_exact_when_active_bins_1,definition
 single_bin_hotspot,1,16,0.10,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
 single_bin_hotspot,1,16,0.25,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
 single_bin_hotspot,1,16,0.50,1,1,1,1,1,0,0,iid over one bin; queue depth cannot fix kick saturation
@@ -114,13 +114,13 @@ uniform256,256,128,0.25,128,38,41,45,53,0,,iid over all histogram bins
 uniform256,256,128,0.50,128,65,68,72,80,0,,iid over all histogram bins
 uniform256,256,128,0.75,128,88,91,94,101,0,,iid over all histogram bins
 uniform256,256,128,1.00,128,107,109,112,118,0,,iid over all histogram bins
-uniform256,256,256,0.10,256,32,35,39,48,2.07330741943e-121,,iid over all histogram bins
-uniform256,256,256,0.25,256,66,71,75,85,4.07981024632e-62,,iid over all histogram bins
-uniform256,256,256,0.50,256,111,115,120,130,5.83414668424e-23,,iid over all histogram bins
-uniform256,256,256,0.75,256,144,148,153,162,2.96484785113e-06,,iid over all histogram bins
-uniform256,256,256,1.00,256,170,174,177,185,0.619276021992,,iid over all histogram bins
-uniform256,256,512,0.10,256,56,60,65,76,3.13119240621e-64,,iid over all histogram bins
-uniform256,256,512,0.25,256,112,117,123,134,1.86839979447e-17,,iid over all histogram bins
-uniform256,256,512,0.50,256,173,177,182,192,0.587383357567,,iid over all histogram bins
-uniform256,256,512,0.75,256,208,212,216,224,0.999999999995,,iid over all histogram bins
-uniform256,256,512,1.00,256,229,232,235,242,1,,iid over all histogram bins
+uniform256,256,256,0.10,256,32,35,39,48,0,,iid over all histogram bins
+uniform256,256,256,0.25,256,66,71,75,85,0,,iid over all histogram bins
+uniform256,256,256,0.50,256,111,115,120,130,0,,iid over all histogram bins
+uniform256,256,256,0.75,256,144,148,153,162,0,,iid over all histogram bins
+uniform256,256,256,1.00,256,170,174,177,185,0,,iid over all histogram bins
+uniform256,256,512,0.10,256,56,60,65,76,0,,iid over all histogram bins
+uniform256,256,512,0.25,256,112,117,123,134,0,,iid over all histogram bins
+uniform256,256,512,0.50,256,173,177,182,192,0,,iid over all histogram bins
+uniform256,256,512,0.75,256,208,212,216,224,0,,iid over all histogram bins
+uniform256,256,512,1.00,256,229,232,235,242,0,,iid over all histogram bins

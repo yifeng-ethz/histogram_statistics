@@ -1,6 +1,7 @@
-# histogram_statistics_v2 DV -- Edge Cases
+# histogram_statistics_v2 DV — Edge Cases
 
 **Parent:** DV_PLAN.md
+**Companion docs:** [DV_PLAN.md](DV_PLAN.md), [DV_HARNESS.md](DV_HARNESS.md), [DV_REPORT.md](DV_REPORT.md)
 **ID Range:** E001-E999
 **Total:** 172 cases
 **Method:** All directed (D)
@@ -61,24 +62,24 @@ The `build_key` function extracts a bit field from the AVST data word and interp
 
 ## 3. FIFO Depth Boundaries (FDB) -- 14 cases
 
-Each per-port `hit_fifo` has depth 2^FIFO_ADDR_WIDTH = 16 entries. The FIFO uses pointer comparison for level tracking. These cases probe fill/empty boundaries and pointer wrap.
+Each per-port `hit_fifo` has depth 2^FIFO_ADDR_WIDTH = 256 entries in the Phase-5 build. The FIFO uses pointer comparison for level tracking. These cases probe fill/empty boundaries and pointer wrap.
 
 | ID | Scenario | Stimulus | Checker | RTL Ref |
 |----|----------|----------|---------|---------|
-| E033 | FIFO exactly full: 16 writes with no reads | Inject 16 valid hits on one port, stall downstream | `o_full == 1`, `o_level == 16`, `o_empty == 0` | hit_fifo.vhd:95,112 |
-| E034 | FIFO at 15 (one below full) | 15 writes, no reads | `o_full == 0`, `o_level == 15`; one more write still accepted | :95 |
-| E035 | FIFO overflow attempt: 17th write when full | 16 writes then 1 more while full | 17th write silently dropped (write_v=false because level_v >= FIFO_DEPTH); `o_level` stays 16 | :95 |
+| E033 | FIFO exactly full: 256 writes with no reads | Inject 256 valid hits on one port, stall downstream | `o_full == 1`, `o_level == 256`, `o_empty == 0` | hit_fifo.vhd:95,112 |
+| E034 | FIFO at 255 (one below full) | 255 writes, no reads | `o_full == 0`, `o_level == 255`; one more write still accepted | :95 |
+| E035 | FIFO overflow attempt: 257th write when full | 256 writes then 1 more while full | 257th write silently dropped (write_v=false because level_v >= FIFO_DEPTH); `o_level` stays 256 | :95 |
 | E036 | FIFO empty read (underflow guard) | Issue `i_read=1` when `o_empty=1` | read_v=false (level_reg /= 0 fails); rd_ptr unchanged; no garbage output | :94 |
-| E037 | Simultaneous write and read at exactly full (16) | At level=16, assert both `i_write=1` and `i_read=1` | Read proceeds (level > 0), write re-accepted (level drops to 15 then back to 16); net level stays 16 | :94-106 |
+| E037 | Simultaneous write and read at exactly full (256) | At level=256, assert both `i_write=1` and `i_read=1` | Read proceeds (level > 0), write re-accepted (level drops to 255 then back to 256); net level stays 256 | :94-106 |
 | E038 | Simultaneous write and read at exactly empty (0) | At level=0, assert both `i_write=1` and `i_read=1` | Only write proceeds (read blocked by level=0); level becomes 1 | :94-95 |
-| E039 | Pointer wrap: write 16 entries, read 16, write 16 more | Two full fill-drain cycles | wr_ptr wraps from 15->0; rd_ptr wraps from 15->0; all 32 entries correct | :98,103 |
+| E039 | Pointer wrap: write 256 entries, read 256, write 256 more | Two full fill-drain cycles | wr_ptr wraps from 255->0; rd_ptr wraps from 255->0; all 512 entries correct | :98,103 |
 | E040 | Single-entry oscillation: write 1, read 1, repeat 100x | 100 push-pop cycles | No pointer drift; level returns to 0 each time; o_level_max == 1 | :113-114 |
 | E041 | Peak level tracking: fill to 10, drain to 5, fill to 12, drain all | Non-monotonic fill pattern | `o_level_max == 12` (tracks peak across entire lifetime) | :113-114 |
 | E042 | Clear while partially full: level=8, assert i_clear | 8 entries in FIFO, then clear | `o_level == 0, o_empty == 1, o_full == 0, o_level_max == 0`; pointers reset | :83-88 |
 | E043 | Write during clear cycle (same clock edge) | Assert `i_clear=1` and `i_write=1` on same cycle | Reset takes priority (rst/clear branch); write is ignored | :82-83 |
 | E044 | FIFO read data is combinational (showahead style) | Write one entry, check `o_read_data` on the next cycle (after pointer update) | Data appears at `mem(rd_ptr)` combinationally; rd_ptr must have been updated first | :68 |
-| E045 | All 8 FIFOs full simultaneously | Drive all 8 ports with 16 hits each, stall arbiter | All 8 `fifo_full` signals asserted; `drop_pulse` fires for any further hits on each port | histogram_statistics_v2.vhd:601-602 |
-| E046 | Drop pulse fires exactly once per rejected hit when FIFO full | Fill FIFO to 16, inject 3 more hits | `drop_pulse` asserts for exactly 3 cycles; `csr_dropped_hits` increments by 3 | :601-602,857 |
+| E045 | All 8 FIFOs full simultaneously | Drive all 8 ports with 256 hits each, stall arbiter | All 8 `fifo_full` signals asserted; `drop_pulse` fires for any further hits on each port | histogram_statistics_v2.vhd:601-602 |
+| E046 | Drop pulse fires exactly once per rejected hit when FIFO full | Fill FIFO to 256, inject 3 more hits | `drop_pulse` asserts for exactly 3 cycles; `csr_dropped_hits` increments by 3 | :601-602,857 |
 
 ---
 

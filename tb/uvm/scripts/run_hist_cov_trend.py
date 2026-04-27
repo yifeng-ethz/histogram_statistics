@@ -11,11 +11,7 @@ import time
 from pathlib import Path
 
 
-DEFAULT_QUESTA = (
-    "/data1/intelFPGA_pro/23.1/questa_fse"
-    if Path("/data1/intelFPGA_pro/23.1/questa_fse").exists()
-    else "/data1/intelFPGA_pro/23.1/questa_fe"
-)
+DEFAULT_QUESTA = "/data1/questaone_sim/questasim"
 QUESTA_HOME = Path(os.environ.get("QUESTA_HOME", DEFAULT_QUESTA))
 VCOVER_BIN = next(
     (path for path in [QUESTA_HOME / "bin" / "vcover", QUESTA_HOME / "linux_x86_64" / "vcover"] if path.exists()),

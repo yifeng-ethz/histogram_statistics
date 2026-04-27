@@ -1,10 +1,17 @@
 # Questa work libraries
 work_*/
 */work_*/
+altera_mf/
+lpm/
+uvm/altera_mf/
+uvm/lpm/
+questa_*/
 
 # Simulation transcripts and logs
 transcript
 tr_db.log
+modelsim.ini
+*.log
 uvm/cov_runs/
 uvm/smoke_*.txt
 uvm/*.vcd

@@ -1,6 +1,16 @@
 -- File name: histogram_statistics_v2.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
 -- =======================================
+-- Revision: 1.4
+--		Date: Apr 27, 2026
+--		Change: Replicate configurable filter fields per ingress port
+--		        so the hot-path match logic is not driven by one
+--		        high-fanout shared CSR/config source.
+-- Revision: 1.3
+--		Date: Apr 25, 2026
+--		Change: Parameterize the ingress FIFO depth for bursty post-stack
+--		        taps and saturate the 8-bit PORT_STATUS max-level field
+--		        instead of truncating full FIFO levels to zero.
 -- Revision: 1.2
 --		Date: Apr 9, 2026
 --		Change: Decouple build_key from filter_pass_v gating in ingress_comb
@@ -58,6 +68,7 @@ entity histogram_statistics_v2 is
         DEF_BIN_WIDTH            : natural := 16;
         AVS_ADDR_WIDTH           : natural := 8;
         N_PORTS                  : natural := 8;
+        FIFO_ADDR_WIDTH          : natural := 8;
         CHANNELS_PER_PORT        : natural := 32;
         COAL_QUEUE_DEPTH         : natural := 256;
         ENABLE_PINGPONG          : boolean := true;
@@ -66,12 +77,12 @@ entity histogram_statistics_v2 is
         AVST_CHANNEL_WIDTH       : natural := 4;
         N_DEBUG_INTERFACE        : natural := 6;
         VERSION_MAJOR            : natural := 26;
-        VERSION_MINOR            : natural := 0;
-        VERSION_PATCH            : natural := 0;
-        BUILD                    : natural := 0;
+        VERSION_MINOR            : natural := 1;
+        VERSION_PATCH            : natural := 2;
+        BUILD                    : natural := 425;
         IP_UID                   : natural := 1212765012;  -- ASCII "HIST" = 0x48495354
-        VERSION_DATE             : natural := 20260410;
-        VERSION_GIT              : natural := 0;
+        VERSION_DATE             : natural := 20260425;
+        VERSION_GIT              : natural := 1929539473;
         INSTANCE_ID              : natural := 0;
         SNOOP_EN                 : boolean := true;
         ENABLE_PACKET            : boolean := true;
@@ -187,7 +198,7 @@ architecture rtl of histogram_statistics_v2 is
     constant MAX_PORTS_CONST        : natural := HS_MAX_PORTS_CONST;
     -- Keep the ingress queue deep enough that bursty measurement traffic
     -- does not get dropped before it reaches the divider/coalescer.
-    constant FIFO_ADDR_WIDTH_CONST  : natural := 8;
+    constant FIFO_ADDR_WIDTH_CONST  : natural := FIFO_ADDR_WIDTH;
     constant BIN_INDEX_WIDTH_CONST  : natural := clog2(N_BINS);
     constant KICK_WIDTH_CONST       : natural := 8;
     constant COUNT_WIDTH_CONST      : natural := MAX_COUNT_BITS;
@@ -311,6 +322,11 @@ architecture rtl of histogram_statistics_v2 is
     signal cfg_update_key       : unsigned(SAR_KEY_WIDTH - 1 downto 0) := (others => '0');
     signal cfg_filter_key       : unsigned(SAR_KEY_WIDTH - 1 downto 0) := (others => '0');
     signal cfg_interval_cfg     : unsigned(31 downto 0) := to_unsigned(DEF_INTERVAL_CLOCKS, 32);
+    signal cfg_filter_enable_port  : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
+    signal cfg_filter_reject_port  : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
+    signal cfg_filter_key_low_port : hs_unsigned_array_t(0 to MAX_PORTS_CONST - 1)(7 downto 0) := (others => to_unsigned(FILTER_KEY_BIT_LO, 8));
+    signal cfg_filter_key_high_port: hs_unsigned_array_t(0 to MAX_PORTS_CONST - 1)(7 downto 0) := (others => to_unsigned(FILTER_KEY_BIT_HI, 8));
+    signal cfg_filter_key_port     : hs_unsigned_array_t(0 to MAX_PORTS_CONST - 1)(SAR_KEY_WIDTH - 1 downto 0) := (others => (others => '0'));
 
     signal status_active_bank_shadow        : std_logic := '0';
     signal status_flushing_shadow           : std_logic := '0';
@@ -587,11 +603,11 @@ begin
 
                         filter_pass_v := match_filter(
                             data_word      => port_data(idx),
-                            filter_enable  => cfg_filter_enable,
-                            filter_reject  => cfg_filter_reject,
-                            filter_hi      => cfg_filter_key_high,
-                            filter_lo      => cfg_filter_key_low,
-                            filter_key     => cfg_filter_key
+                            filter_enable  => cfg_filter_enable_port(idx),
+                            filter_reject  => cfg_filter_reject_port(idx),
+                            filter_hi      => cfg_filter_key_high_port(idx),
+                            filter_lo      => cfg_filter_key_low_port(idx),
+                            filter_key     => cfg_filter_key_port(idx)
                         );
                         if filter_pass_v then
                             ingress_write_req(idx) <= '1';
@@ -922,7 +938,7 @@ begin
                         pair_max_v := fifo_level_max(port_hi_v);
                     end if;
 
-                    fifo_pair_max_v(pair_idx) := resize(pair_max_v, status_byte_t'length);
+                    fifo_pair_max_v(pair_idx) := clip_status_byte_f(pair_max_v);
                 end loop;
 
                 status_active_bank_shadow         <= active_bank;
@@ -997,6 +1013,13 @@ begin
                 cfg_update_key      <= (others => '0');
                 cfg_filter_key      <= (others => '0');
                 cfg_interval_cfg    <= to_unsigned(DEF_INTERVAL_CLOCKS, 32);
+                for idx in 0 to MAX_PORTS_CONST - 1 loop
+                    cfg_filter_enable_port(idx)  <= '0';
+                    cfg_filter_reject_port(idx)  <= '0';
+                    cfg_filter_key_low_port(idx) <= to_unsigned(FILTER_KEY_BIT_LO, 8);
+                    cfg_filter_key_high_port(idx) <= to_unsigned(FILTER_KEY_BIT_HI, 8);
+                    cfg_filter_key_port(idx)     <= (others => '0');
+                end loop;
             else
                 ingress_empty_v := true;
                 for idx in 0 to MAX_PORTS_CONST - 1 loop
@@ -1021,6 +1044,13 @@ begin
                     cfg_update_key      <= csr_update_key;
                     cfg_filter_key      <= csr_filter_key;
                     cfg_interval_cfg    <= csr_interval_cfg;
+                    for idx in 0 to MAX_PORTS_CONST - 1 loop
+                        cfg_filter_enable_port(idx)  <= csr_filter_enable;
+                        cfg_filter_reject_port(idx)  <= csr_filter_reject;
+                        cfg_filter_key_low_port(idx) <= csr_filter_key_low;
+                        cfg_filter_key_high_port(idx) <= csr_filter_key_high;
+                        cfg_filter_key_port(idx)     <= csr_filter_key;
+                    end loop;
                 elsif cfg_apply_request = '1' then
                     cfg_apply_pending <= '1';
                 end if;

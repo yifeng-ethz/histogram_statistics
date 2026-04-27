@@ -1,6 +1,7 @@
-# DV Crossing Coverage: histogram_statistics_v2
+# histogram_statistics_v2 DV — Crossing Coverage
 
 **Parent:** [DV_PLAN.md](DV_PLAN.md)
+**Companion docs:** [DV_PLAN.md](DV_PLAN.md), [DV_HARNESS.md](DV_HARNESS.md), [DV_REPORT.md](DV_REPORT.md), [DV_COV.md](DV_COV.md)
 **DUT:** `histogram_statistics_v2` (Rev 1.2)
 **Date:** 2026-04-09
 **Status:** Planning
@@ -179,13 +180,13 @@ endgroup
 covergroup cg_pipeline_state @(posedge sample_pipeline);
 
     // Per-port FIFO occupancy (sampled at hit injection time)
-    // FIFO_ADDR_WIDTH=4, so depth=16, level 0..16
+    // FIFO_ADDR_WIDTH=8, so depth=256, level 0..256
     cp_fifo_occ_port0 : coverpoint fifo_level[0] {
         bins empty     = {0};
-        bins low       = {[1:4]};
-        bins mid       = {[5:10]};
-        bins high      = {[11:15]};
-        bins full      = {16};
+        bins low       = {[1:64]};
+        bins mid       = {[65:160]};
+        bins high      = {[161:255]};
+        bins full      = {256};
     }
     // (Repeat cp_fifo_occ_port1..port7 with same bins)
 

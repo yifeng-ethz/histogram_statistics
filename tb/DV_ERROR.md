@@ -1,6 +1,7 @@
-# histogram_statistics_v2 DV -- Error, Reset, and Fault Handling Cases
+# histogram_statistics_v2 DV — Error, Reset, and Fault Handling Cases
 
 **Parent:** [DV_PLAN.md](DV_PLAN.md)
+**Companion docs:** [DV_PLAN.md](DV_PLAN.md), [DV_HARNESS.md](DV_HARNESS.md), [DV_REPORT.md](DV_REPORT.md), [BUG_HISTORY.md](BUG_HISTORY.md)
 **ID Range:** X001-X999
 **Total:** 144 cases
 **Method:** All directed (D)
@@ -21,7 +22,7 @@ Two reset domains exist:
 - **i_rst** (hard reset): clears everything including CSR register values and config shadow registers. Returns IP to generic-default state.
 - **measure_clear_pulse** (soft clear): clears pipeline, FIFOs, queue, SRAM banks, and stats counters, but preserves CSR register values and active config shadow. Triggered by `i_interval_reset` or writing `0x00000000` to `avs_hist_bin`.
 
-Key numeric parameters: N_BINS=256, N_PORTS=8, FIFO depth=16, COAL_QUEUE_DEPTH=256, KICK_WIDTH=8 (max 255 per coalesced entry), COUNT_WIDTH=32, bin_divider pipeline depth = BIN_INDEX_WIDTH = 8 stages + 1 range-check = 9 total.
+Key numeric parameters: N_BINS=256, N_PORTS=8, FIFO depth=256, COAL_QUEUE_DEPTH=256, KICK_WIDTH=8 (max 255 per coalesced entry), COUNT_WIDTH=32, bin_divider pipeline depth = BIN_INDEX_WIDTH = 8 stages + 1 range-check = 9 total.
 
 | Tier | Name | Definition | DUT Response | Recovery |
 |------|------|-----------|--------------|----------|
@@ -181,33 +182,33 @@ Configuration errors are detected at apply time (CSR[0] write with bit 0 = 1). T
 
 ## 4. FIFO Overflow and Drop (FOD) -- 20 cases
 
-Each of the 8 ingress ports has a 16-deep FIFO (2^FIFO_ADDR_WIDTH, FIFO_ADDR_WIDTH=4). When a FIFO is full and a new hit arrives, the hit is dropped: `drop_pulse` fires, `csr_dropped_hits` is incremented. The FIFO never corrupts -- it simply refuses the write. The key failure mode is inaccurate drop counting when multiple ports overflow simultaneously.
+Each of the 8 ingress ports has a 256-deep FIFO (2^FIFO_ADDR_WIDTH, FIFO_ADDR_WIDTH=8). When a FIFO is full and a new hit arrives, the hit is dropped: `drop_pulse` fires, `csr_dropped_hits` is incremented. The FIFO never corrupts -- it simply refuses the write. The key failure mode is inaccurate drop counting when multiple ports overflow simultaneously.
 
 ### 4.1 Single-Port Overflow
 
 | ID | Scenario | Stimulus | Checker | Recovery Verification |
 |----|----------|----------|---------|----------------------|
-| X072 | FIFO at depth 16 (exactly full), 1 more hit | Inject 16 hits on port 0 faster than arbiter can drain (back-to-back), then inject hit 17 | fifo_full(0)=1 on hit 16. Hit 17: drop_pulse(0)=1. csr_dropped_hits incremented by 1. Hit 17 data is lost. FIFO level stays at 16. | Drain FIFO (arbiter processes all 16). Inject hit 18; verify FIFO accepts it (full=0). |
-| X073 | FIFO at depth 15, simultaneous read and write | FIFO has 15 entries. Arbiter reads 1 (fifo_read=1) on same cycle as new hit write | Simultaneous read+write: level stays 15. FIFO not full, write succeeds. No drop. | Verify level=15, no drop_pulse. |
-| X074 | FIFO at depth 16, simultaneous read and write | FIFO has 16 entries. Arbiter reads 1 on same cycle as new hit write | Read decrements level to 15. Write sees level_v (after read) < 16, so write succeeds. Net level = 16. No drop. This is the critical corner: the read makes room for the write in the same cycle. | Verify no drop_pulse. Level still 16. |
-| X075 | Burst overflow: 32 hits to port 0 (16 accepted, 16 dropped) | Inject 32 back-to-back hits on port 0, arbiter not draining | First 16 accepted. Hits 17-32: 16 drops. csr_dropped_hits=16. fifo_level_max=16. | Drain FIFO; verify 16 entries. Inject 16 more; all accepted (FIFO recovered). |
-| X076 | Drop counter accuracy: 1000 hits to full FIFO | Fill FIFO to 16, then inject 1000 more hits while arbiter is stalled | csr_dropped_hits = 1000. Uses sat_add for multi-port counting but drop_count_v is 4-bit (counts per cycle across all ports). With single-port, max 1 drop/cycle. 1000 cycles of drops. | Verify csr_dropped_hits exactly 1000. |
+| X072 | FIFO at depth 256 (exactly full), 1 more hit | Inject 256 hits on port 0 faster than arbiter can drain (back-to-back), then inject hit 257 | fifo_full(0)=1 on hit 256. Hit 257: drop_pulse(0)=1. csr_dropped_hits incremented by 1. Hit 257 data is lost. FIFO level stays at 256. | Drain FIFO (arbiter processes all 256). Inject hit 258; verify FIFO accepts it (full=0). |
+| X073 | FIFO at depth 255, simultaneous read and write | FIFO has 255 entries. Arbiter reads 1 (fifo_read=1) on same cycle as new hit write | Simultaneous read+write: level stays 255. FIFO not full, write succeeds. No drop. | Verify level=255, no drop_pulse. |
+| X074 | FIFO at depth 256, simultaneous read and write | FIFO has 256 entries. Arbiter reads 1 on same cycle as new hit write | Read decrements level to 255. Write sees level_v (after read) < 256, so write succeeds. Net level = 256. No drop. This is the critical corner: the read makes room for the write in the same cycle. | Verify no drop_pulse. Level still 256. |
+| X075 | Burst overflow: 512 hits to port 0 (256 accepted, 256 dropped) | Inject 512 back-to-back hits on port 0, arbiter not draining | First 256 accepted. Hits 257-512: 256 drops. csr_dropped_hits=256. fifo_level_max=256. | Drain FIFO; verify 256 entries. Inject 256 more; all accepted (FIFO recovered). |
+| X076 | Drop counter accuracy: 1000 hits to full FIFO | Fill FIFO to 256, then inject 1000 more hits while arbiter is stalled | csr_dropped_hits = 1000. Uses sat_add for multi-port counting but drop_count_v is 4-bit (counts per cycle across all ports). With single-port, max 1 drop/cycle. 1000 cycles of drops. | Verify csr_dropped_hits exactly 1000. |
 
 ### 4.2 Multi-Port Overflow
 
 | ID | Scenario | Stimulus | Checker | Recovery Verification |
 |----|----------|----------|---------|----------------------|
-| X077 | All 8 ports overflow simultaneously (1 drop each, same cycle) | Fill all 8 FIFOs to 16, inject 1 hit on all 8 ports simultaneously | drop_pulse for all 8 ports. drop_count_v = 8 (4-bit counter, max 8 fits). csr_dropped_hits += 8. | Verify csr_dropped_hits incremented by exactly 8. |
-| X078 | All 8 ports overflow simultaneously (sustained, 100 cycles) | Fill all 8 FIFOs to 16, inject hits on all 8 ports for 100 consecutive cycles | 8 drops per cycle * 100 cycles = 800 total. csr_dropped_hits = 800. drop_count_v = 8 each cycle (fits in 4-bit counter). | Verify csr_dropped_hits = 800. |
-| X079 | Mixed: 4 ports overflow, 4 ports accept | Ports 0-3: FIFO full (16). Ports 4-7: FIFO empty. Inject on all 8 simultaneously | Ports 0-3: drop. Ports 4-7: accept. csr_total_hits += 8 (all accepted at ingress). csr_dropped_hits += 4 (drops happen at FIFO write stage, after accept_pulse). Note: accept_pulse fires for all 8 (ingress acceptance), but drop_pulse fires for 4. | Verify total_hits = 8, dropped_hits = 4. Only 4 hits reach histogram. |
+| X077 | All 8 ports overflow simultaneously (1 drop each, same cycle) | Fill all 8 FIFOs to 256, inject 1 hit on all 8 ports simultaneously | drop_pulse for all 8 ports. drop_count_v = 8 (4-bit counter, max 8 fits). csr_dropped_hits += 8. | Verify csr_dropped_hits incremented by exactly 8. |
+| X078 | All 8 ports overflow simultaneously (sustained, 100 cycles) | Fill all 8 FIFOs to 256, inject hits on all 8 ports for 100 consecutive cycles | 8 drops per cycle * 100 cycles = 800 total. csr_dropped_hits = 800. drop_count_v = 8 each cycle (fits in 4-bit counter). | Verify csr_dropped_hits = 800. |
+| X079 | Mixed: 4 ports overflow, 4 ports accept | Ports 0-3: FIFO full (256). Ports 4-7: FIFO empty. Inject on all 8 simultaneously | Ports 0-3: drop. Ports 4-7: accept. csr_total_hits += 8 (all accepted at ingress). csr_dropped_hits += 4 (drops happen at FIFO write stage, after accept_pulse). Note: accept_pulse fires for all 8 (ingress acceptance), but drop_pulse fires for 4. | Verify total_hits = 8, dropped_hits = 4. Only 4 hits reach histogram. |
 | X080 | Port 0 overflow with snoop: backpressure from aso_hist_fill_out_ready=0 | Port 0 is special (snoop path). Set aso_hist_fill_out_ready=0 | port_ready(0) = 0 (stream_ready_v = aso_hist_fill_out_ready when SNOOP_EN). Hits on port 0 are backpressured, not dropped. Port 0 FIFO does not fill because ingress does not accept. | Verify csr_dropped_hits = 0. Port 0 hits are stalled, not lost. |
-| X081 | Port 0 overflow: snoop ready, FIFO full | aso_hist_fill_out_ready=1, FIFO(0) full (16 entries). Inject hit on port 0 | Hit accepted by ingress (stream_sampled_v=1, accept_pulse fires). Enters ingress_stage_reg. On next cycle, fifo_full(0)=1, drop_pulse(0)=1. Hit lost at FIFO write stage. | total_hits incremented. dropped_hits incremented. Net histogram count does not increase for that hit. |
+| X081 | Port 0 overflow: snoop ready, FIFO full | aso_hist_fill_out_ready=1, FIFO(0) full (256 entries). Inject hit on port 0 | Hit accepted by ingress (stream_sampled_v=1, accept_pulse fires). Enters ingress_stage_reg. On next cycle, fifo_full(0)=1, drop_pulse(0)=1. Hit lost at FIFO write stage. | total_hits incremented. dropped_hits incremented. Net histogram count does not increase for that hit. |
 
 ### 4.3 FIFO Recovery and Level Tracking
 
 | ID | Scenario | Stimulus | Checker | Recovery Verification |
 |----|----------|----------|---------|----------------------|
-| X082 | FIFO drain after overflow: verify rd_ptr/wr_ptr integrity | Fill FIFO to 16, drop 4 more, then let arbiter drain all 16 | After drain: level=0, empty=1. rd_ptr advanced by 16, wr_ptr advanced by 16 (both wrap). Pointers are consistent. | Inject 16 more hits; verify all 16 are stored correctly (no address aliasing from wrapped pointers). |
+| X082 | FIFO drain after overflow: verify rd_ptr/wr_ptr integrity | Fill FIFO to 256, drop 4 more, then let arbiter drain all 256 | After drain: level=0, empty=1. rd_ptr advanced by 256, wr_ptr advanced by 256 (both wrap). Pointers are consistent. | Inject 256 more hits; verify all 256 are stored correctly (no address aliasing from wrapped pointers). |
 | X083 | FIFO level_max tracks peak across overflow | Start empty. Fill to 10, drain to 5, fill to 16, drop 3, drain to 0 | level_max = 16 (peak was full). level_max is only reset by i_rst or i_clear. | Read CSR[10]; verify fifo_pair_max reflects 16. |
 | X084 | FIFO level_max reset by measure_clear | level_max=16 from prior activity. Trigger measure_clear | max_reg reset to 0. | Read CSR[10]; verify fifo_pair_max = 0. |
 | X085 | FIFO overflow does not corrupt existing entries | Fill FIFO with keys [K0..K15]. Inject K16 (dropped). Drain FIFO | Read-out order: K0, K1, ..., K15. K16 is absent. No existing entry overwritten by the dropped write. The write was blocked (write_v = false when level >= FIFO_DEPTH). | Verify histogram bins match K0..K15 pattern exactly. |
