@@ -7,4 +7,6 @@ syn/quartus/db/
 syn/quartus/incremental_db/
 syn/quartus/output_files/
 syn/quartus/*.qws
+syn/quartus/*.log
+syn/quartus/**/*.log
 lint/

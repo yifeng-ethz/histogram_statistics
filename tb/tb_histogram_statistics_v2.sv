@@ -33,6 +33,11 @@ module tb_histogram_statistics_v2;
   localparam int unsigned DEF_INTERVAL_CLKS  = 125_000_000;
   localparam int unsigned AVST_DATA_WIDTH    = 39;
   localparam int unsigned AVST_CHAN_WIDTH    = 4;
+  localparam int unsigned VERSION_MAJOR       = 26;
+  localparam int unsigned VERSION_MINOR       = 1;
+  localparam int unsigned VERSION_PATCH       = 6;
+  localparam int unsigned VERSION_BUILD       = 429;
+  localparam int unsigned VERSION_DATE        = 20260429;
 
   localparam int unsigned CLK_PERIOD_NS     = 8;  // 125 MHz
   localparam int unsigned AVMM_TIMEOUT      = 1024;
@@ -57,6 +62,8 @@ module tb_histogram_statistics_v2;
   localparam int unsigned CSR_DROPPED_HITS   = 14;
   localparam int unsigned CSR_COAL_STATUS    = 15;
   localparam int unsigned CSR_SCRATCH        = 16;
+  localparam int unsigned CSR_LAST_INTERVAL_TOTAL_HITS   = 17;
+  localparam int unsigned CSR_LAST_INTERVAL_DROPPED_HITS = 18;
 
   // ════════════════════════════════════════════════════════════════
   // Clock and reset
@@ -143,10 +150,11 @@ module tb_histogram_statistics_v2;
     .AVST_DATA_WIDTH           (AVST_DATA_WIDTH),
     .AVST_CHANNEL_WIDTH        (AVST_CHAN_WIDTH),
     .N_DEBUG_INTERFACE         (6),
-    .VERSION_MAJOR             (26),
-    .VERSION_MINOR             (1),
-    .VERSION_PATCH             (2),
-    .BUILD                     (425),
+    .VERSION_MAJOR             (VERSION_MAJOR),
+    .VERSION_MINOR             (VERSION_MINOR),
+    .VERSION_PATCH             (VERSION_PATCH),
+    .BUILD                     (VERSION_BUILD),
+    .VERSION_DATE              (VERSION_DATE),
     .SNOOP_EN                  (1'b1),
     .ENABLE_PACKET             (1'b1),
     .DEBUG                     (0)
@@ -459,6 +467,34 @@ module tb_histogram_statistics_v2;
     @(posedge i_clk);
   endtask
 
+  task automatic inject_debug_sample(
+    input int unsigned debug_idx,
+    input logic [15:0] sample
+  );
+    @(posedge i_clk);
+    debug_data[debug_idx]  <= sample;
+    debug_valid[debug_idx] <= 1'b1;
+    @(posedge i_clk);
+    debug_valid[debug_idx] <= 1'b0;
+    debug_data[debug_idx]  <= '0;
+  endtask
+
+  task automatic inject_debug_pair(
+    input logic [15:0] sample0,
+    input logic [15:0] sample1
+  );
+    @(posedge i_clk);
+    debug_data[0]  <= sample0;
+    debug_data[1]  <= sample1;
+    debug_valid[0] <= 1'b1;
+    debug_valid[1] <= 1'b1;
+    @(posedge i_clk);
+    debug_valid[0] <= 1'b0;
+    debug_valid[1] <= 1'b0;
+    debug_data[0]  <= '0;
+    debug_data[1]  <= '0;
+  endtask
+
   // Build a fill_in data word with a specific key value in the update_key field
   function automatic logic [AVST_DATA_WIDTH-1:0] make_hit_data(int key_val);
     logic [AVST_DATA_WIDTH-1:0] d;
@@ -528,6 +564,44 @@ module tb_histogram_statistics_v2;
     ctrl_word[8]  = key_unsigned;
     ctrl_word[12] = filter_enable;
     ctrl_word[13] = filter_reject;
+    csr_write32(CSR_CONTROL, ctrl_word);
+    repeat (10) @(posedge i_clk);
+  endtask
+
+  task automatic configure_debug_mts_both(
+    input int          left_bound,
+    input int unsigned bin_width,
+    input int unsigned interval = 2000,
+    input bit          filter_enable = 1'b0,
+    input bit          filter_reject = 1'b0,
+    input int unsigned filter_key_low = FILTER_KEY_BIT_LO,
+    input int unsigned filter_key_high = FILTER_KEY_BIT_HI,
+    input int unsigned filter_key_val = 0
+  );
+    logic [31:0] key_loc_word;
+    logic [31:0] ctrl_word;
+
+    cfg_left_bound = left_bound;
+    cfg_bin_width  = bin_width;
+    cfg_n_bins     = N_BINS;
+
+    wait_initial_clear();
+    csr_write32(CSR_LEFT_BOUND, 32'($signed(left_bound)));
+    csr_write32(CSR_BIN_WIDTH,  bin_width);
+    csr_write32(CSR_INTERVAL,   interval);
+    if (filter_enable) begin
+      key_loc_word         = '0;
+      key_loc_word[7:0]    = UPDATE_KEY_BIT_LO[7:0];
+      key_loc_word[15:8]   = UPDATE_KEY_BIT_HI[7:0];
+      key_loc_word[23:16]  = filter_key_low[7:0];
+      key_loc_word[31:24]  = filter_key_high[7:0];
+      csr_write32(CSR_KEY_FILTER, key_loc_word);
+      csr_write32(CSR_KEY_FILTER_V, {filter_key_val[15:0], 16'h0000});
+    end
+
+    ctrl_word        = 32'h0000_0091;  // apply + signed mode -7
+    ctrl_word[12]    = filter_enable;
+    ctrl_word[13]    = filter_reject;
     csr_write32(CSR_CONTROL, ctrl_word);
     repeat (10) @(posedge i_clk);
   endtask
@@ -740,7 +814,7 @@ module tb_histogram_statistics_v2;
     // Check META page 0 = VERSION
     csr_write32(CSR_META, 32'd0);
     csr_read32(CSR_META, rd);
-    expected = {8'd26, 8'd1, 4'd2, 12'd425};  // major=26, minor=1, patch=2, build=425
+    expected = {VERSION_MAJOR[7:0], VERSION_MINOR[7:0], VERSION_PATCH[3:0], VERSION_BUILD[11:0]};
     if (rd == expected) begin
       $display("PASS B04b: META[VERSION]=0x%08h", rd);
       pass_count++;
@@ -752,11 +826,11 @@ module tb_histogram_statistics_v2;
     // Check META page 1 = DATE
     csr_write32(CSR_META, 32'd1);
     csr_read32(CSR_META, rd);
-    if (rd == 32'd20260425) begin
+    if (rd == VERSION_DATE) begin
       $display("PASS B04c: META[DATE]=0x%08h (%0d)", rd, rd);
       pass_count++;
     end else begin
-      $display("FAIL B04c: META[DATE]=0x%08h expected=%0d", rd, 20260425);
+      $display("FAIL B04c: META[DATE]=0x%08h expected=%0d", rd, VERSION_DATE);
       error_count++;
     end
   endtask
@@ -829,6 +903,54 @@ module tb_histogram_statistics_v2;
   endtask
 
   // ════════════════════════════════════════════════════════════════
+  // TEST: B08_interval_latched_counters
+  // ════════════════════════════════════════════════════════════════
+  task automatic test_B08_interval_latched_counters();
+    logic [31:0] rd;
+
+    $display("═══ B08_interval_latched_counters ═══");
+    ref_reset();
+    configure_custom(0, 1, 1'b1, 1'b0, 1'b0, 0, 2000);
+
+    for (int i = 0; i < 4; i++) begin
+      inject_hit(0, make_hit_data(i));
+      ref_add_hit(i);
+    end
+    wait_pipeline_drain();
+
+    check_csr("B08_live_total_before_interval", CSR_TOTAL_HITS, ref_total_hits);
+    check_csr("B08_live_dropped_before_interval", CSR_DROPPED_HITS, 0);
+    check_csr("B08_last_total_before_interval", CSR_LAST_INTERVAL_TOTAL_HITS, 0);
+    check_csr("B08_last_dropped_before_interval", CSR_LAST_INTERVAL_DROPPED_HITS, 0);
+
+    wait_bank_swap();
+
+    check_csr("B08_last_total_after_interval", CSR_LAST_INTERVAL_TOTAL_HITS, ref_total_hits);
+    check_csr("B08_last_dropped_after_interval", CSR_LAST_INTERVAL_DROPPED_HITS, 0);
+    check_csr("B08_live_total_after_interval", CSR_TOTAL_HITS, 0);
+    check_csr("B08_live_dropped_after_interval", CSR_DROPPED_HITS, 0);
+
+    do_clear();
+    csr_read32(CSR_LAST_INTERVAL_TOTAL_HITS, rd);
+    if (rd == 0) begin
+      $display("PASS B08_clear_last_total: last interval total cleared");
+      pass_count++;
+    end else begin
+      $display("FAIL B08_clear_last_total: got=%0d expected=0", rd);
+      error_count++;
+    end
+
+    csr_read32(CSR_LAST_INTERVAL_DROPPED_HITS, rd);
+    if (rd == 0) begin
+      $display("PASS B08_clear_last_dropped: last interval dropped cleared");
+      pass_count++;
+    end else begin
+      $display("FAIL B08_clear_last_dropped: got=%0d expected=0", rd);
+      error_count++;
+    end
+  endtask
+
+  // ════════════════════════════════════════════════════════════════
   // TEST: B09_filter_pass
   // ════════════════════════════════════════════════════════════════
   task automatic test_B09_filter_pass();
@@ -860,6 +982,91 @@ module tb_histogram_statistics_v2;
     check_csr("B09_total", CSR_TOTAL_HITS, 2);
     wait_bank_swap();
     check_bins("B09");
+  endtask
+
+  // ════════════════════════════════════════════════════════════════
+  // TEST: B10_debug_mts_both
+  // ════════════════════════════════════════════════════════════════
+  task automatic test_B10_debug_mts_both();
+    logic [31:0] rd;
+
+    $display("═══ B10_debug_mts_both ═══");
+    ref_reset();
+    configure_debug_mts_both(0, 1, 2000);
+
+    inject_debug_pair(16'd10, 16'd20);
+    ref_add_hit(10);
+    ref_add_hit(20);
+
+    inject_debug_sample(0, 16'hFFFF);
+    ref_add_hit(-1);
+
+    inject_debug_sample(1, 16'd30);
+    ref_add_hit(30);
+
+    wait_pipeline_drain();
+    check_csr("B10_total", CSR_TOTAL_HITS, ref_total_hits + ref_underflow);
+    check_csr("B10_underflow", CSR_UNDERFLOW, ref_underflow);
+    wait_bank_swap();
+    check_bins("B10");
+
+    bin_read32(10, rd);
+    if (rd == 1) begin
+      $display("PASS B10_no_port_offset: debug_2 kept raw key bins");
+      pass_count++;
+    end else begin
+      $display("FAIL B10_no_port_offset: bin[10]=%0d expected 1", rd);
+      error_count++;
+    end
+  endtask
+
+  // ════════════════════════════════════════════════════════════════
+  // TEST: B11_debug_mts_filter_source
+  // ════════════════════════════════════════════════════════════════
+  task automatic test_B11_debug_mts_filter_source();
+    logic [31:0] rd;
+
+    $display("═══ B11_debug_mts_filter_source ═══");
+    ref_reset();
+    configure_debug_mts_both(
+      .left_bound      (0),
+      .bin_width       (1),
+      .interval        (2000),
+      .filter_enable   (1'b1),
+      .filter_reject   (1'b0),
+      .filter_key_low  (16),
+      .filter_key_high (23),
+      .filter_key_val  (1)
+    );
+
+    inject_debug_pair(16'd10, 16'd20);
+    ref_add_hit(20);
+
+    inject_debug_pair(16'd30, 16'd40);
+    ref_add_hit(40);
+
+    wait_pipeline_drain();
+    check_csr("B11_total_raw", CSR_TOTAL_HITS, 4);
+    wait_bank_swap();
+    check_bins("B11");
+
+    bin_read32(10, rd);
+    if (rd == 0) begin
+      $display("PASS B11_filter_debug1: debug_1 sample was filtered out");
+      pass_count++;
+    end else begin
+      $display("FAIL B11_filter_debug1: bin[10]=%0d expected 0", rd);
+      error_count++;
+    end
+
+    bin_read32(20, rd);
+    if (rd == 1) begin
+      $display("PASS B11_filter_debug2: debug_2 sample was kept");
+      pass_count++;
+    end else begin
+      $display("FAIL B11_filter_debug2: bin[20]=%0d expected 1", rd);
+      error_count++;
+    end
   endtask
 
   // ════════════════════════════════════════════════════════════════
@@ -984,21 +1191,19 @@ module tb_histogram_statistics_v2;
       error_count++;
     end
 
-    if (dropped_hits != 0) begin
-      $display("PASS P03_dropped: non-backpressured burst dropped %0d hits as expected", dropped_hits);
+    if (dropped_hits == 0) begin
+      $display("PASS P03_dropped: line-rate single-port burst dropped 0 hits");
       pass_count++;
     end else begin
-      $display("FAIL P03_dropped: dropped_hits=0 for a burst exceeding active FIFO depth %0d", FIFO_DEPTH);
+      $display("FAIL P03_dropped: dropped_hits=%0d expected=0 at one accepted hit per clock", dropped_hits);
       error_count++;
     end
 
-    if (port_status[23:16] == (FIFO_DEPTH > 255 ? 8'hFF : FIFO_DEPTH[7:0])) begin
-      $display("PASS P03_port_status: fifo_level_max reached active depth (status=0x%08h)", port_status);
+    if (port_status[23:16] <= 8'd4) begin
+      $display("PASS P03_port_status: fifo_level_max stayed bounded at line rate (status=0x%08h)", port_status);
       pass_count++;
     end else begin
-      $display("FAIL P03_port_status: status=0x%08h expected max field 0x%02h",
-               port_status,
-               (FIFO_DEPTH > 255 ? 8'hFF : FIFO_DEPTH[7:0]));
+      $display("FAIL P03_port_status: status=0x%08h expected max field <= 0x04", port_status);
       error_count++;
     end
   endtask
@@ -1205,7 +1410,10 @@ module tb_histogram_statistics_v2;
       "B04_version":     test_B04_version();
       "B06_bin_mapping": test_B06_bin_mapping();
       "B07_clear":       test_B07_clear();
+      "B08_interval_latched_counters": test_B08_interval_latched_counters();
       "B09_filter_pass": test_B09_filter_pass();
+      "B10_debug_mts_both": test_B10_debug_mts_both();
+      "B11_debug_mts_filter_source": test_B11_debug_mts_filter_source();
       "E01_underflow":   test_E01_underflow();
       "E02_overflow":    test_E02_overflow();
       "E06_invalid_bounds": test_E06_invalid_bounds();
@@ -1221,7 +1429,10 @@ module tb_histogram_statistics_v2;
         test_B04_version();     do_reset();
         test_B06_bin_mapping(); do_reset();
         test_B07_clear();       do_reset();
+        test_B08_interval_latched_counters(); do_reset();
         test_B09_filter_pass(); do_reset();
+        test_B10_debug_mts_both(); do_reset();
+        test_B11_debug_mts_filter_source(); do_reset();
         test_E01_underflow();   do_reset();
         test_E02_overflow();    do_reset();
         test_E06_invalid_bounds(); do_reset();

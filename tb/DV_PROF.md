@@ -13,7 +13,7 @@ These tests characterize throughput limits, stress conditions, and long-running 
 **Key architectural constants:**
 - N_BINS=256, N_PORTS=8, FIFO depth=256 (FIFO_ADDR_WIDTH=8), COAL_QUEUE_DEPTH=256, KICK_WIDTH=8 (max coalesced=255)
 - Pipeline latency: ingress(1) + arb_pipe(1) + key_pipe(1) + divider_in(1) + bin_divider(8) + queue_hit_pipe(1) = 13 cycles from FIFO read to queue entry
-- Arbiter: round-robin, 1 grant/cycle, skips port that was just output (back-to-back same-port suppression)
+- Arbiter: round-robin, 1 grant/cycle, same-port consecutive grants allowed when it is the only ready FIFO
 - Pingpong update pipeline: 4 stages (issue/read/add+sum/write) with RAW forwarding
 - Bank clear: 256 cycles (N_BINS), upd_ready=0 during clear
 
@@ -26,9 +26,9 @@ overflow, and all 256 bins matching after bank swap.
 
 ## 1. Single-Port Throughput (SPT) -- 12 cases
 
-Sweep injection rate on a single port (port 0) to characterize the maximum sustainable ingress rate before the FIFO-depth=256 buffer overflows and drops begin. The arbiter sees only one non-empty FIFO so it grants every cycle, making this a pure FIFO-depth test.
+Sweep injection rate on a single port (port 0) to characterize the maximum sustainable ingress rate. The arbiter sees only one non-empty FIFO, grants every cycle, and the FIFO should stay bounded at the one-hit-per-clock wire rate.
 
-**Why this section exists:** The per-port FIFO is 256 deep in the Phase-5 build. If ingress delivers a burst longer than the active FIFO depth before the arbiter drains it, drops occur. This section quantifies exactly where that threshold lies for a single port, which is the baseline for all multi-port analysis.
+**Why this section exists:** The per-port FIFO is 256 deep in the Phase-5 build. A line-rate single-port stream must not depend on filling that FIFO; it should drain concurrently at one hit per clock. This section catches regressions that accidentally reintroduce every-other-cycle same-port service.
 
 **Output per test:** `{injected_hits, accepted_hits, dropped_hits, fifo_level_max, bin_accuracy_pct}`.
 
@@ -39,10 +39,10 @@ Sweep injection rate on a single port (port 0) to characterize the maximum susta
 | P003 | S | 25% injection rate: 1 hit per 4 cycles | 10k hits | Port 0, uniform bins | Zero drops; fifo_level_max < 6 |
 | P004 | S | 50% injection rate: 1 hit per 2 cycles | 10k hits | Port 0, uniform bins | Zero drops; fifo_level_max < 10 |
 | P005 | S | 75% injection rate: 3 hits per 4 cycles | 10k hits | Port 0, uniform bins | Zero drops; arbiter drains at 1/cycle so FIFO stays bounded |
-| P006 | S | 100% injection rate: back-to-back hits | 10k hits | Port 0, uniform bins | Possible drops once FIFO fills; measure drop onset latency |
+| P006 | S | 100% injection rate: back-to-back hits | 10k hits | Port 0, uniform bins | Zero drops; fifo_level_max stays bounded because arbiter drains 1/cycle |
 | P007 | S | Burst-256: 256 back-to-back then 256-cycle gap | 5k bursts | Port 0, uniform bins | Zero drops: burst matches Phase-5 FIFO depth |
-| P008 | S | Burst-257: 257 back-to-back then 255-cycle gap | 5k bursts | Port 0, uniform bins | Exactly 1 drop per burst if no same-cycle drain room is available; verify drop counter |
-| P009 | S | Burst-512: 512 back-to-back then 512-cycle gap | 2k bursts | Port 0, uniform bins | Over-depth burst is characterized; verify FIFO reaches active depth and drop count is monotone |
+| P008 | S | Burst-257: 257 back-to-back then 255-cycle gap | 5k bursts | Port 0, uniform bins | Zero drops; verifies same-port consecutive grants across the old depth+1 boundary |
+| P009 | S | Burst-512: 512 back-to-back then 512-cycle gap | 2k bursts | Port 0, uniform bins | Zero drops; fifo_level_max remains small under sustained line-rate service |
 | P010 | R | Random injection rate 50-100% with LCG gaps | 20k hits | Port 0, LCG bin dist | Drop rate matches analytical model; bins correct for accepted hits |
 | P011 | S | Ramp 0%->100%->0% over 20k cycles | 20k cycles | Port 0, linear ramp | No drops during ramp-up phase until FIFO fills; recovery after ramp-down |
 | P012 | S | Square-wave: 100% for 32 cycles, 0% for 32 cycles | 5k waves | Port 0, uniform bins | Drops only during high phase when burst > 16; FIFO drains completely during low phase |

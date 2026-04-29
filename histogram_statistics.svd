@@ -4,7 +4,7 @@
   <vendorID>MU3E</vendorID>
   <name>MU3E_HISTOGRAM_STATISTICS</name>
   <series>MU3E_FPGA_IP</series>
-  <version>26.1.0.0411</version>
+  <version>26.1.6.0429</version>
   <description>CMSIS-SVD description of the histogram statistics CSR window. BaseAddress is 0 because this file describes the relative CSR aperture of the IP; system integration supplies the live slave base address.</description>
   <addressUnitBits>8</addressUnitBits>
   <width>32</width>
@@ -15,12 +15,12 @@
   <peripherals>
     <peripheral>
       <name>HISTOGRAM_STATISTICS_CSR</name>
-      <description>Relative 17-word CSR aperture for histogram statistics. The separate hist_bin data window is intentionally excluded because it is histogram memory, not control/status registers.</description>
+      <description>Relative 19-word CSR aperture for histogram statistics. The separate hist_bin data window is intentionally excluded because it is histogram memory, not control/status registers.</description>
       <groupName>MU3E_HISTOGRAM_STATISTICS</groupName>
       <baseAddress>0x0</baseAddress>
       <addressBlock>
         <offset>0x0</offset>
-        <size>0x44</size>
+        <size>0x4C</size>
         <usage>registers</usage>
       </addressBlock>
       <registers>
@@ -92,7 +92,7 @@
             </field>
             <field>
               <name>mode</name>
-              <description>Mode selector. Negative 4-bit signed values route one of the debug inputs into the histogram path.</description>
+              <description>Mode selector. Negative signed values -1..-6 route debug_1..debug_6 individually; -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes the CSR filter compares a synthetic debug word: bits [15:0] sample, [23:16] zero-based debug source, [31:24] absolute debug mode.</description>
               <bitOffset>4</bitOffset>
               <bitWidth>4</bitWidth>
               <access>read-write</access>
@@ -230,14 +230,14 @@
             </field>
             <field>
               <name>filter_key_low</name>
-              <description>LSB of the filter-key slice inside the snooped data word.</description>
+              <description>LSB of the filter-key slice inside the snooped data word. In debug modes this selects the synthetic debug word.</description>
               <bitOffset>16</bitOffset>
               <bitWidth>8</bitWidth>
               <access>read-write</access>
             </field>
             <field>
               <name>filter_key_high</name>
-              <description>MSB of the filter-key slice inside the snooped data word.</description>
+              <description>MSB of the filter-key slice inside the snooped data word. In debug modes this selects the synthetic debug word.</description>
               <bitOffset>24</bitOffset>
               <bitWidth>8</bitWidth>
               <access>read-write</access>
@@ -392,13 +392,13 @@
         </register>
         <register>
           <name>TOTAL_HITS</name>
-          <description>Total accepted hit count across all active sources.</description>
+          <description>Live accepted-hit count in the current interval. Resets at manual clear and at every interval pulse.</description>
           <addressOffset>0x34</addressOffset>
           <access>read-only</access>
           <fields>
             <field>
               <name>value</name>
-              <description>Accepted-hit count.</description>
+              <description>Current-interval accepted-hit count.</description>
               <bitOffset>0</bitOffset>
               <bitWidth>32</bitWidth>
               <access>read-only</access>
@@ -407,13 +407,13 @@
         </register>
         <register>
           <name>DROPPED_HITS</name>
-          <description>Total dropped hits caused by FIFO or queue overflow.</description>
+          <description>Live dropped-hit count caused by FIFO or queue overflow in the current interval. Resets at manual clear and at every interval pulse.</description>
           <addressOffset>0x38</addressOffset>
           <access>read-only</access>
           <fields>
             <field>
               <name>value</name>
-              <description>Dropped-hit count.</description>
+              <description>Current-interval dropped-hit count.</description>
               <bitOffset>0</bitOffset>
               <bitWidth>32</bitWidth>
               <access>read-only</access>
@@ -461,6 +461,36 @@
               <bitOffset>0</bitOffset>
               <bitWidth>32</bitWidth>
               <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>LAST_INTERVAL_TOTAL_HITS</name>
+          <description>Accepted-hit count latched at the most recent interval pulse before the live counter reset.</description>
+          <addressOffset>0x44</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Last completed interval accepted-hit count.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>LAST_INTERVAL_DROPPED_HITS</name>
+          <description>Dropped-hit count latched at the most recent interval pulse before the live counter reset.</description>
+          <addressOffset>0x48</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Last completed interval dropped-hit count.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
             </field>
           </fields>
         </register>

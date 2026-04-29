@@ -30,7 +30,7 @@ proc ::mu3e::cmsis::spec::build_device {} {
                 [::mu3e::cmsis::svd::field apply 0 1 -description "Write 1 to request that the staged configuration becomes active after the ingress path drains." -access read-write] \
                 [::mu3e::cmsis::svd::field apply_pending 1 1 -description "1 while a committed configuration is waiting to settle into the live datapath." -access read-only] \
                 [::mu3e::cmsis::svd::field reserved0 2 2 -description "Reserved, read as zero." -access read-only] \
-                [::mu3e::cmsis::svd::field mode 4 4 -description "Mode selector. Negative 4-bit signed values route one of the debug inputs into the histogram path." -access read-write] \
+                [::mu3e::cmsis::svd::field mode 4 4 -description {Mode selector. Negative signed values -1..-6 route debug_1..debug_6 individually; -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes the CSR filter compares a synthetic debug word: bits [15:0] sample, [23:16] zero-based debug source, [31:24] absolute debug mode.} -access read-write] \
                 [::mu3e::cmsis::svd::field key_unsigned 8 1 -description "1 selects unsigned update-key interpretation, 0 selects signed extraction." -access read-write] \
                 [::mu3e::cmsis::svd::field reserved1 9 3 -description "Reserved, read as zero." -access read-only] \
                 [::mu3e::cmsis::svd::field filter_enable 12 1 -description "Enables the runtime filter-key comparison." -access read-write] \
@@ -60,8 +60,8 @@ proc ::mu3e::cmsis::spec::build_device {} {
             -fields [list \
                 [::mu3e::cmsis::svd::field update_key_low 0 8 -description "LSB of the update-key slice inside the snooped data word." -access read-write] \
                 [::mu3e::cmsis::svd::field update_key_high 8 8 -description "MSB of the update-key slice inside the snooped data word." -access read-write] \
-                [::mu3e::cmsis::svd::field filter_key_low 16 8 -description "LSB of the filter-key slice inside the snooped data word." -access read-write] \
-                [::mu3e::cmsis::svd::field filter_key_high 24 8 -description "MSB of the filter-key slice inside the snooped data word." -access read-write]]] \
+                [::mu3e::cmsis::svd::field filter_key_low 16 8 -description "LSB of the filter-key slice inside the snooped data word. In debug modes this selects the synthetic debug word." -access read-write] \
+                [::mu3e::cmsis::svd::field filter_key_high 24 8 -description "MSB of the filter-key slice inside the snooped data word. In debug modes this selects the synthetic debug word." -access read-write]]] \
         [::mu3e::cmsis::svd::register KEY_VALUE 0x1C \
             -description "Packed runtime key overrides used by mode-dependent histogram logic." \
             -access read-write \
@@ -98,13 +98,13 @@ proc ::mu3e::cmsis::spec::build_device {} {
                 [::mu3e::cmsis::svd::field fifo_level_max 16 8 -description "Maximum observed FIFO fill level across the ingress-port pairs." -access read-only] \
                 [::mu3e::cmsis::svd::field reserved1 24 8 -description "Reserved, read as zero." -access read-only]]] \
         [::mu3e::cmsis::svd::register TOTAL_HITS 0x34 \
-            -description "Total accepted hit count across all active sources." \
+            -description "Live accepted-hit count in the current interval. Resets at manual clear and at every interval pulse." \
             -access read-only \
-            -fields [list [::mu3e::cmsis::svd::field value 0 32 -description "Accepted-hit count." -access read-only]]] \
+            -fields [list [::mu3e::cmsis::svd::field value 0 32 -description "Current-interval accepted-hit count." -access read-only]]] \
         [::mu3e::cmsis::svd::register DROPPED_HITS 0x38 \
-            -description "Total dropped hits caused by FIFO or queue overflow." \
+            -description "Live dropped-hit count caused by FIFO or queue overflow in the current interval. Resets at manual clear and at every interval pulse." \
             -access read-only \
-            -fields [list [::mu3e::cmsis::svd::field value 0 32 -description "Dropped-hit count." -access read-only]]] \
+            -fields [list [::mu3e::cmsis::svd::field value 0 32 -description "Current-interval dropped-hit count." -access read-only]]] \
         [::mu3e::cmsis::svd::register COAL_STATUS 0x3C \
             -description "Coalescing-queue occupancy, occupancy maximum, and overflow count." \
             -access read-only \
@@ -115,16 +115,24 @@ proc ::mu3e::cmsis::spec::build_device {} {
         [::mu3e::cmsis::svd::register SCRATCH 0x40 \
             -description "General-purpose scratch register for integration testing." \
             -access read-write \
-            -fields [list [::mu3e::cmsis::svd::field value 0 32 -description "Scratch value." -access read-write]]]]
+            -fields [list [::mu3e::cmsis::svd::field value 0 32 -description "Scratch value." -access read-write]]] \
+        [::mu3e::cmsis::svd::register LAST_INTERVAL_TOTAL_HITS 0x44 \
+            -description "Accepted-hit count latched at the most recent interval pulse before the live counter reset." \
+            -access read-only \
+            -fields [list [::mu3e::cmsis::svd::field value 0 32 -description "Last completed interval accepted-hit count." -access read-only]]] \
+        [::mu3e::cmsis::svd::register LAST_INTERVAL_DROPPED_HITS 0x48 \
+            -description "Dropped-hit count latched at the most recent interval pulse before the live counter reset." \
+            -access read-only \
+            -fields [list [::mu3e::cmsis::svd::field value 0 32 -description "Last completed interval dropped-hit count." -access read-only]]]]
 
     return [::mu3e::cmsis::svd::device MU3E_HISTOGRAM_STATISTICS \
-        -version 26.1.0.0411 \
+        -version 26.1.6.0429 \
         -description "CMSIS-SVD description of the histogram statistics CSR window. BaseAddress is 0 because this file describes the relative CSR aperture of the IP; system integration supplies the live slave base address." \
         -peripherals [list \
             [::mu3e::cmsis::svd::peripheral HISTOGRAM_STATISTICS_CSR 0x0 \
-                -description "Relative 17-word CSR aperture for histogram statistics. The separate hist_bin data window is intentionally excluded because it is histogram memory, not control/status registers." \
+                -description "Relative 19-word CSR aperture for histogram statistics. The separate hist_bin data window is intentionally excluded because it is histogram memory, not control/status registers." \
                 -groupName MU3E_HISTOGRAM_STATISTICS \
-                -addressBlockSize 0x44 \
+                -addressBlockSize 0x4C \
                 -registers $registers]]]
 }
 

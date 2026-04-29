@@ -41,8 +41,8 @@ Read/write every CSR register. The CSR slave has 17 registers addressed by a 5-b
 |----|--------|----------|------|----------|---------|
 | B013 | D | Read UID (addr 0) | 1 | CSR read addr 0 after reset. | Returns 0x48495354 (ASCII "HIST"). Confirms identity header word 0. |
 | B013a | D | Write to UID is ignored | 1 | Write 0xDEADBEEF to addr 0, then read back. | Still returns 0x48495354. UID is read-only. |
-| B013b | D | Read META page 0 = VERSION (addr 1) | 1 | Write selector 0 to addr 1, then read addr 1. | Returns VERSION_MAJOR=26 in [31:24], VERSION_MINOR=0 in [23:16], patch+build in lower bits. |
-| B013c | D | Read META page 1 = DATE (addr 1) | 1 | Write selector 1 to addr 1, then read addr 1. | Returns VERSION_DATE generic value (20260410). |
+| B013b | D | Read META page 0 = VERSION (addr 1) | 1 | Write selector 0 to addr 1, then read addr 1. | Returns VERSION_MAJOR=26 in [31:24], VERSION_MINOR=1 in [23:16], patch+build in lower bits. |
+| B013c | D | Read META page 1 = DATE (addr 1) | 1 | Write selector 1 to addr 1, then read addr 1. | Returns VERSION_DATE generic value (20260427). |
 | B013d | D | Read META page 2 = GIT (addr 1) | 1 | Write selector 2 to addr 1, then read addr 1. | Returns VERSION_GIT generic value (default 0). |
 | B013e | D | Read META page 3 = INSTANCE_ID (addr 1) | 1 | Write selector 3 to addr 1, then read addr 1. | Returns INSTANCE_ID generic value (default 0). |
 | B014 | D | Read CONTROL (addr 2) at reset default | 1 | CSR read addr 2 after reset. | Returns default: mode=0, key_unsigned per generic, filter_enable=0, apply_pending=0, error=0. |

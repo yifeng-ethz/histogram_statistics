@@ -2,10 +2,10 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  1
-set VERSION_PATCH_DEFAULT_CONST  2
-set BUILD_DEFAULT_CONST          425
-set VERSION_DATE_DEFAULT_CONST   20260425
-set VERSION_GIT_DEFAULT_CONST    1929539473
+set VERSION_PATCH_DEFAULT_CONST  6
+set BUILD_DEFAULT_CONST          429
+set VERSION_DATE_DEFAULT_CONST   20260429
+set VERSION_GIT_DEFAULT_CONST    375124078
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
     $VERSION_MINOR_DEFAULT_CONST \
@@ -88,10 +88,12 @@ set CSR_TABLE_HTML {<html><table border="1" cellpadding="3" width="100%">
 <tr><td>0x0A</td><td>0x028</td><td>INTERVAL_CFG</td><td>RW</td><td>Ping-pong interval timer configuration in clock cycles.</td></tr>
 <tr><td>0x0B</td><td>0x02C</td><td>BANK_STATUS</td><td>RO</td><td>Ping-pong bank-selection and flush-progress status.</td></tr>
 <tr><td>0x0C</td><td>0x030</td><td>PORT_STATUS</td><td>RO</td><td>Ingress FIFO empty-mask and maximum observed fill level.</td></tr>
-<tr><td>0x0D</td><td>0x034</td><td>TOTAL_HITS</td><td>RO</td><td>Total accepted hit count across all active sources.</td></tr>
-<tr><td>0x0E</td><td>0x038</td><td>DROPPED_HITS</td><td>RO</td><td>Total dropped hits caused by FIFO or queue overflow.</td></tr>
+<tr><td>0x0D</td><td>0x034</td><td>TOTAL_HITS</td><td>RO</td><td>Live accepted hit count in the current interval. Resets at manual clear and at every interval pulse.</td></tr>
+<tr><td>0x0E</td><td>0x038</td><td>DROPPED_HITS</td><td>RO</td><td>Live dropped-hit count caused by FIFO or queue overflow in the current interval. Resets at manual clear and at every interval pulse.</td></tr>
 <tr><td>0x0F</td><td>0x03C</td><td>COAL_STATUS</td><td>RO</td><td>Coalescing-queue occupancy, occupancy max, and overflow count.</td></tr>
 <tr><td>0x10</td><td>0x040</td><td>SCRATCH</td><td>RW</td><td>General-purpose scratch register for integration testing.</td></tr>
+<tr><td>0x11</td><td>0x044</td><td>LAST_INTERVAL_TOTAL_HITS</td><td>RO</td><td>Accepted-hit count latched at the most recent interval pulse before the live counter reset.</td></tr>
+<tr><td>0x12</td><td>0x048</td><td>LAST_INTERVAL_DROPPED_HITS</td><td>RO</td><td>Dropped-hit count latched at the most recent interval pulse before the live counter reset.</td></tr>
 </table></html>}
 
 set META_FIELDS_HTML [format {<html><table border="1" cellpadding="3" width="100%%">
@@ -117,7 +119,7 @@ set CONTROL_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
 <tr><td>0</td><td>apply</td><td>RW</td><td>0</td><td>Write 1 to request that the staged configuration becomes active after the ingress path drains.</td></tr>
 <tr><td>1</td><td>apply_pending</td><td>RO</td><td>0</td><td>1 while a committed configuration is waiting to settle into the live datapath.</td></tr>
 <tr><td>3:2</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
-<tr><td>7:4</td><td>mode</td><td>RW</td><td>0</td><td>Mode selector. Negative 4-bit signed values route one of the debug inputs into the histogram path.</td></tr>
+<tr><td>7:4</td><td>mode</td><td>RW</td><td>0</td><td>Mode selector. Negative 4-bit signed values route debug inputs into the histogram path. Modes -1..-6 select debug_1..debug_6 individually; mode -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes, the CSR filter compares against a synthetic debug word documented under Debug Inputs.</td></tr>
 <tr><td>8</td><td>key_unsigned</td><td>RW</td><td>1</td><td>1 selects unsigned update-key interpretation, 0 selects signed extraction.</td></tr>
 <tr><td>11:9</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
 <tr><td>12</td><td>filter_enable</td><td>RW</td><td>0</td><td>Enables the runtime filter-key comparison.</td></tr>
@@ -132,8 +134,8 @@ set KEY_LOC_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
 <tr><th>Bit</th><th>Name</th><th>Access</th><th>Reset</th><th>Description</th></tr>
 <tr><td>7:0</td><td>update_key_low</td><td>RW</td><td>17</td><td>LSB of the update-key slice inside the snooped data word.</td></tr>
 <tr><td>15:8</td><td>update_key_high</td><td>RW</td><td>29</td><td>MSB of the update-key slice inside the snooped data word.</td></tr>
-<tr><td>23:16</td><td>filter_key_low</td><td>RW</td><td>35</td><td>LSB of the filter-key slice inside the snooped data word.</td></tr>
-<tr><td>31:24</td><td>filter_key_high</td><td>RW</td><td>38</td><td>MSB of the filter-key slice inside the snooped data word.</td></tr>
+<tr><td>23:16</td><td>filter_key_low</td><td>RW</td><td>35</td><td>LSB of the filter-key slice inside the snooped data word. In debug modes this selects the synthetic debug word instead.</td></tr>
+<tr><td>31:24</td><td>filter_key_high</td><td>RW</td><td>38</td><td>MSB of the filter-key slice inside the snooped data word. In debug modes this selects the synthetic debug word instead.</td></tr>
 </table></html>}
 
 set KEY_VALUE_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
@@ -197,7 +199,9 @@ set DEBUG_FMT_HTML {<html>
 <table border="1" cellpadding="3" width="100%">
 <tr><th>Bits</th><th>Field</th><th>Description</th></tr>
 <tr><td>15:0</td><td>debug sample</td><td>Histogrammed directly when <b>CONTROL.mode</b> selects a negative debug source.</td></tr>
-</table></html>}
+</table><br/>
+<b>Debug-mode filter word</b><br/>
+When <b>CONTROL.filter_enable</b> is set in a negative debug mode, the filter comparator does not see the normal 39-bit ingress data word. It sees a synthetic word: <b>[15:0]</b> = debug sample, <b>[23:16]</b> = zero-based debug source index (0=debug_1), and <b>[31:24]</b> = absolute debug mode (1..7).</html>}
 
 # --- derived-value computation ----------------------------------------------------
 
@@ -732,7 +736,7 @@ add_display_item $TAB_CONFIGURATION "Ping-Pong / Interval" GROUP
 add_display_item $TAB_CONFIGURATION "Resources" GROUP
 add_display_item $TAB_CONFIGURATION "Debug Inputs" GROUP
 
-add_html_text "Overview" overview_html {<html><b>Function</b><br/>Multi-port coalescing histogram with pipelined bin index and ping-pong rate readout. Accepts up to 8 Avalon-ST ingress ports, extracts a configurable key field, maps keys to bin indices via a SAR-style divider, coalesces concurrent updates through a shared queue, and stores counts in dual-bank M10K SRAM with automatic interval-based bank swap.<br/><br/><b>Data path</b><br/>ingress -&gt; hit_fifo (per port) -&gt; rr_arbiter -&gt; bin_divider -&gt; coalescing_queue -&gt; pingpong_sram<br/><br/><b>Clocking</b><br/>All interfaces run inside a single synchronous domain. The optional <b>interval_reset</b> sink triggers a manual clear / bank-swap event independently of the periodic timer.</html>}
+add_html_text "Overview" overview_html {<html><b>Function</b><br/>Multi-port coalescing histogram with pipelined bin index and ping-pong rate readout. Accepts up to 8 Avalon-ST ingress ports, extracts a configurable key field, maps keys to bin indices via a SAR-style divider, coalesces concurrent updates through a shared queue, and stores counts in dual-bank M10K SRAM with automatic interval-based bank swap.<br/><br/><b>Data path</b><br/>ingress -&gt; hit_fifo (per port) -&gt; rr_arbiter -&gt; bin_divider -&gt; coalescing_queue -&gt; pingpong_sram<br/><br/><b>Rate readout</b><br/><b>TOTAL_HITS</b> and <b>DROPPED_HITS</b> are live current-interval counters. <b>LAST_INTERVAL_TOTAL_HITS</b> and <b>LAST_INTERVAL_DROPPED_HITS</b> latch the completed interval just before the live counters reset, allowing stable one-second rate polling.<br/><br/><b>Clocking</b><br/>All interfaces run inside a single synchronous domain. The optional <b>interval_reset</b> sink triggers a manual clear / bank-swap event independently of the periodic timer.</html>}
 
 add_display_item "Histogram Sizing" N_BINS parameter
 add_display_item "Histogram Sizing" MAX_COUNT_BITS parameter
@@ -766,7 +770,7 @@ add_html_text "Ping-Pong / Interval" runtime_html "<html><b>Runtime behaviour</b
 
 add_html_text "Resources" resources_html {<html><b>Integration notes</b><br/>1. The CSR aperture is <b>17</b> words (5-bit address). Words 0-1 are the standard identity header (UID + META). Words 2-16 hold control, histogram bounds, key configuration, status counters, and scratch.<br/>2. The <b>hist_bin</b> Avalon-MM slave provides burst-capable readout of the histogram SRAM with word-addressed access.<br/>3. The coalescing queue serializes concurrent bin updates from all ingress sources before they reach the histogram SRAM, preventing read-modify-write hazards.</html>}
 
-add_html_text "Debug Inputs" debug_cfg_html {<html><b>Debug control</b><br/>The RTL exports up to 6 optional 16-bit Avalon-ST debug sinks. Negative signed values in <b>CONTROL.mode</b> select <b>debug_1..6</b> as the histogram source instead of the normal ingress ports.</html>}
+add_html_text "Debug Inputs" debug_cfg_html {<html><b>Debug control</b><br/>The RTL exports up to 6 optional 16-bit Avalon-ST debug sinks. Negative signed values in <b>CONTROL.mode</b> select <b>debug_1..6</b> as the histogram source instead of the normal ingress ports. Mode <b>-7</b> is the Phase-5 combined MTS-delay mode: it samples signed <b>debug_1</b> and <b>debug_2</b> into separate FIFOs, then merges them through the normal arbiter without per-port channel offsets.<br/><br/><b>Debug filtering</b><br/>The runtime filter also works in negative modes. Use <b>KEY_LOC.filter_key_low=16</b> and <b>KEY_LOC.filter_key_high=23</b> to select a debug source index from the synthetic filter word; use <b>filter_key=0</b> for debug_1, <b>1</b> for debug_2, and so on.</html>}
 add_display_item "Debug Inputs" N_DEBUG_INTERFACE parameter
 add_display_item "Debug Inputs" DEBUG parameter
 

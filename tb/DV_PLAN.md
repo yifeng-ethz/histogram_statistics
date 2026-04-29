@@ -167,6 +167,12 @@ The standalone regression includes `P04_all_channel_injection_frame`, which
 checks 256 accepted hits, zero `DROPPED_HITS`, zero coalescing overflow, and
 all 256 bins after bank swap.
 
+The same delivered configuration must also pass `P03_wire_burst_absorb`: one
+active port driving back-to-back hits for more than 256 cycles must still report
+zero dropped hits. This proves the round-robin arbiter can grant the same FIFO
+in consecutive cycles and that the FIFO is absorbing burst skew, not masking an
+arbiter throughput bug.
+
 ### 8.2 Port Offset
 
 The divider_pipe adds `port_index * CHANNELS_PER_PORT` (default 32) to each key before feeding the bin_divider. This means port 0 keys are unshifted, port 1 keys are shifted by +32, port 2 by +64, etc. The histogram bounds must account for this offset when multiple ports are active.
