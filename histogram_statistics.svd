@@ -4,7 +4,7 @@
   <vendorID>MU3E</vendorID>
   <name>MU3E_HISTOGRAM_STATISTICS</name>
   <series>MU3E_FPGA_IP</series>
-  <version>26.1.6.0429</version>
+  <version>26.1.9.0501</version>
   <description>CMSIS-SVD description of the histogram statistics CSR window. BaseAddress is 0 because this file describes the relative CSR aperture of the IP; system integration supplies the live slave base address.</description>
   <addressUnitBits>8</addressUnitBits>
   <width>32</width>
@@ -92,7 +92,7 @@
             </field>
             <field>
               <name>mode</name>
-              <description>Mode selector. Negative signed values -1..-6 route debug_1..debug_6 individually; -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes the CSR filter compares a synthetic debug word: bits [15:0] sample, [23:16] zero-based debug source, [31:24] absolute debug mode.</description>
+              <description>Mode selector. Positive mode +1 derives a signed normal-hit T-delay key from local_run_counter[12:0] minus hit_type1 data[29:17], keeps the normal data-word filter path active, and disables per-port offset. Negative signed values -1..-6 route debug_1..debug_6 individually; -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes the CSR filter compares a synthetic debug word: bits [15:0] sample, [23:16] zero-based debug source, [31:24] absolute debug mode.</description>
               <bitOffset>4</bitOffset>
               <bitWidth>4</bitWidth>
               <access>read-write</access>

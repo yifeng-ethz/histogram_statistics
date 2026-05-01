@@ -1,11 +1,11 @@
 {
   "dut": "histogram_statistics_v2",
-  "date": "2026-04-27",
-  "scope": "Phase-5 queue-depth gate",
+  "date": "2026-05-01",
+  "scope": "Phase-6 ping-pong and delay-observability gate",
   "result": "pass",
   "standalone_dv": {
     "command": "make -C histogram_statistics/tb run_all",
-    "passed": 27,
+    "passed": 50,
     "failed": 0
   },
   "configuration": {
@@ -21,5 +21,13 @@
     "dp_e2e_failed": 0,
     "histogram_total": 506,
     "histogram_dropped": 0
+  },
+  "feature_gates": {
+    "normal_hit_delay_t": {
+      "test": "B12_normal_hit_delay_t",
+      "mode": 1,
+      "passed": true,
+      "formula": "local_run_counter[12:0] - hit_type1.data[29:17]"
+    }
   }
 }

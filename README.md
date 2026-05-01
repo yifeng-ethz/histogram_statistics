@@ -4,7 +4,7 @@ Multi-port coalescing histogram with pipelined bin index and ping-pong rate read
 Drop-in replacement for per-ASIC channel rate counter arrays in the Mu3e online data
 acquisition system.
 
-**Version:** 26.1.8.0501
+**Version:** 26.1.9.0501
 **Module name:** `histogram_statistics_v2`
 **Platform Designer group:** Mu3e Data Plane / Modules
 
@@ -23,6 +23,9 @@ Typical deployment:
 
 - **Rate monitoring:** histogram of per-channel hit rates, read out once per second.
 - **Timing diagnostics:** histogram of timestamp deltas to detect clock/data glitches.
+- **Normal-hit delay monitoring:** mode `+1` derives signed delay per hit from
+  `local_run_counter[12:0] - hit_type1.tcc_8n`, keeping normal ASIC/channel
+  filters active.
 - **Debug profiling:** route any 16-bit debug stream into the histogram via debug mode.
 
 ---
@@ -132,7 +135,19 @@ Writing `0x00000000` to any address of the `hist_bin` slave triggers a
 **measure-and-clear**: all bin counters and statistics are reset, and a new
 accumulation interval begins.  The `interval_reset` input has the same effect.
 
-### Debug Mode
+### Normal-Hit Delay And Debug Modes
+
+Writing `+1` to `CONTROL[7:4]` keeps the normal `hist_fill_in / fill_in_1..7`
+path active but replaces the configurable update-key extraction with a derived
+T-delay key:
+
+`signed((local_run_counter[12:0] - data[29:17]) mod 8192)`.
+
+The local counter resets on the 9-bit run-control `SYNC` command. This mode is
+intended for MuTRiG hit_type1 streams where `data[29:17]` is `tcc_8n`; the normal
+CSR filter still sees the original 39-bit hit word, so ASIC/channel filters work
+without reconfiguring debug streams. Per-port channel offset is disabled in this
+mode.
 
 Writing a negative value to `CONTROL[7:4]` (mode field) selects one of the
 `debug_N` Avalon-ST sinks as the histogram input source instead of the normal
@@ -350,6 +365,7 @@ quartus_sh --flow compile histogram_statistics_v2_standalone
 
 | Version | Date | Change |
 |---------|------|--------|
+| 26.1.9.0501 | 2026-05-01 | Adds `CONTROL.mode=+1` normal-hit T-delay key derivation with normal data-word filtering and no per-port offset |
 | 26.1.8.0501 | 2026-05-01 | Keeps deferred ping-pong host reads on the frozen bank so live rate-bin dumps do not mix last-interval and active-interval counters |
 | 26.1.7.0501 | 2026-05-01 | Allows `CHANNELS_PER_PORT=0` for global stream keys and registers debug-source capture to close the standalone slow-corner timing path |
 | 26.1.2.0425 | 2026-04-25 | Parameterized/deepened per-port ingress FIFO depth for bursty FEB post-stack histogram taps and saturated `PORT_STATUS.fifo_level_max` |

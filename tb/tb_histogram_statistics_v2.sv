@@ -35,7 +35,7 @@ module tb_histogram_statistics_v2;
   localparam int unsigned AVST_CHAN_WIDTH    = 4;
   localparam int unsigned VERSION_MAJOR       = 26;
   localparam int unsigned VERSION_MINOR       = 1;
-  localparam int unsigned VERSION_PATCH       = 8;
+  localparam int unsigned VERSION_PATCH       = 9;
   localparam int unsigned VERSION_BUILD       = 501;
   localparam int unsigned VERSION_DATE        = 20260501;
 
@@ -495,6 +495,15 @@ module tb_histogram_statistics_v2;
     debug_data[1]  <= '0;
   endtask
 
+  task automatic send_ctrl(input logic [8:0] payload);
+    @(posedge i_clk);
+    ctrl_data  <= payload;
+    ctrl_valid <= 1'b1;
+    @(posedge i_clk);
+    ctrl_valid <= 1'b0;
+    ctrl_data  <= '0;
+  endtask
+
   // Build a fill_in data word with a specific key value in the update_key field
   function automatic logic [AVST_DATA_WIDTH-1:0] make_hit_data(int key_val);
     logic [AVST_DATA_WIDTH-1:0] d;
@@ -504,6 +513,32 @@ module tb_histogram_statistics_v2;
       d[b] = key_val[b - UPDATE_KEY_BIT_LO];
     return d;
   endfunction
+
+  function automatic logic [AVST_DATA_WIDTH-1:0] make_hit_type1_data(
+    int unsigned asic,
+    int unsigned channel,
+    int unsigned tcc_8n
+  );
+    logic [AVST_DATA_WIDTH-1:0] d;
+    d = '0;
+    d[38:35] = asic[3:0];
+    d[34:30] = channel[4:0];
+    d[29:17] = tcc_8n[12:0];
+    return d;
+  endfunction
+
+  task automatic inject_normal_delay_hit(
+    input int unsigned port_idx,
+    input int          desired_delay,
+    input int unsigned asic,
+    input int unsigned channel
+  );
+    int unsigned local_counter;
+    int unsigned tcc_8n;
+    local_counter = int'(dut.delay_counter_8n);
+    tcc_8n = (local_counter + 1 - desired_delay) & 13'h1fff;
+    inject_hit(port_idx, make_hit_type1_data(asic, channel, tcc_8n));
+  endtask
 
   // Build a fill_in data word with both a key and a filter field
   function automatic logic [AVST_DATA_WIDTH-1:0] make_hit_data_with_filter(
@@ -600,6 +635,35 @@ module tb_histogram_statistics_v2;
     end
 
     ctrl_word        = 32'h0000_0091;  // apply + signed mode -7
+    ctrl_word[12]    = filter_enable;
+    ctrl_word[13]    = filter_reject;
+    csr_write32(CSR_CONTROL, ctrl_word);
+    repeat (10) @(posedge i_clk);
+  endtask
+
+  task automatic configure_normal_delay_t(
+    input int          left_bound,
+    input int unsigned bin_width,
+    input int unsigned interval = 2000,
+    input bit          filter_enable = 1'b0,
+    input bit          filter_reject = 1'b0,
+    input int unsigned filter_key_val = 0
+  );
+    logic [31:0] ctrl_word;
+
+    cfg_left_bound = left_bound;
+    cfg_bin_width  = bin_width;
+    cfg_n_bins     = N_BINS;
+
+    wait_initial_clear();
+    csr_write32(CSR_LEFT_BOUND, 32'($signed(left_bound)));
+    csr_write32(CSR_BIN_WIDTH,  bin_width);
+    csr_write32(CSR_INTERVAL,   interval);
+    if (filter_enable) begin
+      csr_write32(CSR_KEY_FILTER_V, {filter_key_val[15:0], 16'h0000});
+    end
+
+    ctrl_word        = 32'h0000_0011;  // apply + mode +1, signed representation
     ctrl_word[12]    = filter_enable;
     ctrl_word[13]    = filter_reject;
     csr_write32(CSR_CONTROL, ctrl_word);
@@ -1070,6 +1134,56 @@ module tb_histogram_statistics_v2;
   endtask
 
   // ════════════════════════════════════════════════════════════════
+  // TEST: B12_normal_hit_delay_t
+  // ════════════════════════════════════════════════════════════════
+  task automatic test_B12_normal_hit_delay_t();
+    logic [31:0] rd;
+
+    $display("═══ B12_normal_hit_delay_t ═══");
+    ref_reset();
+    send_ctrl(9'b000000100);  // RUN_SYNC resets the local delay counter.
+    configure_normal_delay_t(
+      .left_bound    (DEF_LEFT_BOUND),
+      .bin_width     (DEF_BIN_WIDTH),
+      .interval      (2000),
+      .filter_enable (1'b1),
+      .filter_reject (1'b0),
+      .filter_key_val(5)
+    );
+
+    inject_normal_delay_hit(0, 512, 5, 3);
+    ref_add_hit(512);
+
+    inject_normal_delay_hit(1, 1024, 4, 7);
+
+    inject_normal_delay_hit(1, -32, 5, 9);
+    ref_add_hit(-32);
+
+    wait_pipeline_drain();
+    check_csr("B12_total_raw", CSR_TOTAL_HITS, 3);
+    wait_bank_swap();
+    check_bins("B12");
+
+    bin_read32((512 - DEF_LEFT_BOUND) / DEF_BIN_WIDTH, rd);
+    if (rd == 1) begin
+      $display("PASS B12_positive_delay_bin: 512-cycle delay kept through normal filter");
+      pass_count++;
+    end else begin
+      $display("FAIL B12_positive_delay_bin: got=%0d expected=1", rd);
+      error_count++;
+    end
+
+    bin_read32((-32 - DEF_LEFT_BOUND) / DEF_BIN_WIDTH, rd);
+    if (rd == 1) begin
+      $display("PASS B12_signed_wrap_bin: -32-cycle modular delay sign-extended");
+      pass_count++;
+    end else begin
+      $display("FAIL B12_signed_wrap_bin: got=%0d expected=1", rd);
+      error_count++;
+    end
+  endtask
+
+  // ════════════════════════════════════════════════════════════════
   // TEST: E01_underflow
   // ════════════════════════════════════════════════════════════════
   task automatic test_E01_underflow();
@@ -1471,6 +1585,7 @@ module tb_histogram_statistics_v2;
       "B09_filter_pass": test_B09_filter_pass();
       "B10_debug_mts_both": test_B10_debug_mts_both();
       "B11_debug_mts_filter_source": test_B11_debug_mts_filter_source();
+      "B12_normal_hit_delay_t": test_B12_normal_hit_delay_t();
       "E01_underflow":   test_E01_underflow();
       "E02_overflow":    test_E02_overflow();
       "E06_invalid_bounds": test_E06_invalid_bounds();
@@ -1491,6 +1606,7 @@ module tb_histogram_statistics_v2;
         test_B09_filter_pass(); do_reset();
         test_B10_debug_mts_both(); do_reset();
         test_B11_debug_mts_filter_source(); do_reset();
+        test_B12_normal_hit_delay_t(); do_reset();
         test_E01_underflow();   do_reset();
         test_E02_overflow();    do_reset();
         test_E06_invalid_bounds(); do_reset();

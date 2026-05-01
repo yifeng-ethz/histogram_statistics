@@ -36,3 +36,27 @@ This ledger records Phase-5 debug issues for `histogram_statistics_v2`.
   error `0`, CDC violations `0`, and RDC violations `0`; standalone Quartus
   closes at the 7.273 ns signoff period with slow-85 setup slack `+0.210 ns`
   and worst hold slack `+0.149 ns`.
+
+### `BUG-003-R` Header-sync delay plots used `ts_delta` instead of hit latency
+
+- First seen in: Phase-6 all-ASIC header-sync delay contact sheet review.
+- Symptom: several per-ASIC delay plots were centered at or near zero cycles.
+  A zero-latency rbCAM hit is physically impossible, so the plot was measuring
+  the wrong quantity.
+- Root cause: the negative debug histogram modes consumed MTS `ts_delta`,
+  which is an inter-hit timestamp delta, not
+  `counter_gts_8n - selected_timestamp`.
+- Fix status: fixed in release `26.1.9.0501` for the normal hit path. Positive
+  `mode=+1` derives the key from normal hit_type1 traffic as
+  `local_run_counter[12:0] - hit_type1.data[29:17]`, keeping ASIC/channel
+  filters active and allowing all eight ASIC lanes to be scanned together.
+  The legacy `-1`/`-2` debug modes remain for direct MTS `debug_ts`
+  comparison after the system Qsys patch routes those sources.
+- Evidence: `make -C tb run TEST=B12_normal_hit_delay_t SEED=42` passes the
+  +512 cycle, wrong-ASIC reject, and wrapped -32 cycle checks.
+  `make -C tb run_all SEED=42` passes `50 PASS, 0 FAIL`.
+  Questa static screen passes with lint/CDC/RDC reports under
+  `/data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/histogram_v2_static_release_26_1_9_delay_t_clean`.
+  Standalone Quartus full compile has 0 errors and a small slow-85 setup miss
+  of `-0.051 ns` at the 7.273 ns over-constrained wrapper period; the violating
+  paths are debug/config decode paths, not the normal hit-data RAM write path.

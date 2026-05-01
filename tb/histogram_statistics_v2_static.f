@@ -1,0 +1,9 @@
+../rtl/histogram_statistics_v2_pkg.vhd
+../rtl/true_dual_port_ram_single_clock.vhd
+../rtl/alt_dpram/alt_dpram_true.vhd
+../rtl/hit_fifo.vhd
+../rtl/rr_arbiter.vhd
+../rtl/bin_divider.vhd
+../rtl/coalescing_queue.vhd
+../rtl/pingpong_sram.vhd
+../rtl/histogram_statistics_v2.vhd

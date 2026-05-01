@@ -2,7 +2,7 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  1
-set VERSION_PATCH_DEFAULT_CONST  8
+set VERSION_PATCH_DEFAULT_CONST  9
 set BUILD_DEFAULT_CONST          501
 set VERSION_DATE_DEFAULT_CONST   20260501
 set VERSION_GIT_DEFAULT_CONST    375124078
@@ -119,7 +119,7 @@ set CONTROL_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
 <tr><td>0</td><td>apply</td><td>RW</td><td>0</td><td>Write 1 to request that the staged configuration becomes active after the ingress path drains.</td></tr>
 <tr><td>1</td><td>apply_pending</td><td>RO</td><td>0</td><td>1 while a committed configuration is waiting to settle into the live datapath.</td></tr>
 <tr><td>3:2</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
-<tr><td>7:4</td><td>mode</td><td>RW</td><td>0</td><td>Mode selector. Negative 4-bit signed values route debug inputs into the histogram path. Modes -1..-6 select debug_1..debug_6 individually; mode -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes, the CSR filter compares against a synthetic debug word documented under Debug Inputs.</td></tr>
+<tr><td>7:4</td><td>mode</td><td>RW</td><td>0</td><td>Mode selector. Mode +1 derives a signed normal-hit T-delay key from local_run_counter[12:0] minus hit_type1 data[29:17], keeping the normal data-word filter path active and disabling per-port offset. Negative 4-bit signed values route debug inputs into the histogram path. Modes -1..-6 select debug_1..debug_6 individually; mode -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes, the CSR filter compares against a synthetic debug word documented under Debug Inputs.</td></tr>
 <tr><td>8</td><td>key_unsigned</td><td>RW</td><td>1</td><td>1 selects unsigned update-key interpretation, 0 selects signed extraction.</td></tr>
 <tr><td>11:9</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
 <tr><td>12</td><td>filter_enable</td><td>RW</td><td>0</td><td>Enables the runtime filter-key comparison.</td></tr>
@@ -175,7 +175,7 @@ Sidebands: <b>channel[AVST_CHANNEL_WIDTH-1:0]</b>, <b>startofpacket</b>, <b>endo
 <tr><th>Bits</th><th>Field</th><th>Description</th></tr>
 <tr><td>38:35</td><td>filter key slice (default)</td><td>Default filter-key location. Runtime-programmable through <b>KEY_LOC</b>.</td></tr>
 <tr><td>34:30</td><td>payload / unused by default</td><td>Forwarded or ignored by the histogram core unless selected by a custom key map.</td></tr>
-<tr><td>29:17</td><td>update key slice (default)</td><td>Default update-key location used for binning. Runtime-programmable through <b>KEY_LOC</b>.</td></tr>
+<tr><td>29:17</td><td>T coarse / update key slice</td><td>Default update-key location used for binning. Runtime-programmable through <b>KEY_LOC</b>. In <b>CONTROL.mode=+1</b>, this field is treated as hit_type1 <b>tcc_8n</b> and the histogram key is the signed modular delay against the local run-synchronous counter.</td></tr>
 <tr><td>16:0</td><td>payload / unused by default</td><td>Remaining data payload. Preserved on the snoop passthrough path.</td></tr>
 </table></html>}
 
@@ -191,7 +191,7 @@ set CTRL_FMT_HTML {<html>
 <b>ctrl</b> — 9-bit Avalon-ST sink<br/>
 <table border="1" cellpadding="3" width="100%">
 <tr><th>Bits</th><th>Field</th><th>Description</th></tr>
-<tr><td>8:0</td><td>reserved compatibility payload</td><td>Run-control transport kept for system-level compatibility. The current RTL always asserts <b>ready</b> and does not consume the payload bits.</td></tr>
+<tr><td>8:0</td><td>run-control payload</td><td>The RTL always asserts <b>ready</b>. The <b>SYNC</b> command resets the local 8 ns counter used by <b>CONTROL.mode=+1</b>; all other commands are accepted for compatibility and ignored locally.</td></tr>
 </table></html>}
 
 set DEBUG_FMT_HTML {<html>
