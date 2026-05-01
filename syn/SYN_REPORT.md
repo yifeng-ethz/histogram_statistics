@@ -1,4 +1,4 @@
-# Synthesis Report: histogram_statistics_v2 26.1.7.0501
+# Synthesis Report: histogram_statistics_v2 26.1.8.0501
 
 Date: 2026-05-01
 
@@ -16,7 +16,7 @@ quartus_sh --flow compile histogram_statistics_v2_signoff -c histogram_statistic
 Log:
 
 ```text
-syn/quartus/histogram_statistics_v2_standalone_compile_26_1_7_0501_final.log
+syn/quartus/histogram_statistics_v2_standalone_compile_26_1_8_0501.log
 ```
 
 Tool:
@@ -72,11 +72,11 @@ From
 
 | Stage | Elapsed | CPU Time |
 |---|---:|---:|
-| Analysis & Synthesis | 00:00:40 | 00:01:05 |
-| Fitter | 00:04:18 | 00:09:55 |
+| Analysis & Synthesis | 00:00:41 | 00:01:06 |
+| Fitter | 00:04:21 | 00:10:03 |
 | Assembler | 00:00:14 | 00:00:14 |
 | Timing Analyzer | 00:00:24 | 00:00:53 |
-| Total | 00:05:36 | 00:12:07 |
+| Total | 00:05:40 | 00:12:16 |
 
 ## Closure Changes
 
@@ -89,6 +89,9 @@ From
   ingress filtering, removing `cfg_debug_source` from the same-cycle hot path.
 - `histogram_statistics_v2_hw.tcl`: allows `CHANNELS_PER_PORT=0` for already
   global stream keys such as Phase-6 `{ASIC, channel}` histogram paths.
+- `pingpong_sram`: keeps deferred host reads on the frozen bank when
+  `ENABLE_PINGPONG=true`, matching the immediate-read path and preventing live
+  rate-bin dumps from mixing last-interval bins with active-interval bins.
 
 The standalone project still emits expected virtual-pin warnings because it is
 an IP signoff wrapper, not the final FEB top-level compile.

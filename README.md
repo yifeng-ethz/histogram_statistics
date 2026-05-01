@@ -4,7 +4,7 @@ Multi-port coalescing histogram with pipelined bin index and ping-pong rate read
 Drop-in replacement for per-ASIC channel rate counter arrays in the Mu3e online data
 acquisition system.
 
-**Version:** 26.1.7.0501
+**Version:** 26.1.8.0501
 **Module name:** `histogram_statistics_v2`
 **Platform Designer group:** Mu3e Data Plane / Modules
 
@@ -71,6 +71,9 @@ When `ENABLE_PINGPONG = true`, the histogram maintains two SRAM banks:
 A countdown timer (CSR word 10, default 125 MHz = 1 s) triggers the bank swap.
 On swap, the newly active bank is flushed to zero before accepting new updates.
 The host reads bins from the frozen bank with zero contention.
+If a host read is deferred while an active update pipeline drains, the read
+still latches the frozen bank in ping-pong mode; release `26.1.8.0501` fixes a
+live-readout bug where that deferred path could instead read the active bank.
 
 When `ENABLE_PINGPONG = false`, a single bank is used.  The host reads from the
 same bank that receives updates.  The `interval_reset` input can still trigger
@@ -347,6 +350,7 @@ quartus_sh --flow compile histogram_statistics_v2_standalone
 
 | Version | Date | Change |
 |---------|------|--------|
+| 26.1.8.0501 | 2026-05-01 | Keeps deferred ping-pong host reads on the frozen bank so live rate-bin dumps do not mix last-interval and active-interval counters |
 | 26.1.7.0501 | 2026-05-01 | Allows `CHANNELS_PER_PORT=0` for global stream keys and registers debug-source capture to close the standalone slow-corner timing path |
 | 26.1.2.0425 | 2026-04-25 | Parameterized/deepened per-port ingress FIFO depth for bursty FEB post-stack histogram taps and saturated `PORT_STATUS.fifo_level_max` |
 | 26.1.0.0411 | 2026-04-11 | Cleaned the Parameter Editor packaging, refreshed per-tab screenshots, and aligned the delivered GUI/docs with the packaged contract |

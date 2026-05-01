@@ -3,9 +3,8 @@
 Status: `PASS`
 
 This signoff is based on the 2026-05-01 standalone Quartus compile of
-`histogram_statistics_v2` release `26.1.7.0501` in [syn/quartus](syn/quartus).
-The compile was rerun after the Phase-6 debug-mode timing changes and the
-`CHANNELS_PER_PORT=0` packaging update.
+`histogram_statistics_v2` release `26.1.8.0501` in [syn/quartus](syn/quartus).
+The compile was rerun after the Phase-6 deferred ping-pong readout fix.
 
 ## Build Context
 
@@ -15,7 +14,7 @@ The compile was rerun after the Phase-6 debug-mode timing changes and the
 - Device family: Arria V
 - Device: `5AGXBA7D4F31C5`
 - Quartus version: `18.1.0 Build 625 09/12/2018 SJ Standard Edition`
-- Flow report timestamp: `Fri May 1 03:22:41 2026`
+- Flow report timestamp: `Fri May 1 09:26:21 2026`
 - Constraint file:
   [syn/quartus/histogram_statistics_v2_standalone.sdc](syn/quartus/histogram_statistics_v2_standalone.sdc)
 - Clock target:
@@ -32,7 +31,7 @@ quartus_sh --flow compile histogram_statistics_v2_signoff -c histogram_statistic
 Primary log:
 
 ```text
-syn/quartus/histogram_statistics_v2_standalone_compile_26_1_7_0501_final.log
+syn/quartus/histogram_statistics_v2_standalone_compile_26_1_8_0501.log
 ```
 
 ## Timing Closure
@@ -89,11 +88,11 @@ From
 
 | Stage | Elapsed | CPU Time |
 |---|---:|---:|
-| Analysis & Synthesis | 00:00:40 | 00:01:05 |
-| Fitter | 00:04:18 | 00:09:55 |
+| Analysis & Synthesis | 00:00:41 | 00:01:06 |
+| Fitter | 00:04:21 | 00:10:03 |
 | Assembler | 00:00:14 | 00:00:14 |
 | Timing Analyzer | 00:00:24 | 00:00:53 |
-| Total | 00:05:36 | 00:12:07 |
+| Total | 00:05:40 | 00:12:16 |
 
 ## Timing Changes
 
@@ -117,6 +116,12 @@ The debug-mode capture adds one `i_clk` cycle of debug-observation latency. Rate
 and delay histogram content are unchanged; this block is an observation surface,
 and the extra cycle is deterministic.
 
+The `26.1.8.0501` refresh fixes a live readout correctness bug, not a new timing
+path: deferred host reads in `pingpong_sram` now latch the frozen bank in
+ping-pong mode, matching the immediate read path. This prevents a live
+1-second rate-bin dump from mixing frozen last-interval bins with the active
+interval while MuTRiG traffic is still updating the SRAM.
+
 ## Static And Simulation Evidence
 
 Static screen:
@@ -126,22 +131,24 @@ python3 ~/.codex/skills/rtl-linter-and-checker/scripts/questa_static_screen.py \
   --top histogram_statistics_v2 \
   --filelist /data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/coalescing_queue/histogram_statistics_v2_static.f \
   --pre-do /data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/coalescing_queue/pre_compile_vendor.do \
-  --work-dir /data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/histogram_v2_static_release_26_1_7 \
-  rtl/coalescing_queue.vhd rtl/histogram_statistics_v2.vhd
+  --work-dir /data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/histogram_v2_static_release_26_1_8_pingpong \
+  rtl/pingpong_sram.vhd rtl/histogram_statistics_v2.vhd
 ```
 
 Result: PASS, with transcript at
-`/data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/histogram_v2_static_release_26_1_7/questa_static_screen.log`.
+`/data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/histogram_v2_static_release_26_1_8_pingpong/questa_static_screen.log`.
+The report shows lint error `0`, CDC violations `0`, and RDC violations `0`.
 
 Simulation refresh:
 
 | Flow | Command | Result |
 |---|---|---|
-| Standalone deterministic suite | `make -C tb run_all` | 45 PASS, 0 FAIL |
-| Version metadata smoke | `make -C tb run TEST=B04_version SEED=42` | PASS, `VERSION=0x1a0171f5`, `DATE=20260501` |
-| UVM debug smoke | `make -C tb/uvm run TEST=hist_debug_test SEED=42` | PASS, 0 UVM errors/fatals |
-| UVM queue-error smoke | `make -C tb/uvm run TEST=hist_error_queue_test SEED=42` | PASS, 0 UVM errors/fatals |
-| UVM QST profile smoke | `make -C tb/uvm run TEST=hist_prof_qst_test SEED=42` | PASS, 0 UVM errors/fatals |
+| Standalone deterministic suite | `make -C tb run_all SEED=42` | 46 PASS, 0 FAIL |
+| Pending-read frozen-bank case | `make -C tb run TEST=P05_pending_read_frozen_bank SEED=42` | PASS |
+| Version metadata smoke | `make -C tb run TEST=B04_version SEED=42` | PASS, `VERSION=0x1a0181f5`, `DATE=20260501` |
+| Historical UVM debug smoke | `make -C tb/uvm run TEST=hist_debug_test SEED=42` | PASS, 0 UVM errors/fatals |
+| Historical UVM queue-error smoke | `make -C tb/uvm run TEST=hist_error_queue_test SEED=42` | PASS, 0 UVM errors/fatals |
+| Historical UVM QST profile smoke | `make -C tb/uvm run TEST=hist_prof_qst_test SEED=42` | PASS, 0 UVM errors/fatals |
 
 The accidental `TEST=B04_identity_header` invocation was a command error. The
 standalone harness uses `B04_version`; the correct version test passed after the
@@ -149,14 +156,15 @@ metadata update.
 
 ## Signoff Conclusion
 
-Release `26.1.7.0501` is signed off for the standalone Arria V IP target:
+Release `26.1.8.0501` is signed off for the standalone Arria V IP target:
 
 - timing closes at the tightened 137.5 MHz target
 - slow-85 setup slack is `+0.210 ns`
 - hold and minimum-pulse checks are positive at all corners
 - resources remain small relative to the device envelope
-- standalone DV, focused UVM smokes, static screen, and Quartus synthesis all
-  pass after the timing changes
+- standalone DV, hard static screen, and Quartus synthesis all pass after the
+  ping-pong readout fix; the focused UVM smokes remain historical support from
+  the preceding same-day timing checkpoint
 
 This signoff does not claim live FEB/SWB/DMA end-to-end closure. It only clears
 the histogram IP checkpoint needed before regenerating and rebuilding the active

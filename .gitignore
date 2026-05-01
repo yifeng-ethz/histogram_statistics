@@ -3,6 +3,10 @@
 greybox_tmp/
 __pycache__/
 *.pyc
+modelsim.ini
+work/
+lpm/
+altera_mf/
 syn/quartus/db/
 syn/quartus/incremental_db/
 syn/quartus/output_files/

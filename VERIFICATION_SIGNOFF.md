@@ -11,24 +11,27 @@ on that runtime. A follow-up smoke rerun also passes after the local
 `modelsim.ini` write-path fix, so the current flow no longer relies on editing
 the shared simulator installation tree.
 
-## Current Refresh: 26.1.7.0501
+## Current Refresh: 26.1.8.0501
 
-The 2026-05-01 Phase-6 timing checkpoint reran the deterministic standalone
-suite and focused UVM smokes after the debug-source pipeline and release
-metadata changes.
+The 2026-05-01 Phase-6 ping-pong readout checkpoint reran the deterministic
+standalone suite after fixing deferred host reads in `pingpong_sram`. This is
+the IP evidence required before rebuilding the FEB firmware that will regenerate
+1-second per-channel rate plots under active real-MuTRiG traffic.
 
 | Flow | Command | Result |
 |------|---------|--------|
-| Standalone deterministic suite | `make -C tb run_all` | `45 PASS, 0 FAIL` |
-| Version metadata smoke | `make -C tb run TEST=B04_version SEED=42` | PASS with date `20260501` |
-| UVM debug smoke | `make -C tb/uvm run TEST=hist_debug_test SEED=42` | PASS, 0 UVM errors/fatals |
-| UVM queue-error smoke | `make -C tb/uvm run TEST=hist_error_queue_test SEED=42` | PASS, 0 UVM errors/fatals |
-| UVM QST profile smoke | `make -C tb/uvm run TEST=hist_prof_qst_test SEED=42` | PASS, 0 UVM errors/fatals |
+| Standalone deterministic suite | `make -C tb run_all SEED=42` | `46 PASS, 0 FAIL`, including `P05_pending_read_frozen_bank` |
+| Version metadata smoke | `make -C tb run TEST=B04_version SEED=42` | PASS, `META[VERSION]=0x1a0181f5`, date `20260501` |
+| Questa static screen | `questa_static_screen.py --top histogram_statistics_v2 ... rtl/pingpong_sram.vhd rtl/histogram_statistics_v2.vhd` | PASS, lint error `0`, CDC violations `0`, RDC violations `0` |
+| Historical UVM debug smoke | `make -C tb/uvm run TEST=hist_debug_test SEED=42` | PASS, 0 UVM errors/fatals |
+| Historical UVM queue-error smoke | `make -C tb/uvm run TEST=hist_error_queue_test SEED=42` | PASS, 0 UVM errors/fatals |
+| Historical UVM QST profile smoke | `make -C tb/uvm run TEST=hist_prof_qst_test SEED=42` | PASS, 0 UVM errors/fatals |
 
 This refresh does not replace the historical full coverage closure below. It
-proves that the current timing patch and version metadata remain compatible with
-the deterministic and focused simulator gates that protect the Phase-6
-regeneration step.
+proves that the current ping-pong readout fix, version metadata, and hard static
+screen remain compatible with the deterministic and focused simulator gates that
+protect the Phase-6 regeneration step. The static-screen transcript is under
+`/data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/histogram_v2_static_release_26_1_8_pingpong/`.
 
 ## Scope
 

@@ -35,7 +35,7 @@ module tb_histogram_statistics_v2;
   localparam int unsigned AVST_CHAN_WIDTH    = 4;
   localparam int unsigned VERSION_MAJOR       = 26;
   localparam int unsigned VERSION_MINOR       = 1;
-  localparam int unsigned VERSION_PATCH       = 7;
+  localparam int unsigned VERSION_PATCH       = 8;
   localparam int unsigned VERSION_BUILD       = 501;
   localparam int unsigned VERSION_DATE        = 20260501;
 
@@ -1271,6 +1271,63 @@ module tb_histogram_statistics_v2;
   endtask
 
   // ════════════════════════════════════════════════════════════════
+  // TEST: P05_pending_read_frozen_bank
+  // ════════════════════════════════════════════════════════════════
+  task automatic test_P05_pending_read_frozen_bank();
+    logic [31:0] rd;
+    bit injector_done;
+    int unsigned frozen_bin;
+    int unsigned active_bin;
+    int unsigned frozen_hits;
+
+    $display("═══ P05_pending_read_frozen_bank ═══");
+    ref_reset();
+    configure_custom(0, 1, 1'b1, 1'b0, 1'b0, 0, 4096);
+
+    frozen_bin  = 7;
+    active_bin  = 99;
+    frozen_hits = 10;
+    injector_done = 1'b0;
+
+    for (int i = 0; i < frozen_hits; i++) begin
+      inject_hit(0, make_hit_data(frozen_bin));
+    end
+    wait_pipeline_drain(512);
+    wait_bank_swap();
+
+    fork
+      begin
+        for (int i = 0; i < 64; i++) begin
+          inject_hit(0, make_hit_data(active_bin));
+        end
+        injector_done = 1'b1;
+      end
+    join_none
+
+    while (!(dut.pingpong_inst.upd_issue_valid
+          || dut.pingpong_inst.upd_read_valid
+          || dut.pingpong_inst.upd_add_valid
+          || dut.pingpong_inst.upd_sum_valid
+          || dut.pingpong_inst.upd_write_valid)) begin
+      @(posedge i_clk);
+    end
+
+    bin_read32(frozen_bin, rd);
+    if (rd == frozen_hits) begin
+      $display("PASS P05_pending_read_frozen_bank: bin[%0d]=%0d while active bin %0d updates are in flight",
+               frozen_bin, rd, active_bin);
+      pass_count++;
+    end else begin
+      $display("FAIL P05_pending_read_frozen_bank: bin[%0d]=%0d expected frozen count %0d while active bin %0d updates are in flight",
+               frozen_bin, rd, frozen_hits, active_bin);
+      error_count++;
+    end
+
+    while (!injector_done) @(posedge i_clk);
+    wait_pipeline_drain(512);
+  endtask
+
+  // ════════════════════════════════════════════════════════════════
   // TEST: P02_all_ports_soak
   // ════════════════════════════════════════════════════════════════
   task automatic test_P02_all_ports_soak();
@@ -1420,6 +1477,7 @@ module tb_histogram_statistics_v2;
       "P01_sustained_fill": test_P01_sustained_fill();
       "P03_wire_burst_absorb": test_P03_wire_burst_absorb();
       "P04_all_channel_injection_frame": test_P04_all_channel_injection_frame();
+      "P05_pending_read_frozen_bank": test_P05_pending_read_frozen_bank();
       "P02_all_ports_soak": test_P02_all_ports_soak();
       "R01_reset_mid_fill": test_R01_reset_mid_fill();
       "ALL": begin
@@ -1439,6 +1497,7 @@ module tb_histogram_statistics_v2;
         test_P01_sustained_fill(); do_reset();
         test_P03_wire_burst_absorb(); do_reset();
         test_P04_all_channel_injection_frame(); do_reset();
+        test_P05_pending_read_frozen_bank(); do_reset();
         test_P02_all_ports_soak(); do_reset();
         test_R01_reset_mid_fill();
       end
