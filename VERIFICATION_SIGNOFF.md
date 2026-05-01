@@ -11,6 +11,25 @@ on that runtime. A follow-up smoke rerun also passes after the local
 `modelsim.ini` write-path fix, so the current flow no longer relies on editing
 the shared simulator installation tree.
 
+## Current Refresh: 26.1.7.0501
+
+The 2026-05-01 Phase-6 timing checkpoint reran the deterministic standalone
+suite and focused UVM smokes after the debug-source pipeline and release
+metadata changes.
+
+| Flow | Command | Result |
+|------|---------|--------|
+| Standalone deterministic suite | `make -C tb run_all` | `45 PASS, 0 FAIL` |
+| Version metadata smoke | `make -C tb run TEST=B04_version SEED=42` | PASS with date `20260501` |
+| UVM debug smoke | `make -C tb/uvm run TEST=hist_debug_test SEED=42` | PASS, 0 UVM errors/fatals |
+| UVM queue-error smoke | `make -C tb/uvm run TEST=hist_error_queue_test SEED=42` | PASS, 0 UVM errors/fatals |
+| UVM QST profile smoke | `make -C tb/uvm run TEST=hist_prof_qst_test SEED=42` | PASS, 0 UVM errors/fatals |
+
+This refresh does not replace the historical full coverage closure below. It
+proves that the current timing patch and version metadata remain compatible with
+the deterministic and focused simulator gates that protect the Phase-6
+regeneration step.
+
 ## Scope
 
 - DUT: `histogram_statistics_v2`

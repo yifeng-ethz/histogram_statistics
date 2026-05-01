@@ -1,13 +1,11 @@
 # Synthesis Signoff: histogram_statistics_v2
 
-Status: `PASS WITH THIN TIMING MARGIN`
+Status: `PASS`
 
-This signoff is based on a fresh standalone Quartus compile of the current RTL
-tree in [syn/quartus](syn/quartus). The compile was rerun after the
-`coalescing_queue` pointer-wrap fix. The shipped Platform Designer `Default`
-preset now trims `COAL_QUEUE_DEPTH` to `160`, but this standalone compile still
-uses the raw RTL default build shape with a `256 x 8` coalescing queue, so the
-timing/resource result below is conservative relative to the packaged preset.
+This signoff is based on the 2026-05-01 standalone Quartus compile of
+`histogram_statistics_v2` release `26.1.7.0501` in [syn/quartus](syn/quartus).
+The compile was rerun after the Phase-6 debug-mode timing changes and the
+`CHANNELS_PER_PORT=0` packaging update.
 
 ## Build Context
 
@@ -17,8 +15,7 @@ timing/resource result below is conservative relative to the packaged preset.
 - Device family: Arria V
 - Device: `5AGXBA7D4F31C5`
 - Quartus version: `18.1.0 Build 625 09/12/2018 SJ Standard Edition`
-- Flow report timestamp: `Sun Apr 12 11:13:37 2026`
-- Host: `teferi.ethz.ch`
+- Flow report timestamp: `Fri May 1 03:22:41 2026`
 - Constraint file:
   [syn/quartus/histogram_statistics_v2_standalone.sdc](syn/quartus/histogram_statistics_v2_standalone.sdc)
 - Clock target:
@@ -26,27 +23,17 @@ timing/resource result below is conservative relative to the packaged preset.
   - signoff target with 10% margin: `137.5 MHz`
   - constrained period: `7.273 ns`
 
-## Verification Context
+## Command
 
-- Current standalone verification status is summarized in
-  [VERIFICATION_SIGNOFF.md](VERIFICATION_SIGNOFF.md).
-- The current verification evidence closes the project DV plan, and the active
-  simulator-tier flow now runs on the supported QuestaOne 2026 runtime.
-- That simulator-tier issue does not change the Quartus timing/utilization
-  evidence summarized here.
+```sh
+quartus_sh --flow compile histogram_statistics_v2_signoff -c histogram_statistics_v2_standalone
+```
 
-## Flow Runtime
+Primary log:
 
-From
-[syn/quartus/output_files/histogram_statistics_v2_standalone.flow.rpt](syn/quartus/output_files/histogram_statistics_v2_standalone.flow.rpt):
-
-| Stage | Elapsed | CPU Time |
-|-------|--------:|---------:|
-| Analysis & Synthesis | `00:00:41` | `00:00:59` |
-| Fitter | `00:03:25` | `00:07:41` |
-| Assembler | `00:00:13` | `00:00:13` |
-| Timing Analyzer | `00:00:16` | `00:00:30` |
-| Total | `00:04:35` | `00:09:23` |
+```text
+syn/quartus/histogram_statistics_v2_standalone_compile_26_1_7_0501_final.log
+```
 
 ## Timing Closure
 
@@ -56,43 +43,28 @@ and
 [syn/quartus/output_files/histogram_statistics_v2_standalone.sta.rpt](syn/quartus/output_files/histogram_statistics_v2_standalone.sta.rpt):
 
 | Corner | Fmax | Setup Slack | Hold Slack | Min Pulse Width Slack |
-|--------|-----:|------------:|-----------:|----------------------:|
-| Slow 1100mV 85C | `139.12 MHz` | `0.085 ns` | `0.265 ns` | `2.704 ns` |
-| Slow 1100mV 0C | `141.9 MHz` | `0.226 ns` | `0.250 ns` | `2.670 ns` |
-| Fast 1100mV 85C | n/a in Fmax table | `2.742 ns` | `0.158 ns` | `2.849 ns` |
-| Fast 1100mV 0C | n/a in Fmax table | `3.202 ns` | `0.145 ns` | `2.840 ns` |
+|---|---:|---:|---:|---:|
+| Slow 1100mV 85C | 141.58 MHz | +0.210 ns | +0.270 ns | +2.710 ns |
+| Slow 1100mV 0C | 145.60 MHz | +0.405 ns | +0.251 ns | +2.694 ns |
+| Fast 1100mV 85C | n/a in Fmax table | +2.816 ns | +0.160 ns | +2.821 ns |
+| Fast 1100mV 0C | n/a in Fmax table | +3.300 ns | +0.149 ns | +2.833 ns |
 
 Worst signoff corner:
 
 - clock: `i_clk`
-- worst-case setup slack: `0.085 ns`
-- worst-case hold slack: `0.145 ns`
-- worst-case minimum pulse-width slack: `2.670 ns`
-- worst-case Fmax: `139.12 MHz`
+- worst-case setup slack: `+0.210 ns`
+- worst-case hold slack: `+0.149 ns`
+- worst-case minimum pulse-width slack: `+2.694 ns`
+- worst-case Fmax: `141.58 MHz`
 
 Margin assessment:
 
 - required signoff frequency: `137.49 MHz`
-- achieved worst-case Fmax: `139.12 MHz`
-- frequency headroom: `1.63 MHz`
-- relative headroom: `1.19%`
+- achieved worst-case Fmax: `141.58 MHz`
+- frequency headroom: `4.09 MHz`
+- relative headroom: `2.97%`
 
-This is a real pass, but not a loose one. The design meets the tightened
-signoff target with only `0.085 ns` setup slack at the slow `85C` corner.
-
-## Timing Hotspot
-
-The timing analyzer again identifies the limiting arcs inside the inferred
-coalescing-queue memories:
-
-- `coalescing_queue:queue_inst|altdpram:queue_mem_rtl_0|...|lutrama*~CLKMUX_0 -> ...|MEMORYREGOUT`
-- `coalescing_queue:queue_inst|altdpram:queue_mem_rtl_1|...|lutrama*~CLKMUX_0 -> ...|MEMORYREGOUT`
-
-That matches the utilization picture below: `coalescing_queue` is still the
-dominant logic block and remains the most likely place to lose timing margin
-first.
-
-## Top-Level Resource Summary
+## Resource Summary
 
 From
 [syn/quartus/output_files/histogram_statistics_v2_standalone.fit.summary](syn/quartus/output_files/histogram_statistics_v2_standalone.fit.summary)
@@ -100,110 +72,92 @@ and
 [syn/quartus/output_files/histogram_statistics_v2_standalone.fit.rpt](syn/quartus/output_files/histogram_statistics_v2_standalone.fit.rpt):
 
 | Resource | Usage | Device Utilization |
-|----------|-------|--------------------|
-| ALMs | `10,354 / 91,680` | `11%` |
-| Dedicated logic registers | `4,572 / 183,360` | `2%` |
-| Total LABs used | `1,222 / 9,168` | `13%` |
-| M10K blocks | `2 / 1,366` | `<1%` |
-| Total block memory bits | `16,384 / 13,987,840` | `<1%` |
-| Total MLAB memory bits | `8,192` | n/a |
-| DSP blocks | `0 / 800` | `0%` |
-| Peak interconnect usage | `35.0% / 33.7% / 39.3%` | total / H / V |
-| Maximum fan-out | `4958` | n/a |
+|---|---:|---:|
+| Logic utilization | 14,020 / 91,680 | 15% |
+| Dedicated logic registers | 5,309 / 183,360 | 3% |
+| Total LABs used | 1,693 / 9,168 | 18% |
+| Total RAM blocks | 2 / 1,366 | <1% |
+| Total block memory bits | 16,384 / 13,987,840 | <1% |
+| Total MLAB memory bits | 69,632 | n/a |
+| DSP blocks | 0 / 800 | 0% |
+| Peak interconnect usage | 38.6% / 37.8% / 41.2% | total / H / V |
 
-## Block-Level Utilization
-
-The table below combines the hierarchy fitter view with the mapped RAM
-inventory. `hit_fifo x8` is aggregated across all eight identical instances.
-
-| Block | Synth ALUTs | Fit ALMs Needed | Regs | ALM Share | Register Share | Dedicated RAM | Notes |
-|-------|------------:|----------------:|-----:|----------:|---------------:|---------------|-------|
-| `coalescing_queue` | `8210` | `5256.9` | `2397` | `50.77%` | `52.43%` | `2 x 2048-bit MLAB` | Dominant logic block and current timing limiter |
-| `hit_fifo x8` | `344` | `360.1` | `192` | `3.48%` | `4.20%` | `8 x 512-bit MLAB` | Small per instance, linear in port count |
-| `bin_divider` | `510` | `316.0` | `503` | `3.05%` | `11.00%` | none | Register-heavy arithmetic pipeline |
-| `pingpong_sram` | `461` | `274.5` | `363` | `2.65%` | `7.94%` | `2 x 8192-bit M10K` | Owns all block RAM in the design |
-| `rr_arbiter` | `153` | `114.7` | `39` | `1.11%` | `0.85%` | none | Small and not timing-dominant |
-
-Top-level reference totals:
-
-- synthesized combinational ALUTs: `14,949`
-- fitted ALMs needed: `10,354`
-- fitted registers: `4,572`
-- block RAM bits: `16,384`
-- M10Ks: `2`
-
-## RAM Inventory
+## Flow Runtime
 
 From
-[syn/quartus/output_files/histogram_statistics_v2_standalone.fit.rpt](syn/quartus/output_files/histogram_statistics_v2_standalone.fit.rpt):
+[syn/quartus/output_files/histogram_statistics_v2_standalone.flow.rpt](syn/quartus/output_files/histogram_statistics_v2_standalone.flow.rpt):
 
-| Owner | Resource | Type | Geometry | Bits |
-|-------|----------|------|----------|-----:|
-| `coalescing_queue` | `queue_mem_rtl_0` | MLAB | `256 x 8`, dual-port | `2048` |
-| `coalescing_queue` | `queue_mem_rtl_1` | MLAB | `256 x 8`, dual-port | `2048` |
-| `hit_fifo x8` | `mem_rtl_0` | MLAB | `16 x 32`, dual-port | `8 x 512` |
-| `pingpong_sram.bank_a` | `ram_rtl_0` | M10K | `256 x 32`, dual-port | `8192` |
-| `pingpong_sram.bank_b` | `ram_rtl_0` | M10K | `256 x 32`, dual-port | `8192` |
+| Stage | Elapsed | CPU Time |
+|---|---:|---:|
+| Analysis & Synthesis | 00:00:40 | 00:01:05 |
+| Fitter | 00:04:18 | 00:09:55 |
+| Assembler | 00:00:14 | 00:00:14 |
+| Timing Analyzer | 00:00:24 | 00:00:53 |
+| Total | 00:05:36 | 00:12:07 |
 
-Memory interpretation:
+## Timing Changes
 
-- all M10K usage belongs to `pingpong_sram`
-- all MLAB usage belongs to `coalescing_queue` and the replicated `hit_fifo`
-  banks
-- there is no DSP usage anywhere in the standalone build
-- the standalone build is still using the conservative raw `256`-deep queue
-  shape, not the packaged `160`-deep preset
+The earlier Phase-6 compile exposed two real timing risks:
 
-## Synthesis Interpretation by Block
+- `coalescing_queue` diagnostic overflow counting placed hit-bin decode on the
+  wide overflow counter enable.
+- negative debug modes fed CSR-mode and debug-source selection directly into
+  the ingress write-request path.
 
-`coalescing_queue`
+The committed implementation closes those risks with registered control and
+debug-source boundaries:
 
-- This is the dominant cost center in both logic and registers.
-- It also owns half of the total MLAB memory bits.
-- The current timing endpoints still land in its inferred queue memories.
+- `coalescing_queue` records overflow as a one-cycle event before incrementing
+  the diagnostic counter.
+- `histogram_statistics_v2` decodes negative debug-mode flags only at CSR apply.
+- `histogram_statistics_v2` captures selected debug-source samples one cycle
+  before ingress filtering.
 
-`pingpong_sram`
+The debug-mode capture adds one `i_clk` cycle of debug-observation latency. Rate
+and delay histogram content are unchanged; this block is an observation surface,
+and the extra cycle is deterministic.
 
-- This block is modest in ALM cost but owns both M10Ks.
-- Current memory footprint is efficient for the `256`-bin, `32`-bit dual-bank
-  organization.
-- Timing is not primarily limited here in the current compile.
+## Static And Simulation Evidence
 
-`bin_divider`
+Static screen:
 
-- Register count is high relative to ALM count, which is expected for the
-  pipelined divider.
-- It is not the dominant timing bottleneck in this compile, but it remains the
-  second most register-heavy direct child after `coalescing_queue`.
+```sh
+python3 ~/.codex/skills/rtl-linter-and-checker/scripts/questa_static_screen.py \
+  --top histogram_statistics_v2 \
+  --filelist /data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/coalescing_queue/histogram_statistics_v2_static.f \
+  --pre-do /data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/coalescing_queue/pre_compile_vendor.do \
+  --work-dir /data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/histogram_v2_static_release_26_1_7 \
+  rtl/coalescing_queue.vhd rtl/histogram_statistics_v2.vhd
+```
 
-`hit_fifo x8`
+Result: PASS, with transcript at
+`/data3/yifeng/mu3e_ip_dev/qverify/histogram_statistics_20260501/histogram_v2_static_release_26_1_7/questa_static_screen.log`.
 
-- Each FIFO is small, but replication makes the aggregate cost noticeable.
-- The total replicated MLAB footprint is `4096` bits.
-- This block is not the main timing risk, but parameter growth in port count
-  scales it linearly.
+Simulation refresh:
 
-`rr_arbiter`
+| Flow | Command | Result |
+|---|---|---|
+| Standalone deterministic suite | `make -C tb run_all` | 45 PASS, 0 FAIL |
+| Version metadata smoke | `make -C tb run TEST=B04_version SEED=42` | PASS, `VERSION=0x1a0171f5`, `DATE=20260501` |
+| UVM debug smoke | `make -C tb/uvm run TEST=hist_debug_test SEED=42` | PASS, 0 UVM errors/fatals |
+| UVM queue-error smoke | `make -C tb/uvm run TEST=hist_error_queue_test SEED=42` | PASS, 0 UVM errors/fatals |
+| UVM QST profile smoke | `make -C tb/uvm run TEST=hist_prof_qst_test SEED=42` | PASS, 0 UVM errors/fatals |
 
-- Resource cost is negligible relative to the rest of the design.
-- This block is not a closure concern in the current snapshot.
+The accidental `TEST=B04_identity_header` invocation was a command error. The
+standalone harness uses `B04_version`; the correct version test passed after the
+metadata update.
 
 ## Signoff Conclusion
 
-Synthesis signoff passes for the current standalone RTL configuration:
+Release `26.1.7.0501` is signed off for the standalone Arria V IP target:
 
-- the design meets the `137.5 MHz` tightened signoff target on `i_clk`
-- worst-case setup slack is positive at `0.085 ns`
-- resource usage remains comfortably inside the Arria V device envelope:
-  - `11%` ALMs
-  - `2%` registers
-  - `2` M10Ks
-  - `0` DSPs
+- timing closes at the tightened 137.5 MHz target
+- slow-85 setup slack is `+0.210 ns`
+- hold and minimum-pulse checks are positive at all corners
+- resources remain small relative to the device envelope
+- standalone DV, focused UVM smokes, static screen, and Quartus synthesis all
+  pass after the timing changes
 
-The main caveat is margin quality, not closure correctness:
-
-- timing margin is thin at the slow `85C` corner
-- `coalescing_queue` is both the dominant area block and the likely timing
-  limiter
-- future growth in queue complexity, bin count, or data-path fan-out should be
-  re-signed off rather than assumed safe from this compile alone
+This signoff does not claim live FEB/SWB/DMA end-to-end closure. It only clears
+the histogram IP checkpoint needed before regenerating and rebuilding the active
+Phase-6 FEB datapath.

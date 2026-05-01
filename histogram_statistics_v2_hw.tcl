@@ -2,9 +2,9 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  1
-set VERSION_PATCH_DEFAULT_CONST  6
-set BUILD_DEFAULT_CONST          429
-set VERSION_DATE_DEFAULT_CONST   20260429
+set VERSION_PATCH_DEFAULT_CONST  7
+set BUILD_DEFAULT_CONST          501
+set VERSION_DATE_DEFAULT_CONST   20260501
 set VERSION_GIT_DEFAULT_CONST    375124078
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
@@ -334,8 +334,8 @@ proc validate {} {
     if {$fifo_addr_w < 4 || $fifo_addr_w > 12} {
         send_message error "FIFO_ADDR_WIDTH must stay in the range 4..12."
     }
-    if {$channels_per_port < 1 || $channels_per_port > 256} {
-        send_message error "CHANNELS_PER_PORT must stay in the range 1..256."
+    if {$channels_per_port < 0 || $channels_per_port > 256} {
+        send_message error "CHANNELS_PER_PORT must stay in the range 0..256."
     }
     if {$coal_depth != 16 && $coal_depth != 32 && $coal_depth != 64 && $coal_depth != 128 && $coal_depth != 160 && $coal_depth != 192 && $coal_depth != 256 && $coal_depth != 512} {
         send_message error "COAL_QUEUE_DEPTH must stay in the set {16 32 64 128 160 192 256 512}."
@@ -561,9 +561,9 @@ set_parameter_property FIFO_ADDR_WIDTH DESCRIPTION "Address width of each per-po
 add_parameter CHANNELS_PER_PORT NATURAL 32
 set_parameter_property CHANNELS_PER_PORT DISPLAY_NAME "Channels per Port"
 set_parameter_property CHANNELS_PER_PORT UNITS None
-set_parameter_property CHANNELS_PER_PORT ALLOWED_RANGES 1:256
+set_parameter_property CHANNELS_PER_PORT ALLOWED_RANGES 0:256
 set_parameter_property CHANNELS_PER_PORT HDL_PARAMETER true
-set_parameter_property CHANNELS_PER_PORT DESCRIPTION "Logical channel stride added per ingress port before binning."
+set_parameter_property CHANNELS_PER_PORT DESCRIPTION "Logical channel stride added per ingress port before binning. Use 0 when each ingress stream already carries a global key such as {ASIC,channel}."
 
 add_parameter COAL_QUEUE_DEPTH NATURAL 256
 set_parameter_property COAL_QUEUE_DEPTH DISPLAY_NAME "Coalescing Queue Depth"
@@ -759,7 +759,7 @@ add_display_item "Ingress" CHANNELS_PER_PORT parameter
 add_display_item "Ingress" COAL_QUEUE_DEPTH parameter
 add_display_item "Ingress" AVST_DATA_WIDTH parameter
 add_display_item "Ingress" AVST_CHANNEL_WIDTH parameter
-add_html_text "Ingress" ingress_html {<html><b>Port scaling</b><br/>Each enabled ingress port owns an elastic FIFO before the shared round-robin arbiter. Ports above <b>N_PORTS</b> stay disabled in the Platform Designer interface contract.<br/><br/><b>FIFO depth</b><br/><b>FIFO_ADDR_WIDTH</b> sets the per-port FIFO depth as 2^width entries. Deepen this for passive post-stack taps that receive frame-bursty traffic and cannot backpressure the primary datapath.<br/><br/><b>Channel stride</b><br/><b>CHANNELS_PER_PORT</b> is added as a per-port offset before binning so multiple ingress links can be flattened into one histogram namespace.</html>}
+add_html_text "Ingress" ingress_html {<html><b>Port scaling</b><br/>Each enabled ingress port owns an elastic FIFO before the shared round-robin arbiter. Ports above <b>N_PORTS</b> stay disabled in the Platform Designer interface contract.<br/><br/><b>FIFO depth</b><br/><b>FIFO_ADDR_WIDTH</b> sets the per-port FIFO depth as 2^width entries. Deepen this for passive post-stack taps that receive frame-bursty traffic and cannot backpressure the primary datapath.<br/><br/><b>Channel stride</b><br/><b>CHANNELS_PER_PORT</b> is added as a per-port offset before binning so multiple ingress links can be flattened into one histogram namespace. Set it to <b>0</b> when the stream key is already global, for example the Phase-6 MuTRiG rate key <b>{ASIC,channel}</b>.</html>}
 
 add_display_item "Ping-Pong / Interval" ENABLE_PINGPONG parameter
 add_display_item "Ping-Pong / Interval" DEF_INTERVAL_CLOCKS parameter

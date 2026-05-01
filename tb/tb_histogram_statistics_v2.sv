@@ -35,9 +35,9 @@ module tb_histogram_statistics_v2;
   localparam int unsigned AVST_CHAN_WIDTH    = 4;
   localparam int unsigned VERSION_MAJOR       = 26;
   localparam int unsigned VERSION_MINOR       = 1;
-  localparam int unsigned VERSION_PATCH       = 6;
-  localparam int unsigned VERSION_BUILD       = 429;
-  localparam int unsigned VERSION_DATE        = 20260429;
+  localparam int unsigned VERSION_PATCH       = 7;
+  localparam int unsigned VERSION_BUILD       = 501;
+  localparam int unsigned VERSION_DATE        = 20260501;
 
   localparam int unsigned CLK_PERIOD_NS     = 8;  // 125 MHz
   localparam int unsigned AVMM_TIMEOUT      = 1024;

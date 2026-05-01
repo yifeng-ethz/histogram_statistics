@@ -4,7 +4,7 @@ Multi-port coalescing histogram with pipelined bin index and ping-pong rate read
 Drop-in replacement for per-ASIC channel rate counter arrays in the Mu3e online data
 acquisition system.
 
-**Version:** 26.1.2.0425
+**Version:** 26.1.7.0501
 **Module name:** `histogram_statistics_v2`
 **Platform Designer group:** Mu3e Data Plane / Modules
 
@@ -51,14 +51,15 @@ Typical deployment:
 
 | Stage | Component | Latency | Description |
 |-------|-----------|---------|-------------|
-| 1 | `ingress_comb` | 0 (comb) | Key extraction, filter evaluation, signed/unsigned conversion |
-| 2 | `ingress_stage_reg` | 1 cycle | Registered ingress pipeline cut for timing closure |
-| 3 | `hit_fifo` (x N_PORTS) | 1 cycle | Per-port elastic FIFO (`2^FIFO_ADDR_WIDTH` entries) absorbs arbiter stalls and bursty passive taps |
-| 4 | `rr_arbiter` | 1 cycle | Round-robin grant across all non-empty FIFOs |
-| 5 | `divider_pipe` | 3 cycles | Key offset, port-channel offset, bin-width preparation |
-| 6 | `bin_divider` | BIN_INDEX_WIDTH cycles | Pipelined restoring divider: `(key - left_bound) / bin_width` |
-| 7 | `coalescing_queue` | 1 cycle | Merge repeated same-bin hits into (bin, count) pairs |
-| 8 | `pingpong_sram` | 3 cycles | Read-modify-write to dual-bank M10K, with bank swap logic |
+| 1 | `debug_capture_reg` | 1 cycle | Debug-mode source selection for `debug_N` streams before ingress filtering |
+| 2 | `ingress_comb` | 0 (comb) | Key extraction, filter evaluation, signed/unsigned conversion |
+| 3 | `ingress_stage_reg` | 1 cycle | Registered ingress pipeline cut for timing closure |
+| 4 | `hit_fifo` (x N_PORTS) | 1 cycle | Per-port elastic FIFO (`2^FIFO_ADDR_WIDTH` entries) absorbs arbiter stalls and bursty passive taps |
+| 5 | `rr_arbiter` | 1 cycle | Round-robin grant across all non-empty FIFOs |
+| 6 | `divider_pipe` | 3 cycles | Key offset, port-channel offset, bin-width preparation |
+| 7 | `bin_divider` | BIN_INDEX_WIDTH cycles | Pipelined restoring divider: `(key - left_bound) / bin_width` |
+| 8 | `coalescing_queue` | 1 cycle | Merge repeated same-bin hits into (bin, count) pairs |
+| 9 | `pingpong_sram` | 3 cycles | Read-modify-write to dual-bank M10K, with bank swap logic |
 
 ### Ping-Pong Rate Readout
 
@@ -142,6 +143,11 @@ ingress ports:
 | -4 (0xC) | `debug_4` |
 | -5 (0xB) | `debug_5` |
 | -6 (0xA) | `debug_6` |
+| -7 (0x9) | `debug_1` and `debug_2` into independent ingress lanes, for upper/lower MTS-delay monitoring |
+
+Debug samples are registered once before ingress filtering. Rate and delay
+histogram content is unchanged, but debug-mode capture has one extra `i_clk`
+cycle of latency relative to the raw `debug_N` input pins.
 
 ---
 
@@ -341,6 +347,7 @@ quartus_sh --flow compile histogram_statistics_v2_standalone
 
 | Version | Date | Change |
 |---------|------|--------|
+| 26.1.7.0501 | 2026-05-01 | Allows `CHANNELS_PER_PORT=0` for global stream keys and registers debug-source capture to close the standalone slow-corner timing path |
 | 26.1.2.0425 | 2026-04-25 | Parameterized/deepened per-port ingress FIFO depth for bursty FEB post-stack histogram taps and saturated `PORT_STATUS.fifo_level_max` |
 | 26.1.0.0411 | 2026-04-11 | Cleaned the Parameter Editor packaging, refreshed per-tab screenshots, and aligned the delivered GUI/docs with the packaged contract |
 | 26.1.0.0410 | 2026-04-10 | Upgraded `_hw.tcl` to rich IP packaging format (tabbed GUI, presets, CSR register map, resource estimates) |
