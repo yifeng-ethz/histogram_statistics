@@ -1,9 +1,10 @@
 -- File name: tb_histogram_ingress_bridge.vhd
 -- Author: OpenAI Codex
 -- =======================================
--- Revision: 26.0.2
---     Date: 20260425
---     Change: Directed regression for post-hit-stack hit-word filtering.
+-- Revision: 26.0.5
+--     Date: 20260506
+--     Change: Regress post-hit filtering and pre-path tap decoupling from
+--             histogram sink backpressure.
 -- =========
 
 library ieee;
@@ -86,6 +87,22 @@ architecture sim of tb_histogram_ingress_bridge is
         eop_s   <= '0';
         wait until rising_edge(clk);
     end procedure drive_post_word;
+
+    procedure csr_write_word(
+        signal address_s   : out std_logic_vector(1 downto 0);
+        signal write_s     : out std_logic;
+        signal writedata_s : out std_logic_vector(31 downto 0);
+        constant address   : in  std_logic_vector(1 downto 0);
+        constant data      : in  std_logic_vector(31 downto 0)
+    ) is
+    begin
+        address_s   <= address;
+        writedata_s <= data;
+        write_s     <= '1';
+        wait until rising_edge(clk);
+        write_s     <= '0';
+        wait until rising_edge(clk);
+    end procedure csr_write_word;
 
 begin
 
@@ -215,6 +232,28 @@ begin
         wait for 3 * CLK_PERIOD_CONST;
         assert hist_count = 3
             report "backpressured hit word was not eventually forwarded"
+            severity error;
+
+        csr_write_word(csr_address, csr_write, csr_writedata, "10", x"00000000");
+        wait for 3 * CLK_PERIOD_CONST;
+        hist_ready  <= '0';
+        pre_data    <= "000" & x"123456789";
+        pre_channel <= x"2";
+        pre_sop     <= '1';
+        pre_valid   <= '1';
+        wait until rising_edge(clk);
+        assert pre_ready = '1' and pre_out_valid = '1'
+            report "pre primary path was backpressured by histogram not-ready"
+            severity error;
+        assert hist_valid = '0'
+            report "pre histogram tap asserted valid while histogram sink was not ready"
+            severity error;
+        pre_valid  <= '0';
+        pre_sop    <= '0';
+        hist_ready <= '1';
+        wait until rising_edge(clk);
+        assert hist_count = 3
+            report "lossy pre tap changed post histogram count while sink was not ready"
             severity error;
 
         report "tb_histogram_ingress_bridge PASS" severity note;
