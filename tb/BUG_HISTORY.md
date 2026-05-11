@@ -39,8 +39,37 @@ Historical formal note:
 | [BUG-001-R](#bug-001-r-phase-5-queue-depth-timing-miss-after-fifo-expansion) | R | soft error | `corner-only (standalone timing signoff)` | fixed | Phase-5 standalone Quartus signoff | `pending` | FIFO expansion exposed a histogram critical path until the FIFO head and filter fields were registered. |
 | [BUG-002-R](#bug-002-r-standalone-sta-regression-at-version-26160429) | R | soft error | `corner-only (standalone timing signoff)` | open | standalone Quartus signoff from HEAD `c035c35` | `pending` | VERSION 26.1.6.0429 has a standalone slow-85 setup miss on a queue accounting path. |
 | [BUG-003-R](#bug-003-r-qsys-generated-boolean-vs-natural-shell-split-on-enable_pingpong--snoop_en--enable_packet) | R | non-datapath-refactor | `common (FEB Qsys generation)` | fixed | FEB v3_pretest-260511 Quartus full compile attempt 2026-05-11 | `pending` | Platform Designer package metadata briefly generated a NATURAL shell around BOOLEAN RTL generics. |
+| [BUG-004-R](#bug-004-r-ctrl-sink-still-declared-asi-ctrl-ready-against-the-rc-network-readyless-contract) | R | non-datapath-refactor | `directed-only (Qsys auto-inserts timing_adapter on rc fan-out)` | fixed | FEB v3 integration audit `tb_int_run_emulator_directed` | this commit | The `ctrl` sink still declared `asi_ctrl_ready` so Qsys auto-inserted `altera_avalon_st_timing_adapter` on the rc fan-out, carrying the B002 ready-default hazard on silicon. |
 
 ## 2026-05-11
+
+### BUG-004-R: ctrl sink still declared asi_ctrl_ready against the rc-network readyless contract
+
+- First seen:
+  - FEB v3 integration audit during the rc-readyless rollout
+  - Hub `runctl_mgmt_host._hw.tcl` advertises `USE_READY=0` for the broadcast `runctl` source; every sink that still declared `asi_*_ready` caused Qsys to silently auto-insert `altera_avalon_st_timing_adapter` on the rc fan-out
+  - The timing_adapter is the structural carrier of the B002 ready-default hazard already documented for the FEB SC plane
+- Symptom:
+  - `histogram_statistics_v2.ctrl` still exposed `asi_ctrl_ready` on the entity boundary even though the hub source has no ready signal
+  - Qsys-generated `feb_system_v3.vhd` wired the `histogram_statistics_0` instance through an adapter even though the local body only drove `asi_ctrl_ready <= '1';` as a constant
+- Root cause:
+  - The Avalon-ST sink interface contract is "readyless" only when both ends declare `USE_READY=0`. `histogram_statistics_v2` was still on the legacy backpressured-rc form, and the constant `'1'` driver was the only consumer.
+- Fix status:
+  - state:
+    - fixed
+  - mechanism:
+    - Removed the `asi_ctrl_ready` entity port from `rtl/histogram_statistics_v2.vhd` and the matching `add_interface_port` line from `histogram_statistics_v2_hw.tcl`
+    - Removed the constant assignment `asi_ctrl_ready <= '1';` from the architecture body
+    - Bumped `VERSION` 26.1.6.0429 -> 26.2.0.0511
+  - after_fix_outcome:
+    - FEB v3 Qsys regeneration produced `feb_system_v3.vhd` with the `histogram_statistics_0` instance wired with `asi_ctrl_valid => avalon_st_adapter_018_out_0_valid` and no paired ready wire
+    - `tb_int` regression passed: `B065`, `B066`, `B067`, `B068`, `B069`, and the directed `RC_EMUL` run all reported `*** TEST PASSED ***` with zero UVM errors and zero UVM fatals
+  - potential_hazard:
+    - The change is interface-contract only; no internal logic was modified.
+  - Claude Opus 4.7 xhigh review decision:
+    - pending / not run in this turn
+- Commit:
+  - this commit (`[FIX] HW: Drop ctrl ready output (rc-network readyless contract)`)
 
 ### BUG-003-R: Qsys-generated BOOLEAN vs NATURAL shell split on ENABLE_PINGPONG / SNOOP_EN / ENABLE_PACKET
 

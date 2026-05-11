@@ -1,10 +1,10 @@
 package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
-set VERSION_MINOR_DEFAULT_CONST  1
-set VERSION_PATCH_DEFAULT_CONST  6
-set BUILD_DEFAULT_CONST          429
-set VERSION_DATE_DEFAULT_CONST   20260429
+set VERSION_MINOR_DEFAULT_CONST  2
+set VERSION_PATCH_DEFAULT_CONST  0
+set BUILD_DEFAULT_CONST          511
+set VERSION_DATE_DEFAULT_CONST   20260511
 set VERSION_GIT_DEFAULT_CONST    375124078
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
@@ -916,7 +916,6 @@ set_interface_property ctrl readyLatency 0
 set_interface_property ctrl ENABLED true
 add_interface_port ctrl asi_ctrl_data data Input $RUN_CONTROL_WIDTH_CONST
 add_interface_port ctrl asi_ctrl_valid valid Input 1
-add_interface_port ctrl asi_ctrl_ready ready Output 1
 
 add_interface hist_fill_in avalon_streaming end
 set_interface_property hist_fill_in associatedClock clock

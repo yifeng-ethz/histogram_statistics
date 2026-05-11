@@ -32,6 +32,10 @@
 --		Change: Latch last-interval accepted and dropped hit counters
 --		        before the rate-window reset so a host can read a stable
 --		        one-second rate without racing TOTAL_HITS reset.
+-- Revision: 1.10
+--		Date: May 11, 2026
+--		Change: Drop ctrl ready output to match the rc-network readyless
+--		        contract; ctrl is broadcast-only (USE_READY=0).
 -- Revision: 1.3
 --		Date: Apr 25, 2026
 --		Change: Parameterize the ingress FIFO depth for bursty post-stack
@@ -103,11 +107,11 @@ entity histogram_statistics_v2 is
         AVST_CHANNEL_WIDTH       : natural := 4;
         N_DEBUG_INTERFACE        : natural := 6;
         VERSION_MAJOR            : natural := 26;
-        VERSION_MINOR            : natural := 1;
-        VERSION_PATCH            : natural := 6;
-        BUILD                    : natural := 429;
+        VERSION_MINOR            : natural := 2;
+        VERSION_PATCH            : natural := 0;
+        BUILD                    : natural := 511;
         IP_UID                   : natural := 1212765012;  -- ASCII "HIST" = 0x48495354
-        VERSION_DATE             : natural := 20260429;
+        VERSION_DATE             : natural := 20260511;
         VERSION_GIT              : natural := 375124078;
         INSTANCE_ID              : natural := 0;
         SNOOP_EN                 : boolean := true;
@@ -196,9 +200,11 @@ entity histogram_statistics_v2 is
         aso_hist_fill_out_endofpacket   : out std_logic;
         aso_hist_fill_out_channel       : out std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
 
+        -- rc-network is readyless (USE_READY=0 broadcast); no ready output
+        -- on this entity boundary. The original constant '1' driver has been
+        -- removed.
         asi_ctrl_data                   : in  std_logic_vector(8 downto 0);
         asi_ctrl_valid                  : in  std_logic;
-        asi_ctrl_ready                  : out std_logic;
 
         asi_debug_1_valid               : in  std_logic;
         asi_debug_1_data                : in  std_logic_vector(15 downto 0);
@@ -536,7 +542,7 @@ begin
     aso_hist_fill_out_endofpacket   <= asi_hist_fill_in_endofpacket when (SNOOP_EN and ENABLE_PACKET) else '0';
     aso_hist_fill_out_channel       <= asi_hist_fill_in_channel when SNOOP_EN else (others => '0');
 
-    asi_ctrl_ready <= '1';
+    -- rc-network is readyless in v26.2.0; no asi_ctrl_ready driver here.
     avs_hist_bin_waitrequest        <= '0';
     avs_hist_bin_writeresponsevalid <= hist_writeresp_valid;
     avs_hist_bin_response           <= (others => '0');
