@@ -1,19 +1,57 @@
-# BUG_HISTORY.md - histogram_statistics_v2 bug ledger
+# BUG_HISTORY.md - histogram_statistics_v2 DV bug ledger
 
 This ledger records Phase-5 debug issues for `histogram_statistics_v2`.
 
+Class legend:
+- `R` = RTL / DUT bug
+- `H` = harness / testcase / reporting bug
+
+Severity legend:
+- `soft error` = the bad data is observable but the datapath does not remain stuck
+- `hard stuck error` = the bug can poison later datapath behavior until reset or restart
+- `non-datapath-refactor` = packaging, observability, reporting, harness, or metadata work with no direct packet-contract effect
+
+Encounterability legend:
+- practical severity is `severity x encounterability`, so the index must say how likely a reader is to hit the bug in normal use rather than only when it first appeared in one simulation log
+- nominal datapath operation = legal traffic, about `50%` link load, iid per-lane behavior, and no forced error injection or artificially pathological stalls
+- nominal control-path operation = routine bring-up / CSR program / readback / clear-counter sequences
+- `common (...)` = readily hit in nominal operation
+- `occasional (...)` = hit in nominal operation without heroic setup, but not in every short run
+- `rare (...)` = legal in nominal operation, but usually needs long runtime or unlucky alignment
+- `corner-only (...)` = requires a legal but non-nominal stress or corner profile
+- `directed-only (...)` = requires targeted error injection, formal/probe flow, reporting-only flow, or another non-operational stimulus
+
+Fix status detail contract for active entries and future updates:
+- `state` = fixed / open / partial plus the current verification gate
+- `mechanism` = how the implemented repair changes the RTL, package metadata, or harness behavior
+- `before_fix_outcome` and `after_fix_outcome` = concise evidence showing what changed
+- `potential_hazard` = whether the fix looks permanent or is still provisional / profile-limited
+- `Claude Opus 4.7 xhigh review decision` = explicit review state; use `pending / not run` until that review has actually happened
+
+Historical formal note:
+- This IP currently tracks Quartus and directed simulation evidence in this ledger.
+- Future formal evidence should name the tool, version, and archived report path.
+
+## Index
+
+| bug_id | class | severity | encounterability | status | first seen | commit | summary |
+|---|---|---|---|---|---|---|---|
+| [BUG-001-R](#bug-001-r-phase-5-queue-depth-timing-miss-after-fifo-expansion) | R | soft error | `corner-only (standalone timing signoff)` | fixed | Phase-5 standalone Quartus signoff | `pending` | FIFO expansion exposed a histogram critical path until the FIFO head and filter fields were registered. |
+| [BUG-002-R](#bug-002-r-standalone-sta-regression-at-version-26160429) | R | soft error | `corner-only (standalone timing signoff)` | open | standalone Quartus signoff from HEAD `c035c35` | `pending` | VERSION 26.1.6.0429 has a standalone slow-85 setup miss on a queue accounting path. |
+| [BUG-003-R](#bug-003-r-qsys-generated-boolean-vs-natural-shell-split-on-enable_pingpong--snoop_en--enable_packet) | R | non-datapath-refactor | `common (FEB Qsys generation)` | fixed | FEB v3_pretest-260511 Quartus full compile attempt 2026-05-11 | `pending` | Platform Designer package metadata briefly generated a NATURAL shell around BOOLEAN RTL generics. |
+
 ## 2026-05-11
 
-### `BUG-003-R` _hw.tcl BOOLEAN vs VHDL NATURAL type mismatch on ENABLE_PINGPONG / SNOOP_EN / ENABLE_PACKET
+### BUG-003-R: Qsys-generated BOOLEAN vs NATURAL shell split on ENABLE_PINGPONG / SNOOP_EN / ENABLE_PACKET
 
-- Status: fixed (this commit).
+- Status: fixed by follow-up packaging rollback after the first NATURAL attempt.
 - First seen in: FEB v3_pretest-260511 Quartus full compile attempt 2026-05-11 (file `firmware_builds/systems/v3_pretest-260511/syn/board_projects/fe_scifi_feb_v3/quartus_compile_top_20260511_120148.console.log`).
 - Symptom: VHDL error 10476 at `histogram_statistics_v2.vhd` lines 22, 35, 36 - "type of identifier `true` does not agree with its usage as `natural` type", followed by error 12152 inability to elaborate the IP inside `feb_system_v3_data_path_subsystem`. Quartus Analysis & Synthesis aborts with 4 errors, 257 warnings.
-- Root cause: `histogram_statistics_v2_hw.tcl` declared `ENABLE_PINGPONG`, `SNOOP_EN`, `ENABLE_PACKET` as `BOOLEAN true`, but `histogram_statistics_v2.vhd` entity declares the matching generics as `natural := 1`. The qsys-generated wrapper passed the boolean literal through to the natural-typed generic, which Quartus refused to elaborate. Standalone IP build did not see this path because the standalone harness instantiates the entity directly with natural literals rather than via the qsys-generated wrapper.
-- Fix: `histogram_statistics_v2_hw.tcl` lines 591, 606, 612 now declare `add_parameter ENABLE_PINGPONG NATURAL 1`, `add_parameter SNOOP_EN NATURAL 1`, `add_parameter ENABLE_PACKET NATURAL 1`. Defaults preserved (was `true`, now `1`; FALSE branch was already covered as `0`).
-- Evidence: post-fix the 3 lines read `add_parameter <name> NATURAL 1` per `grep -nE "add_parameter (ENABLE_PINGPONG|SNOOP_EN|ENABLE_PACKET)" histogram_statistics_v2_hw.tcl`. Quartus recompile from the v3_pretest-260511 board project is launched after this commit; expected outcome is A&S succeeds past the prior abort.
+- Root cause: the source RTL entity `rtl/histogram_statistics_v2.vhd` declares `ENABLE_PINGPONG`, `SNOOP_EN`, and `ENABLE_PACKET` as BOOLEAN generics. The attempted fix in `c17ce73` changed only `histogram_statistics_v2_hw.tcl` to NATURAL, causing Platform Designer to generate a NATURAL top shell for the IP while the enclosing FEB data-path wrapper still held BOOLEAN component metadata and BOOLEAN actuals. That split made A&S see BOOLEAN literals at a NATURAL shell boundary.
+- Fix: keep the IP type contract BOOLEAN on both sides. `histogram_statistics_v2_hw.tcl` lines 591, 606, 612 again declare `add_parameter ENABLE_PINGPONG BOOLEAN true`, `add_parameter SNOOP_EN BOOLEAN true`, and `add_parameter ENABLE_PACKET BOOLEAN true`; the v3 Qsys recipes set the FEB instance values to `true`, `false`, and `false`.
+- Evidence: post-fix packaging and Qsys regeneration must show the generated `histogram_statistics_v2.vhd` entity and the generated `feb_system_v3_data_path_subsystem.vhd` component declaration both use BOOLEAN for these three generics.
 
-### `BUG-002-R` Standalone STA regression at VERSION 26.1.6.0429
+### BUG-002-R: Standalone STA regression at VERSION 26.1.6.0429
 
 - Status: REGRESSION.
 - First seen in: fresh standalone Quartus signoff from HEAD `c035c35a96478387e21d692c2a17554bcff20806` at the 1.1x F_target corner.
@@ -26,7 +64,7 @@ This ledger records Phase-5 debug issues for `histogram_statistics_v2`.
 
 ## 2026-04-27
 
-### `BUG-001-R` Phase-5 queue-depth timing miss after FIFO expansion
+### BUG-001-R: Phase-5 queue-depth timing miss after FIFO expansion
 
 - First seen in: Phase-5 standalone Quartus signoff after raising the ingress FIFO default to 256 entries.
 - Symptom: slow-85 standalone setup slack missed timing on the histogram critical path.
