@@ -4,6 +4,15 @@ This ledger records Phase-5 debug issues for `histogram_statistics_v2`.
 
 ## 2026-05-11
 
+### `BUG-003-R` _hw.tcl BOOLEAN vs VHDL NATURAL type mismatch on ENABLE_PINGPONG / SNOOP_EN / ENABLE_PACKET
+
+- Status: fixed (this commit).
+- First seen in: FEB v3_pretest-260511 Quartus full compile attempt 2026-05-11 (file `firmware_builds/systems/v3_pretest-260511/syn/board_projects/fe_scifi_feb_v3/quartus_compile_top_20260511_120148.console.log`).
+- Symptom: VHDL error 10476 at `histogram_statistics_v2.vhd` lines 22, 35, 36 - "type of identifier `true` does not agree with its usage as `natural` type", followed by error 12152 inability to elaborate the IP inside `feb_system_v3_data_path_subsystem`. Quartus Analysis & Synthesis aborts with 4 errors, 257 warnings.
+- Root cause: `histogram_statistics_v2_hw.tcl` declared `ENABLE_PINGPONG`, `SNOOP_EN`, `ENABLE_PACKET` as `BOOLEAN true`, but `histogram_statistics_v2.vhd` entity declares the matching generics as `natural := 1`. The qsys-generated wrapper passed the boolean literal through to the natural-typed generic, which Quartus refused to elaborate. Standalone IP build did not see this path because the standalone harness instantiates the entity directly with natural literals rather than via the qsys-generated wrapper.
+- Fix: `histogram_statistics_v2_hw.tcl` lines 591, 606, 612 now declare `add_parameter ENABLE_PINGPONG NATURAL 1`, `add_parameter SNOOP_EN NATURAL 1`, `add_parameter ENABLE_PACKET NATURAL 1`. Defaults preserved (was `true`, now `1`; FALSE branch was already covered as `0`).
+- Evidence: post-fix the 3 lines read `add_parameter <name> NATURAL 1` per `grep -nE "add_parameter (ENABLE_PINGPONG|SNOOP_EN|ENABLE_PACKET)" histogram_statistics_v2_hw.tcl`. Quartus recompile from the v3_pretest-260511 board project is launched after this commit; expected outcome is A&S succeeds past the prior abort.
+
 ### `BUG-002-R` Standalone STA regression at VERSION 26.1.6.0429
 
 - Status: REGRESSION.

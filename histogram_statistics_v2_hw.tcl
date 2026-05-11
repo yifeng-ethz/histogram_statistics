@@ -588,7 +588,7 @@ set_parameter_property AVST_CHANNEL_WIDTH DESCRIPTION "Bit width of the Avalon-S
 
 # -- Ping-pong / interval --
 
-add_parameter ENABLE_PINGPONG BOOLEAN true
+add_parameter ENABLE_PINGPONG NATURAL 1
 set_parameter_property ENABLE_PINGPONG DISPLAY_NAME "Enable Ping-Pong Rate Mode"
 set_parameter_property ENABLE_PINGPONG UNITS None
 set_parameter_property ENABLE_PINGPONG HDL_PARAMETER true
@@ -603,13 +603,13 @@ set_parameter_property DEF_INTERVAL_CLOCKS DESCRIPTION "Power-on default ping-po
 
 # -- Pass-through / snooping --
 
-add_parameter SNOOP_EN BOOLEAN true
+add_parameter SNOOP_EN NATURAL 1
 set_parameter_property SNOOP_EN DISPLAY_NAME "Enable Snooping"
 set_parameter_property SNOOP_EN UNITS None
 set_parameter_property SNOOP_EN HDL_PARAMETER true
 set_parameter_property SNOOP_EN DESCRIPTION "When enabled, the primary ingress stream is forwarded to the fill_out source with zero added latency."
 
-add_parameter ENABLE_PACKET BOOLEAN true
+add_parameter ENABLE_PACKET NATURAL 1
 set_parameter_property ENABLE_PACKET DISPLAY_NAME "Packet Support"
 set_parameter_property ENABLE_PACKET UNITS None
 set_parameter_property ENABLE_PACKET HDL_PARAMETER true
