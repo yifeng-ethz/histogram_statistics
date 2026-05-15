@@ -2,7 +2,7 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST 26
 set VERSION_MINOR_DEFAULT_CONST 0
-set VERSION_PATCH_DEFAULT_CONST 9
+set VERSION_PATCH_DEFAULT_CONST 10
 set BUILD_DEFAULT_CONST         515
 set VERSION_DATE_DEFAULT_CONST  20260515
 set VERSION_GIT_DEFAULT_CONST   1071750164
@@ -62,9 +62,11 @@ proc validate {} {
 }
 
 proc elaborate {} {
+    set enable_post_forward [get_parameter_value ENABLE_POST_FORWARD]
+    set_interface_property post_out ENABLED [expr {$enable_post_forward != 0}]
+
     catch {
         set default_post [get_parameter_value DEFAULT_SELECT_POST]
-        set enable_post_forward [get_parameter_value ENABLE_POST_FORWARD]
         set filter_post_hits [get_parameter_value FILTER_POST_HIT_WORDS]
         set default_label [expr {$default_post ? "post-hit-stack" : "pre-hit-stack"}]
         set post_forward_label [expr {$enable_post_forward ? "and the post-hit-stack stream to <b>post_out</b>" : "while the post-hit-stack side acts as a histogram tap only"}]
@@ -283,7 +285,7 @@ set_interface_property post_out dataBitsPerSymbol 36
 set_interface_property post_out symbolsPerBeat 1
 set_interface_property post_out readyLatency 0
 set_interface_property post_out firstSymbolInHighOrderBits true
-set_interface_property post_out ENABLED true
+set_interface_property post_out ENABLED false
 add_interface_port post_out aso_post_data data Output 36
 add_interface_port post_out aso_post_valid valid Output 1
 add_interface_port post_out aso_post_ready ready Input 1

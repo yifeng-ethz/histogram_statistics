@@ -2,9 +2,9 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  2
-set VERSION_PATCH_DEFAULT_CONST  3
-set BUILD_DEFAULT_CONST          514
-set VERSION_DATE_DEFAULT_CONST   20260514
+set VERSION_PATCH_DEFAULT_CONST  4
+set BUILD_DEFAULT_CONST          515
+set VERSION_DATE_DEFAULT_CONST   20260515
 set VERSION_GIT_DEFAULT_CONST    375124078
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
@@ -411,6 +411,7 @@ proc elaborate {} {
     set n_bins  [get_parameter_value N_BINS]
     set n_ports [get_parameter_value N_PORTS]
     set n_debug [get_parameter_value N_DEBUG_INTERFACE]
+    set snoop_en [get_parameter_value SNOOP_EN]
 
     set min_hist_addr_w 1
     if {$n_bins > 1} {
@@ -438,7 +439,7 @@ proc elaborate {} {
     for {set idx 1} {$idx <= 7} {incr idx} {
         set_optional_stream fill_in_$idx [expr {$n_ports > $idx}] $data_w $chan_w
     }
-    set_optional_stream fill_out 1 $data_w $chan_w
+    set_optional_stream fill_out $snoop_en $data_w $chan_w
 
     for {set idx 1} {$idx <= 6} {incr idx} {
         set_interface_property debug_$idx ENABLED [expr {$n_debug >= $idx ? "true" : "false"}]

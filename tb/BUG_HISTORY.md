@@ -41,6 +41,37 @@ Historical formal note:
 | [BUG-003-R](#bug-003-r-qsys-generated-boolean-vs-natural-shell-split-on-enable_pingpong--snoop_en--enable_packet) | R | non-datapath-refactor | `common (FEB Qsys generation)` | fixed | FEB v3_pretest-260511 Quartus full compile attempt 2026-05-11 | `pending` | Platform Designer package metadata briefly generated a NATURAL shell around BOOLEAN RTL generics. |
 | [BUG-004-R](#bug-004-r-ctrl-sink-still-declared-asi-ctrl-ready-against-the-rc-network-readyless-contract) | R | non-datapath-refactor | `directed-only (Qsys auto-inserts timing_adapter on rc fan-out)` | fixed | FEB v3 integration audit `tb_int_run_emulator_directed` | this commit | The `ctrl` sink still declared `asi_ctrl_ready` so Qsys auto-inserted `altera_avalon_st_timing_adapter` on the rc fan-out, carrying the B002 ready-default hazard on silicon. |
 | [BUG-005-R](#bug-005-r-histogram-ingress-bridge-source-switch-stalls-on-pre-rbcam-run-level-packet-active) | R | hard stuck error | `common (routine source selection after FEB pre run starts)` | open | FEB/SWB board hist status `0x105`, IP switch TB 2026-05-14 | `pending` | `histogram_ingress_bridge` treats pre-rbCAM run-level packet activity as a source-switch hazard, leaving pre/post source requests pending through RUNNING. |
+| [BUG-006-H](#bug-006-h-disabled-histogram-qsys-outputs-still-reported-as-unconnected) | H | non-datapath-refactor | `common (FEB v3 Platform Designer open/generate)` | fixed | FEB v3 Qsys GUI/generation cleanup 2026-05-15 | this commit | Histogram optional output interfaces remained enabled in packaging metadata when the FEB v3 configuration disabled post forwarding and snooping. |
+
+## 2026-05-15
+
+### BUG-006-H: disabled histogram Qsys outputs still reported as unconnected
+
+- First seen:
+  - FEB v3 `quartus_systems/feb_system_v3.qsys` Platform Designer open/generate cleanup on 2026-05-15.
+  - The v3 integration intentionally sets `ENABLE_POST_FORWARD=0` on `histogram_ingress_bridge` and `SNOOP_EN=false` on `histogram_statistics_v2`.
+- Symptom:
+  - Platform Designer still reported optional histogram output streams as unconnected, even though the production FEB v3 contract disabled those streams.
+- Root cause:
+  - `histogram_ingress_bridge_hw.tcl` declared `post_out` enabled unconditionally.
+  - `histogram_statistics_v2_hw.tcl` declared `fill_out` enabled unconditionally instead of following `SNOOP_EN`.
+- Fix status:
+  - state:
+    - fixed
+  - mechanism:
+    - `post_out` now elaborates from `ENABLE_POST_FORWARD`.
+    - `fill_out` now elaborates from `SNOOP_EN`.
+    - Package versions were bumped to `histogram_ingress_bridge` 26.0.10.0515 and `histogram_statistics_v2` 26.2.4.0515.
+  - before_fix_outcome:
+    - FEB v3 Qsys GUI/generation reported disabled optional histogram streams as unconnected warnings.
+  - after_fix_outcome:
+    - `qsys-generate quartus_systems/feb_system_v3.qsys --synthesis=VERILOG` exited with status 0, no `Error:` lines, and 82 remaining warnings in `/tmp/qsys_generate_feb_v3_top_20260515_121600.log`.
+  - potential_hazard:
+    - Low. This is package metadata gating only; the enabled stream contract is unchanged when the parameters request the optional outputs.
+  - Claude Opus 4.7 xhigh review decision:
+    - pending / not run in this turn
+- Commit:
+  - this commit (`[FIX] Gate optional histogram Qsys streams`)
 
 ## 2026-05-14
 
