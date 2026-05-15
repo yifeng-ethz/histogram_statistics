@@ -2,11 +2,11 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST 26
 set VERSION_MINOR_DEFAULT_CONST 0
-set VERSION_PATCH_DEFAULT_CONST 2
-set BUILD_DEFAULT_CONST         425
-set VERSION_DATE_DEFAULT_CONST  20260425
-set VERSION_GIT_DEFAULT_CONST   481097348
-set VERSION_GIT_HEX_DEFAULT_CONST 0x1CACF684
+set VERSION_PATCH_DEFAULT_CONST 9
+set BUILD_DEFAULT_CONST         515
+set VERSION_DATE_DEFAULT_CONST  20260515
+set VERSION_GIT_DEFAULT_CONST   1071750164
+set VERSION_GIT_HEX_DEFAULT_CONST 0x3FE19C14
 set IP_UID_DEFAULT_CONST        1212764994
 set INSTANCE_ID_DEFAULT_CONST   0
 
@@ -69,7 +69,7 @@ proc elaborate {} {
         set default_label [expr {$default_post ? "post-hit-stack" : "pre-hit-stack"}]
         set post_forward_label [expr {$enable_post_forward ? "and the post-hit-stack stream to <b>post_out</b>" : "while the post-hit-stack side acts as a histogram tap only"}]
         set filter_label [expr {$filter_post_hits ? "enabled" : "disabled"}]
-        set_display_item_property routing_overview_html TEXT [format {<html><b>Forward paths stay intact</b><br/>The bridge always forwards the pre-hit-stack stream to <b>pre_out</b> %s.<br/><br/><b>Histogram source</b><br/>The histogram tap is routed from the <b>%s</b> path after reset. Software may request the other path later through <b>CONTROL.select_post</b>. A source switch takes effect only when both packet streams are idle.<br/><br/><b>Post hit filter</b><br/>Post-stream hit-only filtering is <b>%s</b>. When enabled, K28.5/K28.4 frame words, debug words, K23.7 subheaders, and zero-hit subheaders are drained without histogram updates.</html>} $post_forward_label $default_label $filter_label]
+        set_display_item_property routing_overview_html TEXT [format {<html><b>Forward paths stay intact</b><br/>The bridge always forwards the pre-hit-stack stream to <b>pre_out</b> %s.<br/><br/><b>Histogram source</b><br/>The histogram tap is routed from the <b>%s</b> path after reset. Software may request the other path later through <b>CONTROL.select_post</b>. A source switch takes effect once both input streams are beat-idle and the post-hit-stack frame is idle. The pre packet-active status bit does not block switching because FEB pre SOP/EOP mark a run-level interval.<br/><br/><b>Timestamp sideband</b><br/><b>hist_out.data[86:39]</b> carries the 48-bit true hit timestamp used by histogram delay mode. <b>pre_in.data[86:39]</b> and <b>post_in.data[83:36]</b> provide that sideband; <b>pre_out</b> and <b>post_out</b> trim it and forward only the original payload words.<br/><br/><b>Post hit filter</b><br/>Post-stream hit-only filtering is <b>%s</b>. When enabled, K28.5/K28.4 frame words, debug words, K23.7 subheaders, and zero-hit subheaders are drained without histogram updates.<br/><br/><b>Bridge counters</b><br/>CSR words 4-7 count accepted pre beats, accepted post hit words, histogram emitted beats, and selected histogram stalls. Write <b>CONTROL.clear_counters</b> to start a fresh measurement window.</html>} $post_forward_label $default_label $filter_label]
     }
 }
 
@@ -155,7 +155,7 @@ add_display_item "" $TAB_CONFIGURATION GROUP tab
 add_display_item $TAB_CONFIGURATION "Overview" GROUP
 add_display_item $TAB_CONFIGURATION "Source Select" GROUP
 add_html_text "Overview" routing_overview_html {<html><b>Forward paths stay intact</b><br/>The bridge forwards both datapath streams and only mirrors the selected one into the histogram sink.</html>}
-add_html_text "Source Select" select_help_html {<html><b>CONTROL.select_post</b><br/>0 = pre-hit-stack source, 1 = post-hit-stack source.<br/><br/>The requested source only becomes live after both packet streams are idle. Read <b>STATUS</b> to see the live selection and whether a switch is pending.</html>}
+add_html_text "Source Select" select_help_html {<html><b>CONTROL.select_post</b><br/>0 = pre-hit-stack source, 1 = post-hit-stack source.<br/><br/>The requested source becomes live once both input streams are beat-idle and the post-hit-stack frame is idle. Read <b>STATUS</b> to see the live selection and whether a switch is pending.</html>}
 add_display_item "Source Select" DEFAULT_SELECT_POST parameter
 add_display_item "Source Select" ENABLE_POST_FORWARD parameter
 add_display_item "Source Select" FILTER_POST_HIT_WORDS parameter
@@ -173,8 +173,8 @@ add_display_item $TAB_INTERFACES "Clock / Reset" GROUP
 add_display_item $TAB_INTERFACES "Data Path" GROUP
 add_display_item $TAB_INTERFACES "Control Path" GROUP
 add_html_text "Clock / Reset" clock_html {<html><b>clock</b> and <b>reset</b><br/>Single synchronous domain for datapath forwarding, histogram tap selection, and CSR logic.</html>}
-add_html_text "Data Path" datapath_html {<html><b>pre_in / pre_out</b><br/>39-bit packetized pre-hit-stack stream with channel, empty, and error sidebands.<br/><br/><b>post_in / post_out</b><br/>36-bit packetized post-hit-stack stream. Set <b>Enable Post Forward</b> to <b>0</b> when the post input is only a split histogram tap copy.<br/><br/><b>hist_out</b><br/>39-bit histogram source. Post-hit-stack data are zero-extended to 39 bits and presented on channel 0. With <b>Filter Post Hit Words</b> enabled, only real post-hit-stack hit beats after K23.7 subheaders assert <b>hist_out.valid</b>.</html>}
-add_html_text "Control Path" control_html {<html><b>csr</b><br/>Four-word Avalon-MM CSR aperture: UID, META, CONTROL, STATUS.</html>}
+add_html_text "Data Path" datapath_html {<html><b>pre_in / pre_out</b><br/><b>pre_in</b> is an 87-bit packetized pre-rbCAM stream: data[86:39] is true hit ts[47:0], data[38:0] is the original Type1 word. <b>pre_out</b> trims the timestamp sideband and forwards the 39-bit Type1 stream with channel, empty, and error sidebands.<br/><br/><b>post_in / post_out</b><br/><b>post_in</b> is an 84-bit packetized post-rbCAM stream: data[83:36] is true hit ts[47:0], data[35:0] is the original Type2 word. <b>post_out</b> trims the timestamp sideband and forwards only 36-bit Type2 data toward FEB frame assembly.<br/><br/><b>hist_out</b><br/>87-bit histogram source. data[86:39] is the true timestamp sideband for histogram delay mode; data[38:0] is the original pre Type1 word or a zero-extended post Type2 word. With <b>Filter Post Hit Words</b> enabled, only real post-rbCAM hit beats after K23.7 subheaders assert <b>hist_out.valid</b>.</html>}
+add_html_text "Control Path" control_html {<html><b>csr</b><br/>Eight-word Avalon-MM CSR aperture: UID, META, CONTROL, STATUS, and four bridge-local counters.</html>}
 
 add_display_item "" $TAB_REGMAP GROUP tab
 add_display_item $TAB_REGMAP "CSR Window" GROUP
@@ -182,8 +182,12 @@ add_html_text "CSR Window" csr_html {<html><table border="1" cellpadding="3" wid
 <tr><th>Word</th><th>Name</th><th>Access</th><th>Description</th></tr>
 <tr><td>0x00</td><td>UID</td><td>RO</td><td>Software-visible IP identifier. Default ASCII <b>HISB</b>.</td></tr>
 <tr><td>0x01</td><td>META</td><td>RW/RO</td><td>Read-multiplexed metadata word. Write 0=VERSION, 1=DATE, 2=GIT, 3=INSTANCE_ID.</td></tr>
-<tr><td>0x02</td><td>CONTROL</td><td>RW</td><td>Bit 0 requests the active histogram source: 0=pre-hit-stack, 1=post-hit-stack.</td></tr>
-<tr><td>0x03</td><td>STATUS</td><td>RO</td><td>Bit 0 = live source, bit 1 = requested source, bit 2 = switch pending, bit 8 = pre packet active, bit 9 = post packet active, bit 10 = post hit filter enabled, bit 11 = post hit region.</td></tr>
+<tr><td>0x02</td><td>CONTROL</td><td>RW</td><td>Bit 0 requests the active histogram source: 0=pre-hit-stack, 1=post-hit-stack. Bit 8 clears counter words 4-7. Requests settle when both input streams are beat-idle and the post-hit-stack frame is idle.</td></tr>
+<tr><td>0x03</td><td>STATUS</td><td>RO</td><td>Bit 0 = live source, bit 1 = requested source, bit 2 = switch pending, bit 8 = pre run-level packet active status, bit 9 = post packet active switch blocker, bit 10 = post hit filter enabled, bit 11 = post hit region.</td></tr>
+<tr><td>0x04</td><td>PRE_SEEN_COUNT</td><td>RO</td><td>Saturating count of pre_in accepted beats.</td></tr>
+<tr><td>0x05</td><td>POST_SEEN_COUNT</td><td>RO</td><td>Saturating count of post_in accepted hit words after the optional post hit filter.</td></tr>
+<tr><td>0x06</td><td>HIST_EMIT_COUNT</td><td>RO</td><td>Saturating count of histogram output handshakes.</td></tr>
+<tr><td>0x07</td><td>HIST_DROP_COUNT</td><td>RO</td><td>Saturating count of cycles where selected histogram valid is stalled by hist_out.ready low.</td></tr>
 </table></html>}
 
 add_interface clock clock end
@@ -213,7 +217,7 @@ set_interface_property csr setupTime 0
 set_interface_property csr timingUnits Cycles
 set_interface_property csr writeWaitTime 0
 set_interface_property csr ENABLED true
-add_interface_port csr avs_csr_address address Input 2
+add_interface_port csr avs_csr_address address Input 3
 add_interface_port csr avs_csr_write write Input 1
 add_interface_port csr avs_csr_read read Input 1
 add_interface_port csr avs_csr_writedata writedata Input 32
@@ -223,14 +227,14 @@ add_interface_port csr avs_csr_waitrequest waitrequest Output 1
 add_interface pre_in avalon_streaming end
 set_interface_property pre_in associatedClock clock
 set_interface_property pre_in associatedReset reset
-set_interface_property pre_in dataBitsPerSymbol 39
+set_interface_property pre_in dataBitsPerSymbol 87
 set_interface_property pre_in symbolsPerBeat 1
 set_interface_property pre_in readyLatency 0
 set_interface_property pre_in maxChannel 15
 set_interface_property pre_in errorDescriptor ""
 set_interface_property pre_in firstSymbolInHighOrderBits true
 set_interface_property pre_in ENABLED true
-add_interface_port pre_in asi_pre_data data Input 39
+add_interface_port pre_in asi_pre_data data Input 87
 add_interface_port pre_in asi_pre_valid valid Input 1
 add_interface_port pre_in asi_pre_ready ready Output 1
 add_interface_port pre_in asi_pre_startofpacket startofpacket Input 1
@@ -261,12 +265,12 @@ add_interface_port pre_out aso_pre_error error Output 1
 add_interface post_in avalon_streaming end
 set_interface_property post_in associatedClock clock
 set_interface_property post_in associatedReset reset
-set_interface_property post_in dataBitsPerSymbol 36
+set_interface_property post_in dataBitsPerSymbol 84
 set_interface_property post_in symbolsPerBeat 1
 set_interface_property post_in readyLatency 0
 set_interface_property post_in firstSymbolInHighOrderBits true
 set_interface_property post_in ENABLED true
-add_interface_port post_in asi_post_data data Input 36
+add_interface_port post_in asi_post_data data Input 84
 add_interface_port post_in asi_post_valid valid Input 1
 add_interface_port post_in asi_post_ready ready Output 1
 add_interface_port post_in asi_post_startofpacket startofpacket Input 1
@@ -289,13 +293,13 @@ add_interface_port post_out aso_post_endofpacket endofpacket Output 1
 add_interface hist_out avalon_streaming start
 set_interface_property hist_out associatedClock clock
 set_interface_property hist_out associatedReset reset
-set_interface_property hist_out dataBitsPerSymbol 39
+set_interface_property hist_out dataBitsPerSymbol 87
 set_interface_property hist_out symbolsPerBeat 1
 set_interface_property hist_out readyLatency 0
 set_interface_property hist_out maxChannel 15
 set_interface_property hist_out firstSymbolInHighOrderBits true
 set_interface_property hist_out ENABLED true
-add_interface_port hist_out aso_hist_data data Output 39
+add_interface_port hist_out aso_hist_data data Output 87
 add_interface_port hist_out aso_hist_valid valid Output 1
 add_interface_port hist_out aso_hist_ready ready Input 1
 add_interface_port hist_out aso_hist_startofpacket startofpacket Output 1

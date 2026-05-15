@@ -2,9 +2,9 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  2
-set VERSION_PATCH_DEFAULT_CONST  0
-set BUILD_DEFAULT_CONST          511
-set VERSION_DATE_DEFAULT_CONST   20260511
+set VERSION_PATCH_DEFAULT_CONST  3
+set BUILD_DEFAULT_CONST          514
+set VERSION_DATE_DEFAULT_CONST   20260514
 set VERSION_GIT_DEFAULT_CONST    375124078
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
@@ -119,7 +119,7 @@ set CONTROL_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
 <tr><td>0</td><td>apply</td><td>RW</td><td>0</td><td>Write 1 to request that the staged configuration becomes active after the ingress path drains.</td></tr>
 <tr><td>1</td><td>apply_pending</td><td>RO</td><td>0</td><td>1 while a committed configuration is waiting to settle into the live datapath.</td></tr>
 <tr><td>3:2</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
-<tr><td>7:4</td><td>mode</td><td>RW</td><td>0</td><td>Mode selector. Negative 4-bit signed values route debug inputs into the histogram path. Modes -1..-6 select debug_1..debug_6 individually; mode -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes, the CSR filter compares against a synthetic debug word documented under Debug Inputs.</td></tr>
+<tr><td>7:4</td><td>mode</td><td>RW</td><td>0</td><td>Mode selector. Mode 0 bins the selected stream key directly. Mode 1 is stream-delay mode: the selected update-key slice carries a 48-bit true hit timestamp; the RTL subtracts it from the internal run-control GTS counter and trims the positive delay result to the configured histogram tick width. Negative 4-bit signed values route debug inputs into the histogram path. Modes -1..-6 select debug_1..debug_6 individually; mode -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes, the CSR filter compares against a synthetic debug word documented under Debug Inputs.</td></tr>
 <tr><td>8</td><td>key_unsigned</td><td>RW</td><td>1</td><td>1 selects unsigned update-key interpretation, 0 selects signed extraction.</td></tr>
 <tr><td>11:9</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
 <tr><td>12</td><td>filter_enable</td><td>RW</td><td>0</td><td>Enables the runtime filter-key comparison.</td></tr>
@@ -169,10 +169,11 @@ set COAL_STATUS_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%
 </table></html>}
 
 set HIST_FILL_FMT_HTML {<html>
-<b>hist_fill_in / fill_in_1..7</b> — 39-bit Avalon-ST sink<br/>
+<b>hist_fill_in / fill_in_1..7</b> — configurable-width Avalon-ST sink<br/>
 Sidebands: <b>channel[AVST_CHANNEL_WIDTH-1:0]</b>, <b>startofpacket</b>, <b>endofpacket</b><br/>
 <table border="1" cellpadding="3" width="100%">
 <tr><th>Bits</th><th>Field</th><th>Description</th></tr>
+<tr><td>86:39</td><td>delay timestamp sideband</td><td>When <b>AVST_DATA_WIDTH</b> is 87 and the histogram ingress bridge drives this port, these bits carry true hit ts[47:0]. Configure <b>KEY_LOC.update_key</b> to [86:39] and <b>CONTROL.mode</b> to 1 for internal-GTS delay histograms. The 48-bit subtraction result is trimmed to <b>SAR_TICK_WIDTH</b> before entering the normal fill/bin path.</td></tr>
 <tr><td>38:35</td><td>filter key slice (default)</td><td>Default filter-key location. Runtime-programmable through <b>KEY_LOC</b>.</td></tr>
 <tr><td>34:30</td><td>payload / unused by default</td><td>Forwarded or ignored by the histogram core unless selected by a custom key map.</td></tr>
 <tr><td>29:17</td><td>update key slice (default)</td><td>Default update-key location used for binning. Runtime-programmable through <b>KEY_LOC</b>.</td></tr>
@@ -180,11 +181,11 @@ Sidebands: <b>channel[AVST_CHANNEL_WIDTH-1:0]</b>, <b>startofpacket</b>, <b>endo
 </table></html>}
 
 set FILL_OUT_FMT_HTML {<html>
-<b>fill_out</b> — 39-bit Avalon-ST source<br/>
+<b>fill_out</b> — configurable-width Avalon-ST source<br/>
 Sidebands: <b>channel[AVST_CHANNEL_WIDTH-1:0]</b>, optional <b>startofpacket</b>, optional <b>endofpacket</b><br/>
 <table border="1" cellpadding="3" width="100%">
 <tr><th>Bits</th><th>Field</th><th>Description</th></tr>
-<tr><td>38:0</td><td>forwarded ingress payload</td><td>Port-0 ingress word forwarded unchanged when <b>SNOOP_EN</b> is enabled. SOP/EOP are driven only when <b>ENABLE_PACKET</b> is enabled.</td></tr>
+<tr><td>AVST_DATA_WIDTH-1:0</td><td>forwarded ingress payload</td><td>Port-0 ingress word forwarded unchanged when <b>SNOOP_EN</b> is enabled. SOP/EOP are driven only when <b>ENABLE_PACKET</b> is enabled.</td></tr>
 </table></html>}
 
 set CTRL_FMT_HTML {<html>
@@ -514,6 +515,12 @@ set_parameter_property UPDATE_KEY_REPRESENTATION ALLOWED_RANGES {"UNSIGNED" "SIG
 set_parameter_property UPDATE_KEY_REPRESENTATION HDL_PARAMETER true
 set_parameter_property UPDATE_KEY_REPRESENTATION DESCRIPTION "Data type of the update key. SIGNED uses two's complement."
 
+add_parameter LOCK_KEY_RANGES BOOLEAN false
+set_parameter_property LOCK_KEY_RANGES DISPLAY_NAME "Lock Key Ranges"
+set_parameter_property LOCK_KEY_RANGES UNITS None
+set_parameter_property LOCK_KEY_RANGES HDL_PARAMETER true
+set_parameter_property LOCK_KEY_RANGES DESCRIPTION "When enabled, the datapath uses the generic UPDATE_KEY_BIT_* and FILTER_KEY_BIT_* ranges instead of the runtime CSR-programmable range registers. This removes the programmable bit-range extractor from the hot ingress timing path for fixed-format integrations."
+
 add_parameter FILTER_KEY_BIT_HI NATURAL 38
 set_parameter_property FILTER_KEY_BIT_HI DISPLAY_NAME "Filter Key MSB"
 set_parameter_property FILTER_KEY_BIT_HI UNITS None
@@ -747,11 +754,12 @@ add_html_text "Histogram Sizing" sizing_html "<html><b>Resource estimate</b><br/
 add_display_item "Key Extraction" UPDATE_KEY_BIT_HI parameter
 add_display_item "Key Extraction" UPDATE_KEY_BIT_LO parameter
 add_display_item "Key Extraction" UPDATE_KEY_REPRESENTATION parameter
+add_display_item "Key Extraction" LOCK_KEY_RANGES parameter
 add_display_item "Key Extraction" FILTER_KEY_BIT_HI parameter
 add_display_item "Key Extraction" FILTER_KEY_BIT_LO parameter
 add_display_item "Key Extraction" SAR_TICK_WIDTH parameter
 add_display_item "Key Extraction" SAR_KEY_WIDTH parameter
-add_html_text "Key Extraction" key_html {<html><b>Default slices</b><br/>The delivered package bins the default update-key slice <b>data[29:17]</b> and compares the default filter-key slice <b>data[38:35]</b>. Both slices are runtime-programmable through <b>KEY_LOC</b>.<br/><br/><b>Signed / unsigned</b><br/><b>UPDATE_KEY_REPRESENTATION</b> controls the power-on interpretation of the update key. The live datapath can be switched at runtime through <b>CONTROL.key_unsigned</b>.</html>}
+add_html_text "Key Extraction" key_html {<html><b>Default slices</b><br/>The delivered package bins the default update-key slice <b>data[29:17]</b> and compares the default filter-key slice <b>data[38:35]</b>. Both slices are runtime-programmable through <b>KEY_LOC</b> unless <b>LOCK_KEY_RANGES</b> is enabled.<br/><br/><b>Fixed-format timing mode</b><br/>Enable <b>LOCK_KEY_RANGES</b> when the stream format is fixed by Platform Designer, for example <b>data[86:39]</b> as a 48-bit true hit timestamp sideband. The datapath then uses the generic update/filter ranges directly and removes the CSR-programmable range mux from the hot ingress path; CSR mode, key representation, filter enable/reject, and filter key value remain runtime-controlled.<br/><br/><b>Signed / unsigned</b><br/><b>UPDATE_KEY_REPRESENTATION</b> controls the power-on interpretation of the update key. The live datapath can be switched at runtime through <b>CONTROL.key_unsigned</b>.</html>}
 
 add_display_item "Ingress" N_PORTS parameter
 add_display_item "Ingress" FIFO_ADDR_WIDTH parameter
@@ -770,7 +778,7 @@ add_html_text "Ping-Pong / Interval" runtime_html "<html><b>Runtime behaviour</b
 
 add_html_text "Resources" resources_html {<html><b>Integration notes</b><br/>1. The CSR aperture is <b>17</b> words (5-bit address). Words 0-1 are the standard identity header (UID + META). Words 2-16 hold control, histogram bounds, key configuration, status counters, and scratch.<br/>2. The <b>hist_bin</b> Avalon-MM slave provides burst-capable readout of the histogram SRAM with word-addressed access.<br/>3. The coalescing queue serializes concurrent bin updates from all ingress sources before they reach the histogram SRAM, preventing read-modify-write hazards.</html>}
 
-add_html_text "Debug Inputs" debug_cfg_html {<html><b>Debug control</b><br/>The RTL exports up to 6 optional 16-bit Avalon-ST debug sinks. Negative signed values in <b>CONTROL.mode</b> select <b>debug_1..6</b> as the histogram source instead of the normal ingress ports. Mode <b>-7</b> is the Phase-5 combined MTS-delay mode: it samples signed <b>debug_1</b> and <b>debug_2</b> into separate FIFOs, then merges them through the normal arbiter without per-port channel offsets.<br/><br/><b>Debug filtering</b><br/>The runtime filter also works in negative modes. Use <b>KEY_LOC.filter_key_low=16</b> and <b>KEY_LOC.filter_key_high=23</b> to select a debug source index from the synthetic filter word; use <b>filter_key=0</b> for debug_1, <b>1</b> for debug_2, and so on.</html>}
+add_html_text "Debug Inputs" debug_cfg_html {<html><b>Stream delay mode</b><br/>Set <b>CONTROL.mode=1</b> to histogram <b>internal_gts - selected_timestamp</b> from normal stream data. With the histogram ingress bridge, use <b>AVST_DATA_WIDTH=87</b>, <b>KEY_LOC.update_key_low=39</b>, and <b>KEY_LOC.update_key_high=86</b>. The selected timestamp is treated as true ts[47:0]; the 48-bit subtraction result is trimmed to <b>SAR_TICK_WIDTH</b> before it enters the same fill/bin path used by mode 0. Keep <b>SAR_TICK_WIDTH</b> at the desired histogram fill resolution, normally 16 or 32 bits.<br/><br/><b>Debug control</b><br/>The RTL exports up to 6 optional 16-bit Avalon-ST debug sinks. Negative signed values in <b>CONTROL.mode</b> select <b>debug_1..6</b> as the histogram source instead of the normal ingress ports. Mode <b>-7</b> is the Phase-5 combined MTS-delay mode: it samples signed <b>debug_1</b> and <b>debug_2</b> into separate FIFOs, then merges them through the normal arbiter without per-port channel offsets.<br/><br/><b>Debug filtering</b><br/>The runtime filter also works in negative modes. Use <b>KEY_LOC.filter_key_low=16</b> and <b>KEY_LOC.filter_key_high=23</b> to select a debug source index from the synthetic filter word; use <b>filter_key=0</b> for debug_1, <b>1</b> for debug_2, and so on.</html>}
 add_display_item "Debug Inputs" N_DEBUG_INTERFACE parameter
 add_display_item "Debug Inputs" DEBUG parameter
 

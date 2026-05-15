@@ -31,13 +31,15 @@ module tb_histogram_statistics_v2;
   localparam int unsigned CHANNELS_PER_PORT  = 32;
   localparam int unsigned COAL_QUEUE_DEPTH   = 256;
   localparam int unsigned DEF_INTERVAL_CLKS  = 125_000_000;
-  localparam int unsigned AVST_DATA_WIDTH    = 39;
+  localparam int unsigned AVST_DATA_WIDTH    = 87;
   localparam int unsigned AVST_CHAN_WIDTH    = 4;
   localparam int unsigned VERSION_MAJOR       = 26;
-  localparam int unsigned VERSION_MINOR       = 1;
-  localparam int unsigned VERSION_PATCH       = 6;
-  localparam int unsigned VERSION_BUILD       = 429;
-  localparam int unsigned VERSION_DATE        = 20260429;
+  localparam int unsigned VERSION_MINOR       = 2;
+  localparam int unsigned VERSION_PATCH       = 2;
+  localparam int unsigned VERSION_BUILD       = 514;
+  localparam int unsigned VERSION_DATE        = 20260514;
+  localparam int unsigned DELAY_TS_BIT_LO     = 39;
+  localparam int unsigned DELAY_TS_BIT_HI     = 86;
 
   localparam int unsigned CLK_PERIOD_NS     = 8;  // 125 MHz
   localparam int unsigned AVMM_TIMEOUT      = 1024;
@@ -119,7 +121,6 @@ module tb_histogram_statistics_v2;
   // AVST ctrl
   logic  [8:0] ctrl_data;
   logic        ctrl_valid;
-  logic        ctrl_ready;
 
   // Debug interfaces
   logic        debug_valid [6];
@@ -242,7 +243,6 @@ module tb_histogram_statistics_v2;
 
     .asi_ctrl_data                   (ctrl_data),
     .asi_ctrl_valid                  (ctrl_valid),
-    .asi_ctrl_ready                  (ctrl_ready),
 
     .asi_debug_1_valid               (debug_valid[0]),
     .asi_debug_1_data                (debug_data[0]),
@@ -407,10 +407,35 @@ module tb_histogram_statistics_v2;
     input  int unsigned count,
     output logic [31:0] data_arr []
   );
+    int unsigned got;
+    int unsigned cyc;
+
     data_arr = new[count];
-    for (int i = 0; i < count; i++) begin
-      bin_read32(addr + i, data_arr[i]);
+
+    @(posedge i_clk);
+    bin_address    <= addr[AVS_ADDR_WIDTH-1:0];
+    bin_read       <= 1'b1;
+    bin_write      <= 1'b0;
+    bin_burstcount <= count[AVS_ADDR_WIDTH:0];
+    @(posedge i_clk);
+    bin_read       <= 1'b0;
+    bin_address    <= '0;
+
+    got = 0;
+    cyc = 0;
+    while (got < count) begin
+      @(posedge i_clk);
+      cyc++;
+      if (bin_readdatavalid) begin
+        data_arr[got] = bin_readdata;
+        got++;
+      end
+      if (cyc > (AVMM_TIMEOUT + count + 16)) begin
+        $fatal(1, "bin_burst_read: timeout addr=%0d count=%0d got=%0d", addr, count, got);
+      end
     end
+
+    bin_burstcount <= {{AVS_ADDR_WIDTH{1'b0}}, 1'b1};
   endtask
 
   // ════════════════════════════════════════════════════════════════
@@ -495,6 +520,16 @@ module tb_histogram_statistics_v2;
     debug_data[1]  <= '0;
   endtask
 
+  task automatic send_ctrl_word(input logic [8:0] ctrl_word);
+    @(posedge i_clk);
+    ctrl_data  <= ctrl_word;
+    ctrl_valid <= 1'b1;
+    @(posedge i_clk);
+    ctrl_valid <= 1'b0;
+    ctrl_data  <= '0;
+    repeat (2) @(posedge i_clk);
+  endtask
+
   // Build a fill_in data word with a specific key value in the update_key field
   function automatic logic [AVST_DATA_WIDTH-1:0] make_hit_data(int key_val);
     logic [AVST_DATA_WIDTH-1:0] d;
@@ -502,6 +537,16 @@ module tb_histogram_statistics_v2;
     // Place key_val into bits [UPDATE_KEY_BIT_HI:UPDATE_KEY_BIT_LO]
     for (int b = UPDATE_KEY_BIT_LO; b <= UPDATE_KEY_BIT_HI && b < AVST_DATA_WIDTH; b++)
       d[b] = key_val[b - UPDATE_KEY_BIT_LO];
+    return d;
+  endfunction
+
+  function automatic logic [AVST_DATA_WIDTH-1:0] make_delay_hit_data(
+    logic [47:0] hit_ts,
+    int          lower_mode_key
+  );
+    logic [AVST_DATA_WIDTH-1:0] d;
+    d = make_hit_data(lower_mode_key);
+    d[DELAY_TS_BIT_HI:DELAY_TS_BIT_LO] = hit_ts;
     return d;
   endfunction
 
@@ -604,6 +649,72 @@ module tb_histogram_statistics_v2;
     ctrl_word[13]    = filter_reject;
     csr_write32(CSR_CONTROL, ctrl_word);
     repeat (10) @(posedge i_clk);
+  endtask
+
+  task automatic configure_delay_mode(
+    input int          left_bound,
+    input int unsigned bin_width,
+    input int unsigned interval = 2000
+  );
+    logic [31:0] key_loc_word;
+    logic [31:0] ctrl_word;
+
+    cfg_left_bound = left_bound;
+    cfg_bin_width  = bin_width;
+    cfg_n_bins     = N_BINS;
+
+    wait_initial_clear();
+    key_loc_word         = '0;
+    key_loc_word[7:0]    = DELAY_TS_BIT_LO[7:0];
+    key_loc_word[15:8]   = DELAY_TS_BIT_HI[7:0];
+    key_loc_word[23:16]  = FILTER_KEY_BIT_LO[7:0];
+    key_loc_word[31:24]  = FILTER_KEY_BIT_HI[7:0];
+    csr_write32(CSR_KEY_FILTER, key_loc_word);
+    csr_write32(CSR_LEFT_BOUND, 32'($signed(left_bound)));
+    csr_write32(CSR_BIN_WIDTH,  bin_width);
+    csr_write32(CSR_INTERVAL,   interval);
+
+    ctrl_word        = 32'h0000_0001;  // apply
+    ctrl_word[7:4]   = 4'h1;           // positive delay mode
+    ctrl_word[8]     = 1'b1;
+    csr_write32(CSR_CONTROL, ctrl_word);
+    repeat (10) @(posedge i_clk);
+  endtask
+
+  task automatic inject_delay_hit_exact(
+    input int unsigned port_idx,
+    input int unsigned delay_ticks,
+    input int          lower_mode_key
+  );
+    logic [47:0] gts_sample;
+    logic [47:0] hit_ts;
+    logic [47:0] delay_vec;
+    logic [AVST_DATA_WIDTH-1:0] hit_data;
+
+    @(posedge i_clk);
+    #1ps;
+    gts_sample = dut.gts_8n;
+    delay_vec  = delay_ticks[31:0];
+    if (gts_sample < delay_vec) begin
+      $fatal(1, "inject_delay_hit_exact: gts=%0d smaller than delay=%0d",
+             gts_sample, delay_ticks);
+    end
+    hit_ts   = gts_sample - delay_vec;
+    hit_data = make_delay_hit_data(hit_ts, lower_mode_key);
+
+    fill_data[port_idx]  <= hit_data;
+    fill_valid[port_idx] <= 1'b1;
+    fill_sop[port_idx]   <= 1'b0;
+    fill_eop[port_idx]   <= 1'b0;
+    fill_chan[port_idx]  <= '0;
+
+    @(posedge i_clk);
+    if (fill_ready[port_idx] !== 1'b1) begin
+      $fatal(1, "inject_delay_hit_exact: ready was not high on port %0d", port_idx);
+    end
+    fill_valid[port_idx] <= 1'b0;
+    fill_data[port_idx]  <= '0;
+    fill_chan[port_idx]  <= '0;
   endtask
 
   // ════════════════════════════════════════════════════════════════
@@ -1070,6 +1181,100 @@ module tb_histogram_statistics_v2;
   endtask
 
   // ════════════════════════════════════════════════════════════════
+  // TEST: B12_delay_mode_48b_sideband
+  // ════════════════════════════════════════════════════════════════
+  task automatic test_B12_delay_mode_48b_sideband();
+    int unsigned delay_ticks;
+
+    $display("═══ B12_delay_mode_48b_sideband ═══");
+    ref_reset();
+    configure_delay_mode(0, 16, 2000);
+
+    send_ctrl_word(9'b000000100);  // SYNC: reset internal gts counter
+    send_ctrl_word(9'b000001000);  // RUNNING: release gts counter
+    repeat (96) @(posedge i_clk);
+
+    delay_ticks = 48;
+    inject_delay_hit_exact(0, delay_ticks, 1000);
+    ref_add_hit(delay_ticks);
+
+    wait_pipeline_drain();
+    check_csr("B12_total", CSR_TOTAL_HITS, ref_total_hits);
+    wait_bank_swap();
+    check_bins("B12");
+  endtask
+
+  // ════════════════════════════════════════════════════════════════
+  // TEST: B13_live_probe_1ms_pingpong
+  // ════════════════════════════════════════════════════════════════
+  task automatic test_B13_live_probe_1ms_pingpong();
+    int unsigned delay_ticks;
+    int unsigned delay_bin;
+    logic [31:0] rd_before;
+    logic [31:0] rd_after;
+    logic [31:0] rd_last_total;
+    logic [31:0] burst_bins[];
+    int unsigned timeout_cyc;
+
+    $display("═══ B13_live_probe_1ms_pingpong ═══");
+    ref_reset();
+    configure_delay_mode(0, 16, 125000);
+
+    send_ctrl_word(9'b000000100);  // SYNC: reset internal gts counter
+    send_ctrl_word(9'b000001000);  // RUNNING: release gts counter
+    repeat (4096) @(posedge i_clk);
+
+    delay_ticks = 3840;
+    delay_bin   = delay_ticks / 16;
+    inject_delay_hit_exact(0, delay_ticks, 1000);
+    ref_add_hit(delay_ticks);
+    wait_pipeline_drain();
+
+    bin_read32(delay_bin, rd_before);
+    if (rd_before == 0) begin
+      $display("PASS B13_before_interval: frozen read bank is still zero before 1 ms swap");
+      pass_count++;
+    end else begin
+      $display("FAIL B13_before_interval: bin[%0d]=%0d expected 0 before swap", delay_bin, rd_before);
+      error_count++;
+    end
+
+    timeout_cyc = 0;
+    while (!dut.interval_pulse) begin
+      @(posedge i_clk);
+      timeout_cyc++;
+      if (timeout_cyc > 150000) begin
+        $fatal(1, "B13: timeout waiting for 1 ms histogram interval");
+      end
+    end
+    repeat (N_BINS + 50) @(posedge i_clk);
+
+    csr_read32(CSR_LAST_INTERVAL_TOTAL_HITS, rd_last_total);
+    if (rd_last_total == ref_total_hits) begin
+      $display("PASS B13_last_interval_total: %0d hits", rd_last_total);
+      pass_count++;
+    end else begin
+      $display("FAIL B13_last_interval_total: got=%0d expected=%0d", rd_last_total, ref_total_hits);
+      error_count++;
+    end
+
+    // Start the 256-word dump just before the next 1 ms interval boundary.
+    // The selected bin is late in the burst, so it proves the read bank was
+    // latched for the whole monitor dump even though the active bank flips.
+    repeat (124600) @(posedge i_clk);
+
+    bin_burst_read(0, N_BINS, burst_bins);
+    rd_after = burst_bins[delay_bin];
+    if (rd_after == 1) begin
+      $display("PASS B13_after_interval: burst read keeps one frozen bank across interval");
+      pass_count++;
+    end else begin
+      $display("FAIL B13_after_interval: bin[%0d]=%0d expected 1 after swap", delay_bin, rd_after);
+      error_count++;
+    end
+  endtask
+
+  // ════════════════════════════════════════════════════════════════
   // TEST: E01_underflow
   // ════════════════════════════════════════════════════════════════
   task automatic test_E01_underflow();
@@ -1414,6 +1619,8 @@ module tb_histogram_statistics_v2;
       "B09_filter_pass": test_B09_filter_pass();
       "B10_debug_mts_both": test_B10_debug_mts_both();
       "B11_debug_mts_filter_source": test_B11_debug_mts_filter_source();
+      "B12_delay_mode_48b_sideband": test_B12_delay_mode_48b_sideband();
+      "B13_live_probe_1ms_pingpong": test_B13_live_probe_1ms_pingpong();
       "E01_underflow":   test_E01_underflow();
       "E02_overflow":    test_E02_overflow();
       "E06_invalid_bounds": test_E06_invalid_bounds();
@@ -1433,6 +1640,7 @@ module tb_histogram_statistics_v2;
         test_B09_filter_pass(); do_reset();
         test_B10_debug_mts_both(); do_reset();
         test_B11_debug_mts_filter_source(); do_reset();
+        test_B12_delay_mode_48b_sideband(); do_reset();
         test_E01_underflow();   do_reset();
         test_E02_overflow();    do_reset();
         test_E06_invalid_bounds(); do_reset();

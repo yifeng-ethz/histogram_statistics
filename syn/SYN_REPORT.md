@@ -1,16 +1,27 @@
-# Synthesis Report: histogram_statistics_v2 standalone refresh
+# Synthesis Report: histogram bridge + histogram delay sideband
 
-Date: 2026-05-11
+Date: 2026-05-15
 
 ## Result
 
-FAIL. The current committed `histogram_statistics_v2` VERSION `26.1.6.0429`
-does not meet standalone timing at the 1.1x signoff target.
+PASS. The standalone bridge-plus-histogram harness meets the 1.1x signoff
+target after locking the fixed-format key slice in `histogram_statistics_v2`
+and registering the queue-overflow diagnostic event before its saturating
+counter.
 
 Command:
 
 ```sh
-quartus_sh --flow compile histogram_statistics_v2_signoff -c histogram_statistics_v2_standalone
+cd histogram_statistics/syn/quartus
+quartus_sh --flow compile hs0_board_instance -c hs0_board_instance
+```
+
+Latest evidence:
+
+```text
+histogram_statistics/syn/quartus/output_files/hs0_board_instance.flow.rpt
+histogram_statistics/syn/quartus/output_files/hs0_board_instance.sta.summary
+histogram_statistics/syn/quartus/output_files/hs0_board_instance.fit.summary
 ```
 
 Tool:
@@ -23,63 +34,66 @@ Project context:
 
 | Item | Value |
 |---|---|
-| Project | `syn/quartus/histogram_statistics_v2_signoff.qpf` |
-| Revision | `histogram_statistics_v2_standalone` |
+| Project | `syn/quartus/hs0_board_instance.qpf` |
+| Revision | `hs0_board_instance` |
+| Top | `hs0_board_instance_top` |
 | Device | Arria V `5AGXBA7D4F31C5` |
 | Nominal F_target | `125 MHz` |
 | 1.1x signoff target | `137.5 MHz` |
 | Period | `7.273 ns` |
 
-The full compile completed successfully with `0 errors, 10022 warnings`; timing
-signoff fails because one setup corner is negative.
+The harness instantiates `histogram_post_ts_sideband`,
+`histogram_ingress_bridge`, and `histogram_statistics_v2` with
+`AVST_DATA_WIDTH=87`, `UPDATE_KEY_BIT_HI=86`, `UPDATE_KEY_BIT_LO=39`,
+`SAR_TICK_WIDTH=32`, and `LOCK_KEY_RANGES=true`.
 
 ## Timing Summary
 
-From `syn/quartus/output_files/histogram_statistics_v2_standalone.sta.summary`
-and `syn/quartus/output_files/histogram_statistics_v2_standalone.sta.rpt`:
+From `syn/quartus/output_files/hs0_board_instance.sta.summary`:
 
-| Corner | Setup Slack | Setup TNS | Hold Slack | MPW Slack | Fmax |
-|---|---:|---:|---:|---:|---:|
-| Slow 1100mV 85C | `-0.234 ns` | `-6.359 ns` | `0.274 ns` | `2.698 ns` | `133.21 MHz` |
-| Slow 1100mV 0C | `0.036 ns` | `0.000 ns` | `0.255 ns` | `2.667 ns` | `138.18 MHz` |
-| Fast 1100mV 85C | `2.459 ns` | `0.000 ns` | `0.162 ns` | `2.849 ns` | n/a |
-| Fast 1100mV 0C | `2.950 ns` | `0.000 ns` | `0.148 ns` | `2.839 ns` | n/a |
+| Corner | Setup Slack | Setup TNS | Hold Slack | MPW Slack |
+|---|---:|---:|---:|---:|
+| Slow 1100mV 85C | `+0.401 ns` | `0.000 ns` | `+0.264 ns` | `+2.685 ns` |
+| Slow 1100mV 0C | `+0.595 ns` | `0.000 ns` | `+0.247 ns` | `+2.665 ns` |
+| Fast 1100mV 85C | `+2.844 ns` | `0.000 ns` | `+0.160 ns` | `+2.841 ns` |
+| Fast 1100mV 0C | `+3.328 ns` | `0.000 ns` | `+0.150 ns` | `+2.836 ns` |
 
-Worst clock: `i_clk`. Worst setup slack: `-0.234 ns` at Slow 1100mV 85C.
-
-## Failing Path
-
-From `syn/quartus/output_files/histogram_statistics_v2_standalone.worst_setup_paths.rpt`:
-
-| Corner | From | To | Data delay | Clock skew | Logic levels | Slack |
-|---|---|---|---:|---:|---:|---:|
-| Slow 1100mV 85C | `queue_hit_bin[3]` | `coalescing_queue:queue_inst|overflow_count_q[0]` | `7.429 ns` | `-0.078 ns` | `7` | `-0.234 ns` |
+Worst setup slack is `+0.401 ns` at Slow 1100mV 85C.
 
 ## Resource Summary
 
-From `syn/quartus/output_files/histogram_statistics_v2_standalone.fit.summary`:
+From `syn/quartus/output_files/hs0_board_instance.fit.summary`:
 
 | Resource | Usage |
 |---|---:|
-| Logic utilization | `13,834 / 91,680 ALMs (15%)` |
-| Registers | `5,248` |
-| Virtual pins | `699` |
+| Logic utilization | `7,639 / 91,680 ALMs (8%)` |
+| Registers | `4,717` |
+| Virtual pins | `665` |
 | Block memory bits | `16,384 / 13,987,840 (<1%)` |
 | RAM blocks | `2 / 1,366 (<1%)` |
 | DSP blocks | `0 / 800 (0%)` |
 
-## Static Screen
+## Validation
 
-Questa static screen for the current v2 standalone cone:
+```sh
+make -C histogram_statistics/tb run_all
+make -C histogram_statistics/tb run_post_ts_sideband
+make -C histogram_statistics/tb run_pre_ts_trim
+make -C histogram_statistics/tb run_ingress_bridge_switch_contract
+```
 
-| Check | Result | Report |
-|---|---|---|
-| Lint errors | `0` | `tb/static_screen_20260511_v2cone/qverify_db/lint.rpt` |
-| CDC violations | `0` | `tb/static_screen_20260511_v2cone/reports/cdc.rpt` |
-| RDC violations | `0` | `tb/static_screen_20260511_v2cone/qverify_db/rdc.rpt` |
+Result:
+
+- `run_all`: `47 PASS, 0 FAIL`
+- `tb_histogram_post_ts_sideband`: PASS
+- `tb_histogram_pre_ts_trim`: PASS
+- `tb_histogram_ingress_bridge_switch`: PASS
 
 ## Closure Note
 
-Status: REGRESSION. Failed standalone signoff at corner Slow 1100mV 85C after
-VERSION `26.1.6.0429`; integration must apply an SDC false_path only if the
-path is architecturally false, or the IP must register-split the path.
+The initial bridge-plus-hist compile failed timing through the runtime
+CSR-programmable key-range extractor. `LOCK_KEY_RANGES=true` makes fixed-format
+integrations use the generic `UPDATE_KEY_BIT_*` and `FILTER_KEY_BIT_*` ranges
+directly while CSR mode/filter/value controls remain runtime-controlled. This
+keeps delay mode configurable through CSR and removes the programmable
+bit-slice mux from the hot ingress path.

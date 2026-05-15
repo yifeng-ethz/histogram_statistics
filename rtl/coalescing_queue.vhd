@@ -9,6 +9,11 @@
 --              cycle's queue level. This keeps the max statistic exact
 --              while removing the hit-bin decode from the timing path
 --              into queue_level_max.
+-- Revision: 1.2
+--      Date: May 15, 2026
+--      Change: Register the queue-overflow event before the saturating
+--              diagnostic counter. The counter remains exact but no longer
+--              puts hit-bin decode on the counter enable timing path.
 -- =========
 -- Description:	[Queued post-divider coalescer for histogram bin updates]
 --
@@ -77,6 +82,7 @@ architecture rtl of coalescing_queue is
     signal queue_level      : occ_t := (others => '0');
     signal queue_level_max  : occ_t := (others => '0');
     signal overflow_count_q : unsigned(OVERFLOW_WIDTH - 1 downto 0) := (others => '0');
+    signal overflow_event_q : std_logic := '0';
     signal clear_active     : std_logic := '0';
     signal clear_index      : bin_index_t := (others => '0');
     signal queue_head_bin_q   : bin_index_t := (others => '0');
@@ -165,6 +171,7 @@ begin
         variable hit_bin_v        : natural;
         variable level_v          : occ_t;
         variable overflow_v       : unsigned(OVERFLOW_WIDTH - 1 downto 0);
+        variable overflow_event_v : std_logic;
         variable queued_hit_v     : std_logic;
         variable rd_ptr_v         : queue_addr_t;
         variable wr_ptr_v         : queue_addr_t;
@@ -180,6 +187,7 @@ begin
                 queue_level      <= (others => '0');
                 queue_level_max  <= (others => '0');
                 overflow_count_q <= (others => '0');
+                overflow_event_q <= '0';
                 clear_active     <= '1';
                 clear_index      <= (others => '0');
                 queue_head_bin_q <= (others => '0');
@@ -192,6 +200,7 @@ begin
                 queue_level      <= (others => '0');
                 queue_level_max  <= (others => '0');
                 overflow_count_q <= (others => '0');
+                overflow_event_q <= '0';
                 clear_active     <= '1';
                 clear_index      <= (others => '0');
                 queue_head_bin_q <= (others => '0');
@@ -200,6 +209,7 @@ begin
                 drain_count_q    <= (others => '0');
             elsif clear_active = '1' then
                 clear_index_v := to_integer(clear_index);
+                overflow_event_q <= '0';
                 queue_head_bin_q <= (others => '0');
                 queue_head_valid_q <= '0';
 
@@ -214,6 +224,7 @@ begin
                 hit_bin_v    := 0;
                 level_v      := queue_level;
                 overflow_v   := overflow_count_q;
+                overflow_event_v := '0';
                 rd_ptr_v     := queue_rd_ptr;
                 wr_ptr_v     := queue_wr_ptr;
                 next_head_bin_v := queue_head_bin_q;
@@ -221,6 +232,10 @@ begin
                 drain_valid_q <= drain_fire_c;
                 drain_bin_q   <= queue_head_bin_q;
                 drain_count_q <= head_count_c;
+
+                if overflow_event_q = '1' then
+                    overflow_v := sat_inc(overflow_v);
+                end if;
 
                 if (next_head_valid_v = '0') and (queue_level /= 0) then
                     next_head_bin_v   := queue_mem(to_integer(queue_rd_ptr));
@@ -251,14 +266,14 @@ begin
 
                     if queued_hit_v = '1' then
                         if kick_ram(hit_bin_v) = KICK_MAX then
-                            overflow_v := sat_inc(overflow_v);
+                            overflow_event_v := '1';
                         end if;
                     elsif queue_room_c = '1' then
                         queue_mem(to_integer(wr_ptr_v)) <= i_hit_bin;
                         wr_ptr_v := next_queue_ptr_f(wr_ptr_v);
                         level_v  := level_v + 1;
                     else
-                        overflow_v := sat_inc(overflow_v);
+                        overflow_event_v := '1';
                     end if;
                 end if;
 
@@ -268,6 +283,7 @@ begin
                 queue_head_bin_q <= next_head_bin_v;
                 queue_head_valid_q <= next_head_valid_v;
                 overflow_count_q <= overflow_v;
+                overflow_event_q <= overflow_event_v;
 
                 if queue_level > queue_level_max then
                     queue_level_max <= queue_level;

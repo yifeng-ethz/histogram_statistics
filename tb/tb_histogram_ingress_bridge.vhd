@@ -19,14 +19,14 @@ architecture sim of tb_histogram_ingress_bridge is
 
     signal clk                 : std_logic := '0';
     signal rst                 : std_logic := '1';
-    signal csr_address         : std_logic_vector(1 downto 0) := (others => '0');
+    signal csr_address         : std_logic_vector(2 downto 0) := (others => '0');
     signal csr_read            : std_logic := '0';
     signal csr_write           : std_logic := '0';
     signal csr_writedata       : std_logic_vector(31 downto 0) := (others => '0');
     signal csr_readdata        : std_logic_vector(31 downto 0);
     signal csr_waitrequest     : std_logic;
 
-    signal pre_data            : std_logic_vector(38 downto 0) := (others => '0');
+    signal pre_data            : std_logic_vector(86 downto 0) := (others => '0');
     signal pre_valid           : std_logic := '0';
     signal pre_ready           : std_logic;
     signal pre_sop             : std_logic := '0';
@@ -43,7 +43,7 @@ architecture sim of tb_histogram_ingress_bridge is
     signal pre_out_empty       : std_logic;
     signal pre_out_error       : std_logic;
 
-    signal post_data           : std_logic_vector(35 downto 0) := (others => '0');
+    signal post_data           : std_logic_vector(83 downto 0) := (others => '0');
     signal post_valid          : std_logic := '0';
     signal post_ready          : std_logic;
     signal post_sop            : std_logic := '0';
@@ -54,7 +54,7 @@ architecture sim of tb_histogram_ingress_bridge is
     signal post_out_sop        : std_logic;
     signal post_out_eop        : std_logic;
 
-    signal hist_data           : std_logic_vector(38 downto 0);
+    signal hist_data           : std_logic_vector(86 downto 0);
     signal hist_valid          : std_logic;
     signal hist_ready          : std_logic := '1';
     signal hist_sop            : std_logic;
@@ -63,17 +63,18 @@ architecture sim of tb_histogram_ingress_bridge is
     signal hist_count          : unsigned(7 downto 0) := (others => '0');
 
     procedure drive_post_word(
-        signal data_s  : out std_logic_vector(35 downto 0);
+        signal data_s  : out std_logic_vector(83 downto 0);
         signal valid_s : out std_logic;
         signal sop_s   : out std_logic;
         signal eop_s   : out std_logic;
         signal ready_s : in  std_logic;
         constant word  : in  std_logic_vector(35 downto 0);
         constant sop   : in  std_logic := '0';
-        constant eop   : in  std_logic := '0'
+        constant eop   : in  std_logic := '0';
+        constant ts    : in  std_logic_vector(47 downto 0) := (others => '0')
     ) is
     begin
-        data_s  <= word;
+        data_s  <= ts & word;
         sop_s   <= sop;
         eop_s   <= eop;
         valid_s <= '1';
@@ -146,6 +147,22 @@ begin
             if rst = '1' then
                 hist_count <= (others => '0');
             elsif hist_valid = '1' and hist_ready = '1' then
+                case to_integer(hist_count) is
+                    when 0 =>
+                        assert hist_data(86 downto 39) = x"000000000123"
+                            report "first post hit did not carry expected ts[47:0] sideband"
+                            severity error;
+                    when 1 =>
+                        assert hist_data(86 downto 39) = x"000000000456"
+                            report "second post hit did not carry expected ts[47:0] sideband"
+                            severity error;
+                    when 2 =>
+                        assert hist_data(86 downto 39) = x"000000000007"
+                            report "backpressured post hit did not carry expected ts[47:0] sideband"
+                            severity error;
+                    when others =>
+                        null;
+                end case;
                 assert hist_data(38 downto 36) = "000"
                     report "post stream must be zero-extended into histogram data"
                     severity error;
@@ -184,8 +201,8 @@ begin
         drive_post_word(post_data, post_valid, post_sop, post_eop, post_ready, x"000000000");
         drive_post_word(post_data, post_valid, post_sop, post_eop, post_ready, x"000000000");
         drive_post_word(post_data, post_valid, post_sop, post_eop, post_ready, x"1000002F7");
-        drive_post_word(post_data, post_valid, post_sop, post_eop, post_ready, x"001234567");
-        drive_post_word(post_data, post_valid, post_sop, post_eop, post_ready, x"000000222");
+        drive_post_word(post_data, post_valid, post_sop, post_eop, post_ready, x"001234567", ts => x"000000000123");
+        drive_post_word(post_data, post_valid, post_sop, post_eop, post_ready, x"000000222", ts => x"000000000456");
         drive_post_word(post_data, post_valid, post_sop, post_eop, post_ready, x"1000000F7");
         drive_post_word(post_data, post_valid, post_sop, post_eop, post_ready, x"10000009C", '0', '1');
         wait for 3 * CLK_PERIOD_CONST;
@@ -201,7 +218,7 @@ begin
         drive_post_word(post_data, post_valid, post_sop, post_eop, post_ready, x"1000001F7");
 
         hist_ready <= '0';
-        post_data  <= x"000000033";
+        post_data  <= x"000000000007" & x"000000033";
         post_valid <= '1';
         wait until rising_edge(clk);
         assert post_ready = '0' and hist_valid = '1'

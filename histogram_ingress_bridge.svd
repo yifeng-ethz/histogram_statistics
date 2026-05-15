@@ -4,7 +4,7 @@
   <vendorID>MU3E</vendorID>
   <name>MU3E_HISTOGRAM_INGRESS_BRIDGE</name>
   <series>MU3E_FPGA_IP</series>
-  <version>26.0.2.0425</version>
+  <version>26.0.9.0515</version>
   <description>CMSIS-SVD description of the histogram ingress selector bridge CSR aperture. BaseAddress is 0 because this file describes the relative CSR aperture of the IP; system integration supplies the live slave base address.</description>
   <addressUnitBits>8</addressUnitBits>
   <width>32</width>
@@ -15,12 +15,12 @@
   <peripherals>
     <peripheral>
       <name>HISTOGRAM_INGRESS_BRIDGE_CSR</name>
-      <description>Relative 4-word CSR aperture for the histogram ingress selector bridge.</description>
+      <description>Relative 8-word CSR aperture for the histogram ingress selector bridge.</description>
       <groupName>MU3E_HISTOGRAM_INGRESS_BRIDGE</groupName>
       <baseAddress>0x0</baseAddress>
       <addressBlock>
         <offset>0x0</offset>
-        <size>0x10</size>
+        <size>0x20</size>
         <usage>registers</usage>
       </addressBlock>
       <registers>
@@ -64,7 +64,7 @@
         </register>
         <register>
           <name>CONTROL</name>
-          <description>Requested histogram source. The bridge applies a change only once both packet streams are idle.</description>
+          <description>Requested histogram source and counter clear control. The bridge applies a source change once both input streams are beat-idle and the post-hit-stack frame is idle.</description>
           <addressOffset>0x08</addressOffset>
           <access>read-write</access>
           <fields>
@@ -76,17 +76,31 @@
               <access>read-write</access>
             </field>
             <field>
-              <name>reserved</name>
+              <name>reserved0</name>
               <description>Reserved, read as zero.</description>
               <bitOffset>1</bitOffset>
-              <bitWidth>31</bitWidth>
+              <bitWidth>7</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>clear_counters</name>
+              <description>Write 1 to clear PRE_SEEN_COUNT, POST_SEEN_COUNT, HIST_EMIT_COUNT, and HIST_DROP_COUNT.</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>reserved1</name>
+              <description>Reserved, read as zero.</description>
+              <bitOffset>9</bitOffset>
+              <bitWidth>23</bitWidth>
               <access>read-only</access>
             </field>
           </fields>
         </register>
         <register>
           <name>STATUS</name>
-          <description>Live selector state and packet-idle visibility for safe source switching.</description>
+          <description>Live selector state and idle visibility for source switching. The pre packet-active field is run-level status and does not block source switching.</description>
           <addressOffset>0x0C</addressOffset>
           <access>read-only</access>
           <fields>
@@ -120,21 +134,21 @@
             </field>
             <field>
               <name>pre_packet_active</name>
-              <description>1 while the forwarded pre-hit-stack path is inside a packet.</description>
+              <description>1 while the forwarded pre-hit-stack path is inside a run-level packet. This is status-only for source switching.</description>
               <bitOffset>8</bitOffset>
               <bitWidth>1</bitWidth>
               <access>read-only</access>
             </field>
             <field>
               <name>post_packet_active</name>
-              <description>1 while the forwarded post-hit-stack path is inside a packet.</description>
+              <description>1 while the forwarded post-hit-stack path is inside a packet. This blocks source switching.</description>
               <bitOffset>9</bitOffset>
               <bitWidth>1</bitWidth>
               <access>read-only</access>
             </field>
             <field>
               <name>post_hit_filter_enabled</name>
-              <description>1 when the post-hit-stack histogram tap is configured to forward only real hit words after K23.7 subheaders.</description>
+              <description>1 when the post-hit-stack histogram tap forwards only real hit words after K23.7 subheaders.</description>
               <bitOffset>10</bitOffset>
               <bitWidth>1</bitWidth>
               <access>read-only</access>
@@ -151,6 +165,66 @@
               <description>Reserved, read as zero.</description>
               <bitOffset>12</bitOffset>
               <bitWidth>20</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>PRE_SEEN_COUNT</name>
+          <description>Saturating count of pre_in accepted beats since reset or CONTROL.clear_counters.</description>
+          <addressOffset>0x10</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Pre-rbCAM accepted beat count.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>POST_SEEN_COUNT</name>
+          <description>Saturating count of accepted post_in hit words after the optional post hit filter since reset or CONTROL.clear_counters.</description>
+          <addressOffset>0x14</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Post-rbCAM accepted hit-word count.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>HIST_EMIT_COUNT</name>
+          <description>Saturating count of histogram output handshakes since reset or CONTROL.clear_counters.</description>
+          <addressOffset>0x18</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Histogram output handshake count.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>HIST_DROP_COUNT</name>
+          <description>Saturating count of selected histogram valid cycles stalled by hist_out.ready low since reset or CONTROL.clear_counters.</description>
+          <addressOffset>0x1C</addressOffset>
+          <access>read-only</access>
+          <fields>
+            <field>
+              <name>value</name>
+              <description>Selected histogram stall count.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>32</bitWidth>
               <access>read-only</access>
             </field>
           </fields>

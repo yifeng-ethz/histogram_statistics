@@ -1,7 +1,12 @@
-set path_report_file "output_files/histogram_statistics_v2_standalone.worst_setup_paths.rpt"
+set path_report_file "output_files/hs0_board_instance.worst_setup_paths.rpt"
+
+project_open hs0_board_instance -revision hs0_board_instance
+create_timing_netlist
+read_sdc
+update_timing_netlist
 
 set fh [open $path_report_file w]
-puts $fh "histogram_statistics_v2_standalone worst setup path by operating condition"
+puts $fh "hs0_board_instance worst setup path by operating condition"
 puts $fh ""
 close $fh
 
@@ -35,3 +40,5 @@ foreach_in_collection op [get_available_operating_conditions] {
 }
 
 post_message "Wrote detailed setup paths to $path_report_file"
+delete_timing_netlist
+project_close

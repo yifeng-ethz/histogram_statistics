@@ -36,6 +36,24 @@
 --		Date: May 11, 2026
 --		Change: Drop ctrl ready output to match the rc-network readyless
 --		        contract; ctrl is broadcast-only (USE_READY=0).
+-- Revision: 1.11
+--		Date: May 14, 2026
+--		Change: Add positive stream delay mode 1. The selected update-key
+--		        slice is treated as a trimmed hit timestamp; the histogram
+--		        bins the modulo difference between the internal run-control
+--		        GTS counter and that timestamp.
+-- Revision: 1.12
+--		Date: May 14, 2026
+--		Change: Compute stream-delay mode from a full 48-bit true hit
+--		        timestamp sideband, then trim the positive delay result to
+--		        SAR_TICK_WIDTH so the histogram fill path keeps the same
+--		        configured width as normal mode.
+-- Revision: 1.13
+--		Date: May 14, 2026
+--		Change: Add LOCK_KEY_RANGES so fixed-format integrations can use
+--		        static generic update/filter bit ranges in the hot ingress
+--		        path instead of timing through the CSR-programmable range
+--		        extractor.
 -- Revision: 1.3
 --		Date: Apr 25, 2026
 --		Change: Parameterize the ingress FIFO depth for bursty post-stack
@@ -88,6 +106,7 @@ entity histogram_statistics_v2 is
         UPDATE_KEY_BIT_HI        : natural := 29;
         UPDATE_KEY_BIT_LO        : natural := 17;
         UPDATE_KEY_REPRESENTATION: string  := "UNSIGNED";
+        LOCK_KEY_RANGES          : boolean := false;
         FILTER_KEY_BIT_HI        : natural := 38;
         FILTER_KEY_BIT_LO        : natural := 35;
         SAR_TICK_WIDTH           : natural := 32;
@@ -236,12 +255,33 @@ architecture rtl of histogram_statistics_v2 is
     constant COUNT_WIDTH_CONST      : natural := MAX_COUNT_BITS;
     constant PORT_WIDTH_CONST       : natural := clog2(MAX_PORTS_CONST);
 
+    constant DELAY_TIMESTAMP_WIDTH_CONST : natural := 48;
+    constant UPDATE_KEY_LOW_CONST        : unsigned(7 downto 0) := to_unsigned(UPDATE_KEY_BIT_LO, 8);
+    constant UPDATE_KEY_HIGH_CONST       : unsigned(7 downto 0) := to_unsigned(UPDATE_KEY_BIT_HI, 8);
+    constant FILTER_KEY_LOW_CONST        : unsigned(7 downto 0) := to_unsigned(FILTER_KEY_BIT_LO, 8);
+    constant FILTER_KEY_HIGH_CONST       : unsigned(7 downto 0) := to_unsigned(FILTER_KEY_BIT_HI, 8);
+
     subtype tick_t      is signed(SAR_TICK_WIDTH - 1 downto 0);
     subtype tick_slv_t  is std_logic_vector(SAR_TICK_WIDTH - 1 downto 0);
+    subtype delay_ts_t  is unsigned(DELAY_TIMESTAMP_WIDTH_CONST - 1 downto 0);
     subtype fifo_level_t is unsigned(FIFO_ADDR_WIDTH_CONST downto 0);
     subtype port_index_t is unsigned(PORT_WIDTH_CONST - 1 downto 0);
     subtype bin_index_t is unsigned(BIN_INDEX_WIDTH_CONST - 1 downto 0);
     subtype status_byte_t is unsigned(7 downto 0);
+
+    type run_state_t is (
+        IDLE,
+        RUN_PREPARE,
+        SYNC,
+        RUNNING,
+        TERMINATING,
+        LINK_TEST,
+        SYNC_TEST,
+        RESET,
+        OUT_OF_DAQ,
+        ERROR
+    );
+
     type status_pair_max_array_t is array (0 to (MAX_PORTS_CONST / 2) - 1) of status_byte_t;
 
     signal port_valid     : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
@@ -342,6 +382,9 @@ architecture rtl of histogram_statistics_v2 is
     signal csr_coal_status      : std_logic_vector(31 downto 0) := (others => '0');
     signal csr_readdata_mux     : std_logic_vector(31 downto 0) := (others => '0');
     signal csr_readdata_reg     : std_logic_vector(31 downto 0) := (others => '0');
+    signal run_state_cmd        : run_state_t := IDLE;
+    signal gts_counter_rst      : std_logic := '1';
+    signal gts_8n               : unsigned(47 downto 0) := (others => '0');
     signal cfg_apply_request    : std_logic := '0';
     signal cfg_apply_pending    : std_logic := '0';
     signal cfg_mode             : std_logic_vector(3 downto 0) := (others => '0');
@@ -434,6 +477,34 @@ architecture rtl of histogram_statistics_v2 is
         end if;
         return std_logic_vector(result_v);
     end function build_key;
+
+    function build_delay_key(
+        data_word : std_logic_vector;
+        key_hi    : unsigned(7 downto 0);
+        key_lo    : unsigned(7 downto 0);
+        gts_value : unsigned
+    ) return std_logic_vector is
+        variable gts_full_v : delay_ts_t := (others => '0');
+        variable hit_full_v : delay_ts_t := (others => '0');
+        variable delay_v    : delay_ts_t := (others => '0');
+        variable result_v   : tick_t := (others => '0');
+    begin
+        gts_full_v := resize(gts_value, DELAY_TIMESTAMP_WIDTH_CONST);
+        hit_full_v := resize(
+            extract_unsigned(data_word, to_integer(key_hi), to_integer(key_lo)),
+            DELAY_TIMESTAMP_WIDTH_CONST
+        );
+
+        delay_v := gts_full_v - hit_full_v;
+
+        for bit_idx_v in 0 to SAR_TICK_WIDTH - 1 loop
+            if bit_idx_v < DELAY_TIMESTAMP_WIDTH_CONST then
+                result_v(bit_idx_v) := delay_v(bit_idx_v);
+            end if;
+        end loop;
+
+        return std_logic_vector(result_v);
+    end function build_delay_key;
 
     function build_debug_key(
         debug_mode : integer;
@@ -573,6 +644,60 @@ begin
         end if;
     end process hist_writeresp_reg;
 
+    run_management_reg : process (i_clk)
+    begin
+        if rising_edge(i_clk) then
+            if i_rst = '1' then
+                run_state_cmd <= IDLE;
+            elsif asi_ctrl_valid = '1' then
+                case asi_ctrl_data is
+                    when "000000001" =>
+                        run_state_cmd <= IDLE;
+                    when "000000010" =>
+                        run_state_cmd <= RUN_PREPARE;
+                    when "000000100" =>
+                        run_state_cmd <= SYNC;
+                    when "000001000" =>
+                        run_state_cmd <= RUNNING;
+                    when "000010000" =>
+                        run_state_cmd <= TERMINATING;
+                    when "000100000" =>
+                        run_state_cmd <= LINK_TEST;
+                    when "001000000" =>
+                        run_state_cmd <= SYNC_TEST;
+                    when "010000000" =>
+                        run_state_cmd <= RESET;
+                    when "100000000" =>
+                        run_state_cmd <= OUT_OF_DAQ;
+                    when others =>
+                        run_state_cmd <= ERROR;
+                end case;
+            end if;
+        end if;
+    end process run_management_reg;
+
+    gts_reset_reg : process (i_clk)
+    begin
+        if rising_edge(i_clk) then
+            if i_rst = '1' or run_state_cmd = SYNC then
+                gts_counter_rst <= '1';
+            else
+                gts_counter_rst <= '0';
+            end if;
+        end if;
+    end process gts_reset_reg;
+
+    gts_counter_reg : process (i_clk)
+    begin
+        if rising_edge(i_clk) then
+            if i_rst = '1' or gts_counter_rst = '1' then
+                gts_8n <= (others => '0');
+            else
+                gts_8n <= gts_8n + 1;
+            end if;
+        end if;
+    end process gts_counter_reg;
+
     ingress_comb : process (all)
         variable sampled_v         : std_logic;
         variable stream_ready_v    : std_logic;
@@ -585,6 +710,10 @@ begin
         variable debug_data_v      : std_logic_vector(15 downto 0);
         variable debug_source_v    : natural;
         variable debug_filter_v    : std_logic_vector(AVST_DATA_WIDTH - 1 downto 0);
+        variable update_key_low_v  : unsigned(7 downto 0);
+        variable update_key_high_v : unsigned(7 downto 0);
+        variable filter_key_low_v  : unsigned(7 downto 0);
+        variable filter_key_high_v : unsigned(7 downto 0);
     begin
         fifo_write        <= (others => '0');
         fifo_wr_data      <= (others => (others => '0'));
@@ -600,6 +729,17 @@ begin
         debug_data_v     := (others => '0');
         debug_source_v   := 0;
         debug_filter_v   := (others => '0');
+        if LOCK_KEY_RANGES then
+            update_key_low_v  := UPDATE_KEY_LOW_CONST;
+            update_key_high_v := UPDATE_KEY_HIGH_CONST;
+            filter_key_low_v  := FILTER_KEY_LOW_CONST;
+            filter_key_high_v := FILTER_KEY_HIGH_CONST;
+        else
+            update_key_low_v  := cfg_update_key_low;
+            update_key_high_v := cfg_update_key_high;
+            filter_key_low_v  := cfg_filter_key_low;
+            filter_key_high_v := cfg_filter_key_high;
+        end if;
 
         case debug_mode_v is
             when -1 =>
@@ -625,6 +765,14 @@ begin
         end case;
 
         for idx in 0 to MAX_PORTS_CONST - 1 loop
+            if LOCK_KEY_RANGES then
+                filter_key_low_v  := FILTER_KEY_LOW_CONST;
+                filter_key_high_v := FILTER_KEY_HIGH_CONST;
+            else
+                filter_key_low_v  := cfg_filter_key_low_port(idx);
+                filter_key_high_v := cfg_filter_key_high_port(idx);
+            end if;
+
             debug_active_v := false;
             if debug_dual_mts_v and idx < 2 then
                 debug_active_v := true;
@@ -698,8 +846,27 @@ begin
                             data_word      => debug_filter_v,
                             filter_enable  => cfg_filter_enable_port(idx),
                             filter_reject  => cfg_filter_reject_port(idx),
-                            filter_hi      => cfg_filter_key_high_port(idx),
-                            filter_lo      => cfg_filter_key_low_port(idx),
+                            filter_hi      => filter_key_high_v,
+                            filter_lo      => filter_key_low_v,
+                            filter_key     => cfg_filter_key_port(idx)
+                        );
+                        if filter_pass_v then
+                            ingress_write_req(idx) <= '1';
+                        end if;
+                    elsif debug_mode_v = 1 then
+                        ingress_key_next(idx) <= build_delay_key(
+                            data_word => port_data(idx),
+                            key_hi    => update_key_high_v,
+                            key_lo    => update_key_low_v,
+                            gts_value => gts_8n
+                        );
+
+                        filter_pass_v := match_filter(
+                            data_word      => port_data(idx),
+                            filter_enable  => cfg_filter_enable_port(idx),
+                            filter_reject  => cfg_filter_reject_port(idx),
+                            filter_hi      => filter_key_high_v,
+                            filter_lo      => filter_key_low_v,
                             filter_key     => cfg_filter_key_port(idx)
                         );
                         if filter_pass_v then
@@ -711,8 +878,8 @@ begin
                         -- Key value is don't-care when write_req = '0'.
                         ingress_key_next(idx) <= build_key(
                             data_word    => port_data(idx),
-                            key_hi       => cfg_update_key_high,
-                            key_lo       => cfg_update_key_low,
+                            key_hi       => update_key_high_v,
+                            key_lo       => update_key_low_v,
                             key_unsigned => cfg_key_unsigned
                         );
 
@@ -720,8 +887,8 @@ begin
                             data_word      => port_data(idx),
                             filter_enable  => cfg_filter_enable_port(idx),
                             filter_reject  => cfg_filter_reject_port(idx),
-                            filter_hi      => cfg_filter_key_high_port(idx),
-                            filter_lo      => cfg_filter_key_low_port(idx),
+                            filter_hi      => filter_key_high_v,
+                            filter_lo      => filter_key_low_v,
                             filter_key     => cfg_filter_key_port(idx)
                         );
                         if filter_pass_v then

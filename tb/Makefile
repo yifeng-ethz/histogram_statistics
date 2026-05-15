@@ -2,12 +2,16 @@ include ../../scripts/questa_one.mk
 
 IP_SRC     = $(realpath ..)
 WORK       = work_hist_stat_v2
+WORK_POST  = work_hist_post_ts_sideband
+WORK_PRE_TRIM = work_hist_pre_ts_trim
 TB_TOP     = tb_histogram_statistics_v2
+TB_POST_TOP = tb_histogram_post_ts_sideband
+TB_PRE_TRIM_TOP = tb_histogram_pre_ts_trim
 
 TEST ?= B01_smoke
 SEED ?= 42
 
-.PHONY: compile run run_all clean
+.PHONY: compile compile_post_ts_sideband compile_pre_ts_trim run run_all run_post_ts_sideband run_pre_ts_trim run_ingress_bridge_switch_observed run_ingress_bridge_switch_contract clean
 
 compile: $(WORK)/_vmake
 
@@ -63,5 +67,44 @@ run_all: compile
 	  +TEST=ALL +SEED=$(SEED) \
 	  $(TB_TOP)
 
+compile_post_ts_sideband:
+	@echo "═══ Compiling histogram_post_ts_sideband standalone testbench ═══"
+	rm -rf $(WORK_POST)
+	$(VLIB) $(WORK_POST)
+	cp $(QSIM_INI) modelsim.ini
+	chmod u+w modelsim.ini
+	$(VMAP) -modelsimini modelsim.ini $(WORK_POST) $(WORK_POST)
+	$(VCOM) -modelsimini modelsim.ini -work $(WORK_POST) -2008 $(IP_SRC)/rtl/histogram_post_ts_sideband.vhd
+	$(VCOM) -modelsimini modelsim.ini -work $(WORK_POST) -2008 tb_histogram_post_ts_sideband.vhd
+
+run_post_ts_sideband: compile_post_ts_sideband
+	@echo "═══ Running histogram_post_ts_sideband standalone testbench ═══"
+	$(VSIM) -modelsimini modelsim.ini -c -do "run -all; quit -f" \
+	  -work $(WORK_POST) -t ps -voptargs=+acc \
+	  $(TB_POST_TOP)
+
+compile_pre_ts_trim:
+	@echo "═══ Compiling histogram_pre_ts_trim standalone testbench ═══"
+	rm -rf $(WORK_PRE_TRIM)
+	$(VLIB) $(WORK_PRE_TRIM)
+	cp $(QSIM_INI) modelsim.ini
+	chmod u+w modelsim.ini
+	$(VMAP) -modelsimini modelsim.ini $(WORK_PRE_TRIM) $(WORK_PRE_TRIM)
+	$(VCOM) -modelsimini modelsim.ini -work $(WORK_PRE_TRIM) -2008 $(IP_SRC)/rtl/histogram_pre_ts_trim.vhd
+	$(VCOM) -modelsimini modelsim.ini -work $(WORK_PRE_TRIM) -2008 tb_histogram_pre_ts_trim.vhd
+
+run_pre_ts_trim: compile_pre_ts_trim
+	@echo "═══ Running histogram_pre_ts_trim standalone testbench ═══"
+	$(VSIM) -modelsimini modelsim.ini -c -do "run -all; quit -f" \
+	  -work $(WORK_PRE_TRIM) -t ps -voptargs=+acc \
+	  $(TB_PRE_TRIM_TOP)
+
+run_ingress_bridge_switch_observed:
+	$(MAKE) -C histogram_ingress_bridge run_switch_observed
+
+run_ingress_bridge_switch_contract:
+	$(MAKE) -C histogram_ingress_bridge run_switch_contract
+
 clean:
-	rm -rf $(WORK) transcript vsim.wlf
+	rm -rf $(WORK) $(WORK_POST) $(WORK_PRE_TRIM) transcript vsim.wlf
+	$(MAKE) -C histogram_ingress_bridge clean
