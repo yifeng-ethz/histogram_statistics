@@ -8,16 +8,12 @@ Standalone verification tree for `histogram_statistics_v2`.
 make -C histogram_statistics/tb run_all
 ```
 
-Histogram ingress bridge source-switch regression:
+The bridge-free streaming-debug contract is part of `run_all`: the histogram
+IP accepts the normal fill path and the two readyless Type-1 extended inputs,
+with source selection absorbed into `CONTROL.in_port[3:2]`.
 
-```sh
-make -C histogram_statistics/tb run_ingress_bridge_switch_observed
-make -C histogram_statistics/tb run_ingress_bridge_switch_contract
-```
-
-The observed target records the current pending-switch behavior. The contract
-target is expected to fail until the bridge source switch no longer treats
-FEB pre-rbCAM run-level packet activity as a beat-level switch hazard.
+`histogram_ingress_bridge` was removed on 2026-05-15. The old bridge
+source-switch regression targets are intentionally retired.
 
 ## Phase-5 Evidence
 

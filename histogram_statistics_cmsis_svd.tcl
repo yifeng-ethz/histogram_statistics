@@ -29,8 +29,8 @@ proc ::mu3e::cmsis::spec::build_device {} {
             -fields [list \
                 [::mu3e::cmsis::svd::field apply 0 1 -description "Write 1 to request that the staged configuration becomes active after the ingress path drains." -access read-write] \
                 [::mu3e::cmsis::svd::field apply_pending 1 1 -description "1 while a committed configuration is waiting to settle into the live datapath." -access read-only] \
-                [::mu3e::cmsis::svd::field reserved0 2 2 -description "Reserved, read as zero." -access read-only] \
-                [::mu3e::cmsis::svd::field mode 4 4 -description {Mode selector. Mode 0 bins the selected stream key directly. Mode 1 bins stream delay: internal run-control GTS minus the selected true hit timestamp slice ts[47:0], then trims the positive result to the configured histogram tick width. Negative signed values -1..-6 route debug_1..debug_6 individually; -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes the CSR filter compares a synthetic debug word: bits [15:0] sample, [23:16] zero-based debug source, [31:24] absolute debug mode.} -access read-write] \
+                [::mu3e::cmsis::svd::field in_port 2 2 -description {Histogram ingress source. 0 selects the normal fill-in merge, 1 selects hit_type1_extended_0, and 2 selects hit_type1_extended_1. Value 3 is rejected on apply.} -access read-write] \
+                [::mu3e::cmsis::svd::field mode 4 4 -description {Mode selector. Mode 0 bins the selected stream key directly. Mode 1 bins stream delay: for in_port 1 or 2, data[86:39] from the selected extended source is the true hit timestamp; for in_port 0, the selected update-key slice is used as before. Negative signed values -1..-6 route debug_1..debug_6 individually; -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes the CSR filter compares a synthetic debug word: bits [15:0] sample, [23:16] zero-based debug source, [31:24] absolute debug mode.} -access read-write] \
                 [::mu3e::cmsis::svd::field key_unsigned 8 1 -description "1 selects unsigned update-key interpretation, 0 selects signed extraction." -access read-write] \
                 [::mu3e::cmsis::svd::field reserved1 9 3 -description "Reserved, read as zero." -access read-only] \
                 [::mu3e::cmsis::svd::field filter_enable 12 1 -description "Enables the runtime filter-key comparison." -access read-write] \
@@ -38,7 +38,7 @@ proc ::mu3e::cmsis::spec::build_device {} {
                 [::mu3e::cmsis::svd::field reserved2 14 10 -description "Reserved, read as zero." -access read-only] \
                 [::mu3e::cmsis::svd::field error 24 1 -description "Set when the last apply request failed CSR validation." -access read-only] \
                 [::mu3e::cmsis::svd::field reserved3 25 3 -description "Reserved, read as zero." -access read-only] \
-                [::mu3e::cmsis::svd::field error_info 28 4 -description "Validation error code. 0x1 indicates invalid bounds in auto-right-bound mode." -access read-only]]] \
+                [::mu3e::cmsis::svd::field error_info 28 4 -description "Validation error code. 0x1 indicates invalid bounds in auto-right-bound mode; 0x2 indicates invalid in_port." -access read-only]]] \
         [::mu3e::cmsis::svd::register LEFT_BOUND 0x0C \
             -description "Signed left boundary of the histogram range." \
             -access read-write \
@@ -126,7 +126,7 @@ proc ::mu3e::cmsis::spec::build_device {} {
             -fields [list [::mu3e::cmsis::svd::field value 0 32 -description "Last completed interval dropped-hit count." -access read-only]]]]
 
     return [::mu3e::cmsis::svd::device MU3E_HISTOGRAM_STATISTICS \
-        -version 26.1.6.0429 \
+        -version 26.3.0.0515 \
         -description "CMSIS-SVD description of the histogram statistics CSR window. BaseAddress is 0 because this file describes the relative CSR aperture of the IP; system integration supplies the live slave base address." \
         -peripherals [list \
             [::mu3e::cmsis::svd::peripheral HISTOGRAM_STATISTICS_CSR 0x0 \

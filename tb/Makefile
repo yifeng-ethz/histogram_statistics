@@ -11,7 +11,7 @@ TB_PRE_TRIM_TOP = tb_histogram_pre_ts_trim
 TEST ?= B01_smoke
 SEED ?= 42
 
-.PHONY: compile compile_post_ts_sideband compile_pre_ts_trim run run_all run_post_ts_sideband run_pre_ts_trim run_ingress_bridge_switch_observed run_ingress_bridge_switch_contract clean
+.PHONY: compile compile_post_ts_sideband compile_pre_ts_trim run run_all run_post_ts_sideband run_pre_ts_trim clean
 
 compile: $(WORK)/_vmake
 
@@ -99,12 +99,5 @@ run_pre_ts_trim: compile_pre_ts_trim
 	  -work $(WORK_PRE_TRIM) -t ps -voptargs=+acc \
 	  $(TB_PRE_TRIM_TOP)
 
-run_ingress_bridge_switch_observed:
-	$(MAKE) -C histogram_ingress_bridge run_switch_observed
-
-run_ingress_bridge_switch_contract:
-	$(MAKE) -C histogram_ingress_bridge run_switch_contract
-
 clean:
 	rm -rf $(WORK) $(WORK_POST) $(WORK_PRE_TRIM) transcript vsim.wlf
-	$(MAKE) -C histogram_ingress_bridge clean

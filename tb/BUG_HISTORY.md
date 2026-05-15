@@ -40,10 +40,39 @@ Historical formal note:
 | [BUG-002-R](#bug-002-r-standalone-sta-regression-at-version-26160429) | R | soft error | `corner-only (standalone timing signoff)` | open | standalone Quartus signoff from HEAD `c035c35` | `pending` | VERSION 26.1.6.0429 has a standalone slow-85 setup miss on a queue accounting path. |
 | [BUG-003-R](#bug-003-r-qsys-generated-boolean-vs-natural-shell-split-on-enable_pingpong--snoop_en--enable_packet) | R | non-datapath-refactor | `common (FEB Qsys generation)` | fixed | FEB v3_pretest-260511 Quartus full compile attempt 2026-05-11 | `pending` | Platform Designer package metadata briefly generated a NATURAL shell around BOOLEAN RTL generics. |
 | [BUG-004-R](#bug-004-r-ctrl-sink-still-declared-asi-ctrl-ready-against-the-rc-network-readyless-contract) | R | non-datapath-refactor | `directed-only (Qsys auto-inserts timing_adapter on rc fan-out)` | fixed | FEB v3 integration audit `tb_int_run_emulator_directed` | this commit | The `ctrl` sink still declared `asi_ctrl_ready` so Qsys auto-inserted `altera_avalon_st_timing_adapter` on the rc fan-out, carrying the B002 ready-default hazard on silicon. |
-| [BUG-005-R](#bug-005-r-histogram-ingress-bridge-source-switch-stalls-on-pre-rbcam-run-level-packet-active) | R | hard stuck error | `common (routine source selection after FEB pre run starts)` | open | FEB/SWB board hist status `0x105`, IP switch TB 2026-05-14 | `pending` | `histogram_ingress_bridge` treats pre-rbCAM run-level packet activity as a source-switch hazard, leaving pre/post source requests pending through RUNNING. |
+| [BUG-005-R](#bug-005-r-histogram-ingress-bridge-source-switch-stalls-on-pre-rbcam-run-level-packet-active) | R | hard stuck error | `common (routine source selection after FEB pre run starts)` | fixed / bridge removed | FEB/SWB board hist status `0x105`, IP switch TB 2026-05-14 | `pending` | Source selection is absorbed into `histogram_statistics_v2`; `histogram_ingress_bridge` was removed from the IP and FEB v3 topology. |
 | [BUG-006-H](#bug-006-h-disabled-histogram-qsys-outputs-still-reported-as-unconnected) | H | non-datapath-refactor | `common (FEB v3 Platform Designer open/generate)` | fixed | FEB v3 Qsys GUI/generation cleanup 2026-05-15 | this commit | Histogram optional output interfaces remained enabled in packaging metadata when the FEB v3 configuration disabled post forwarding and snooping. |
 
 ## 2026-05-15
+
+### BUG-005-R: histogram ingress bridge source switch stalls on pre-rbCAM run-level packet active
+
+- First seen:
+  - SWB board guarded run reported histogram bridge source status `0x00000105`: live post, requested pre, switch pending, `pre_packet_active=1`.
+  - FEB IP-level switch regression added under the retired bridge TB reproduced the same mechanism with post-hit filtering enabled.
+- Symptom:
+  - Source-selection writes could remain pending through RUNNING because the pre-rbCAM stream used SOP/EOP as run-level markers rather than per-hit packet markers.
+- Root cause:
+  - `histogram_ingress_bridge.switch_safe` treated `pre_packet_active='1'` as a switch hazard for the whole run.
+- Fix status:
+  - state:
+    - fixed by removing the bridge IP from the active contract
+  - mechanism:
+    - Deleted `histogram_ingress_bridge` RTL, `_hw.tcl`, SVD, CMSIS generator, and standalone bridge testbench.
+    - Added `histogram_statistics_v2` `CONTROL.in_port[3:2]` so the histogram IP selects normal fill, upper MTS extended input, or lower MTS extended input internally.
+    - Updated FEB v3 Qsys updater scripts to remove stale bridge, post-sideband, and pre-trim instances/connections.
+  - before_fix_outcome:
+    - Old bridge switch contract could remain stuck with pending source requests while RUNNING.
+  - after_fix_outcome:
+    - `make -C histogram_statistics/tb run_all` passed with `47 PASS, 0 FAIL`.
+    - FEB v3 Qsys generation passed with status `exit_code=0`, `error_count=0`.
+    - `tb_int` B065-B069, `RC_EMUL`, and source-mux/frame-parser cosim passed with DEBUG_LEVEL=2 per-hit scoreboard evidence.
+  - potential_hazard:
+    - Low for the bridge-free topology because the bridge no longer exists in the selected source path. Historical systems that still instantiate the old bridge keep the old hazard unless updated.
+  - Claude Opus 4.7 xhigh review decision:
+    - pending / not run in this turn
+- Commit:
+  - pending
 
 ### BUG-006-H: disabled histogram Qsys outputs still reported as unconnected
 
@@ -72,38 +101,6 @@ Historical formal note:
     - pending / not run in this turn
 - Commit:
   - this commit (`[FIX] Gate optional histogram Qsys streams`)
-
-## 2026-05-14
-
-### BUG-005-R: histogram ingress bridge source switch stalls on pre-rbCAM run-level packet active
-
-- First seen:
-  - SWB board guarded run reported histogram bridge source status `0x00000105`: live post, requested pre, switch pending, `pre_packet_active=1`.
-  - FEB IP-level switch regression added under `tb/histogram_ingress_bridge` reproduces the same mechanism with post-hit filtering enabled:
-    - post-to-pre request during a FEB pre run reports `0x00000505`.
-    - pre-to-post request during a FEB pre run reports `0x00000506`.
-- Symptom:
-  - Once the FEB pre-rbCAM stream emits its run-opening SOP, source-selection writes can remain pending until the terminating pre EOP marker.
-  - In RUNNING, the histogram input can therefore stay connected to the stale source even when both stream inputs are beat-idle.
-- Root cause:
-  - `histogram_ingress_bridge.switch_safe` requires `pre_packet_active='0'`.
-  - FEB MTS/rbCAM semantics use pre stream SOP/EOP as run-level markers, not per-hit packet markers, so `pre_packet_active` remains high for the whole run after the first pre hit.
-- Fix status:
-  - state:
-    - open
-  - mechanism:
-    - No RTL fix applied in this change.
-    - New IP-local TB target `run_ingress_bridge_switch_observed` records the current stuck/pending behavior.
-    - New IP-local TB target `run_ingress_bridge_switch_contract` encodes the intended contract and fails on current RTL.
-  - before_fix_outcome:
-    - `run_ingress_bridge_switch_observed` passes with observed-bug statuses `0x00000505` and `0x00000506`.
-    - `run_ingress_bridge_switch_contract` fails with two contract errors because source requests remain pending while streams are beat-idle.
-  - potential_hazard:
-    - This is operationally common if source selection is performed after a FEB pre run has started, and it can make RUNNING histogram evidence come from the wrong rbCAM boundary.
-  - Claude Opus 4.7 xhigh review decision:
-    - pending / not run in this turn
-- Commit:
-  - pending
 
 ## 2026-05-11
 

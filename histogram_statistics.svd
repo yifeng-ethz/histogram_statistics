@@ -4,7 +4,7 @@
   <vendorID>MU3E</vendorID>
   <name>MU3E_HISTOGRAM_STATISTICS</name>
   <series>MU3E_FPGA_IP</series>
-  <version>26.1.6.0429</version>
+  <version>26.3.0.0515</version>
   <description>CMSIS-SVD description of the histogram statistics CSR window. BaseAddress is 0 because this file describes the relative CSR aperture of the IP; system integration supplies the live slave base address.</description>
   <addressUnitBits>8</addressUnitBits>
   <width>32</width>
@@ -84,15 +84,15 @@
               <access>read-only</access>
             </field>
             <field>
-              <name>reserved0</name>
-              <description>Reserved, read as zero.</description>
+              <name>in_port</name>
+              <description>Histogram ingress source. 0 selects the normal fill-in merge, 1 selects hit_type1_extended_0, and 2 selects hit_type1_extended_1. Value 3 is rejected on apply.</description>
               <bitOffset>2</bitOffset>
               <bitWidth>2</bitWidth>
-              <access>read-only</access>
+              <access>read-write</access>
             </field>
             <field>
               <name>mode</name>
-              <description>Mode selector. Negative signed values -1..-6 route debug_1..debug_6 individually; -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes the CSR filter compares a synthetic debug word: bits [15:0] sample, [23:16] zero-based debug source, [31:24] absolute debug mode.</description>
+              <description>Mode selector. Mode 0 bins the selected stream key directly. Mode 1 bins stream delay: for in_port 1 or 2, data[86:39] from the selected extended source is the true hit timestamp; for in_port 0, the selected update-key slice is used as before. Negative signed values -1..-6 route debug_1..debug_6 individually; -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes the CSR filter compares a synthetic debug word: bits [15:0] sample, [23:16] zero-based debug source, [31:24] absolute debug mode.</description>
               <bitOffset>4</bitOffset>
               <bitWidth>4</bitWidth>
               <access>read-write</access>
@@ -148,7 +148,7 @@
             </field>
             <field>
               <name>error_info</name>
-              <description>Validation error code. 0x1 indicates invalid bounds in auto-right-bound mode.</description>
+              <description>Validation error code. 0x1 indicates invalid bounds in auto-right-bound mode; 0x2 indicates invalid in_port.</description>
               <bitOffset>28</bitOffset>
               <bitWidth>4</bitWidth>
               <access>read-only</access>

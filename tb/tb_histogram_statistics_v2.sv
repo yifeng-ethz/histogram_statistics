@@ -31,13 +31,13 @@ module tb_histogram_statistics_v2;
   localparam int unsigned CHANNELS_PER_PORT  = 32;
   localparam int unsigned COAL_QUEUE_DEPTH   = 256;
   localparam int unsigned DEF_INTERVAL_CLKS  = 125_000_000;
-  localparam int unsigned AVST_DATA_WIDTH    = 87;
+  localparam int unsigned AVST_DATA_WIDTH    = 39;
   localparam int unsigned AVST_CHAN_WIDTH    = 4;
   localparam int unsigned VERSION_MAJOR       = 26;
-  localparam int unsigned VERSION_MINOR       = 2;
-  localparam int unsigned VERSION_PATCH       = 2;
-  localparam int unsigned VERSION_BUILD       = 514;
-  localparam int unsigned VERSION_DATE        = 20260514;
+  localparam int unsigned VERSION_MINOR       = 3;
+  localparam int unsigned VERSION_PATCH       = 0;
+  localparam int unsigned VERSION_BUILD       = 515;
+  localparam int unsigned VERSION_DATE        = 20260515;
   localparam int unsigned DELAY_TS_BIT_LO     = 39;
   localparam int unsigned DELAY_TS_BIT_HI     = 86;
 
@@ -109,6 +109,9 @@ module tb_histogram_statistics_v2;
   logic                       fill_eop   [8];
   logic [AVST_CHAN_WIDTH-1:0]  fill_chan  [8];
   logic                       fill_ready [8];
+
+  logic [86:0] hit_type1_extended_data  [2];
+  logic        hit_type1_extended_valid [2];
 
   // AVST fill_out (snoop)
   logic                       fill_out_ready;
@@ -233,6 +236,11 @@ module tb_histogram_statistics_v2;
     .asi_fill_in_7_startofpacket     (fill_sop[7]),
     .asi_fill_in_7_endofpacket       (fill_eop[7]),
     .asi_fill_in_7_channel           (fill_chan[7]),
+
+    .asi_hit_type1_extended_0_valid   (hit_type1_extended_valid[0]),
+    .asi_hit_type1_extended_0_data    (hit_type1_extended_data[0]),
+    .asi_hit_type1_extended_1_valid   (hit_type1_extended_valid[1]),
+    .asi_hit_type1_extended_1_data    (hit_type1_extended_data[1]),
 
     .aso_hist_fill_out_ready         (fill_out_ready),
     .aso_hist_fill_out_valid         (fill_out_valid),
@@ -540,11 +548,11 @@ module tb_histogram_statistics_v2;
     return d;
   endfunction
 
-  function automatic logic [AVST_DATA_WIDTH-1:0] make_delay_hit_data(
+  function automatic logic [86:0] make_delay_hit_data(
     logic [47:0] hit_ts,
     int          lower_mode_key
   );
-    logic [AVST_DATA_WIDTH-1:0] d;
+    logic [86:0] d;
     d = make_hit_data(lower_mode_key);
     d[DELAY_TS_BIT_HI:DELAY_TS_BIT_LO] = hit_ts;
     return d;
@@ -654,7 +662,8 @@ module tb_histogram_statistics_v2;
   task automatic configure_delay_mode(
     input int          left_bound,
     input int unsigned bin_width,
-    input int unsigned interval = 2000
+    input int unsigned interval = 2000,
+    input int unsigned in_port = 1
   );
     logic [31:0] key_loc_word;
     logic [31:0] ctrl_word;
@@ -675,6 +684,7 @@ module tb_histogram_statistics_v2;
     csr_write32(CSR_INTERVAL,   interval);
 
     ctrl_word        = 32'h0000_0001;  // apply
+    ctrl_word[3:2]   = in_port[1:0];
     ctrl_word[7:4]   = 4'h1;           // positive delay mode
     ctrl_word[8]     = 1'b1;
     csr_write32(CSR_CONTROL, ctrl_word);
@@ -682,14 +692,14 @@ module tb_histogram_statistics_v2;
   endtask
 
   task automatic inject_delay_hit_exact(
-    input int unsigned port_idx,
+    input int unsigned ext_idx,
     input int unsigned delay_ticks,
     input int          lower_mode_key
   );
     logic [47:0] gts_sample;
     logic [47:0] hit_ts;
     logic [47:0] delay_vec;
-    logic [AVST_DATA_WIDTH-1:0] hit_data;
+    logic [86:0] hit_data;
 
     @(posedge i_clk);
     #1ps;
@@ -702,19 +712,12 @@ module tb_histogram_statistics_v2;
     hit_ts   = gts_sample - delay_vec;
     hit_data = make_delay_hit_data(hit_ts, lower_mode_key);
 
-    fill_data[port_idx]  <= hit_data;
-    fill_valid[port_idx] <= 1'b1;
-    fill_sop[port_idx]   <= 1'b0;
-    fill_eop[port_idx]   <= 1'b0;
-    fill_chan[port_idx]  <= '0;
+    hit_type1_extended_data[ext_idx]  <= hit_data;
+    hit_type1_extended_valid[ext_idx] <= 1'b1;
 
     @(posedge i_clk);
-    if (fill_ready[port_idx] !== 1'b1) begin
-      $fatal(1, "inject_delay_hit_exact: ready was not high on port %0d", port_idx);
-    end
-    fill_valid[port_idx] <= 1'b0;
-    fill_data[port_idx]  <= '0;
-    fill_chan[port_idx]  <= '0;
+    hit_type1_extended_valid[ext_idx] <= 1'b0;
+    hit_type1_extended_data[ext_idx]  <= '0;
   endtask
 
   // ════════════════════════════════════════════════════════════════
@@ -1569,6 +1572,10 @@ module tb_histogram_statistics_v2;
       fill_sop[i]   <= 1'b0;
       fill_eop[i]   <= 1'b0;
       fill_chan[i]   <= '0;
+    end
+    for (int i = 0; i < 2; i++) begin
+      hit_type1_extended_valid[i] <= 1'b0;
+      hit_type1_extended_data[i]  <= '0;
     end
     fill_out_ready <= 1'b1;
     ctrl_data      <= 9'h000;

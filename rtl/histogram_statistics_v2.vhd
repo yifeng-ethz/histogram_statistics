@@ -54,6 +54,12 @@
 --		        static generic update/filter bit ranges in the hot ingress
 --		        path instead of timing through the CSR-programmable range
 --		        extractor.
+-- Revision: 1.14
+--		Date: May 15, 2026
+--		Change: Absorb the streaming-debug-plane source selection into the
+--		        histogram IP. CONTROL[3:2] selects the normal fill-in merge,
+--		        MTS extended bank 0, or MTS extended bank 1. Positive delay
+--		        mode uses extended data[86:39] as the true timestamp.
 -- Revision: 1.3
 --		Date: Apr 25, 2026
 --		Change: Parameterize the ingress FIFO depth for bursty post-stack
@@ -126,11 +132,11 @@ entity histogram_statistics_v2 is
         AVST_CHANNEL_WIDTH       : natural := 4;
         N_DEBUG_INTERFACE        : natural := 6;
         VERSION_MAJOR            : natural := 26;
-        VERSION_MINOR            : natural := 2;
+        VERSION_MINOR            : natural := 3;
         VERSION_PATCH            : natural := 0;
-        BUILD                    : natural := 511;
+        BUILD                    : natural := 515;
         IP_UID                   : natural := 1212765012;  -- ASCII "HIST" = 0x48495354
-        VERSION_DATE             : natural := 20260511;
+        VERSION_DATE             : natural := 20260515;
         VERSION_GIT              : natural := 375124078;
         INSTANCE_ID              : natural := 0;
         SNOOP_EN                 : boolean := true;
@@ -212,6 +218,11 @@ entity histogram_statistics_v2 is
         asi_fill_in_7_endofpacket       : in  std_logic;
         asi_fill_in_7_channel           : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
 
+        asi_hit_type1_extended_0_valid   : in  std_logic;
+        asi_hit_type1_extended_0_data    : in  std_logic_vector(86 downto 0);
+        asi_hit_type1_extended_1_valid   : in  std_logic;
+        asi_hit_type1_extended_1_data    : in  std_logic_vector(86 downto 0);
+
         aso_hist_fill_out_ready         : in  std_logic := '1';
         aso_hist_fill_out_valid         : out std_logic;
         aso_hist_fill_out_data          : out std_logic_vector(AVST_DATA_WIDTH - 1 downto 0);
@@ -256,10 +267,17 @@ architecture rtl of histogram_statistics_v2 is
     constant PORT_WIDTH_CONST       : natural := clog2(MAX_PORTS_CONST);
 
     constant DELAY_TIMESTAMP_WIDTH_CONST : natural := 48;
+    constant EXTENDED_DATA_WIDTH_CONST    : natural := 87;
+    constant TYPE1_PAYLOAD_WIDTH_CONST    : natural := 39;
     constant UPDATE_KEY_LOW_CONST        : unsigned(7 downto 0) := to_unsigned(UPDATE_KEY_BIT_LO, 8);
     constant UPDATE_KEY_HIGH_CONST       : unsigned(7 downto 0) := to_unsigned(UPDATE_KEY_BIT_HI, 8);
     constant FILTER_KEY_LOW_CONST        : unsigned(7 downto 0) := to_unsigned(FILTER_KEY_BIT_LO, 8);
     constant FILTER_KEY_HIGH_CONST       : unsigned(7 downto 0) := to_unsigned(FILTER_KEY_BIT_HI, 8);
+    constant EXTENDED_TS_LOW_CONST       : unsigned(7 downto 0) := to_unsigned(TYPE1_PAYLOAD_WIDTH_CONST, 8);
+    constant EXTENDED_TS_HIGH_CONST      : unsigned(7 downto 0) := to_unsigned(EXTENDED_DATA_WIDTH_CONST - 1, 8);
+    constant IN_PORT_FILL_CONST          : unsigned(1 downto 0) := "00";
+    constant IN_PORT_EXT0_CONST          : unsigned(1 downto 0) := "01";
+    constant IN_PORT_EXT1_CONST          : unsigned(1 downto 0) := "10";
 
     subtype tick_t      is signed(SAR_TICK_WIDTH - 1 downto 0);
     subtype tick_slv_t  is std_logic_vector(SAR_TICK_WIDTH - 1 downto 0);
@@ -354,6 +372,7 @@ architecture rtl of histogram_statistics_v2 is
     signal measure_clear_pulse  : std_logic := '0';
 
     signal csr_mode             : std_logic_vector(3 downto 0) := (others => '0');
+    signal csr_in_port          : unsigned(1 downto 0) := IN_PORT_FILL_CONST;
     signal csr_key_unsigned     : std_logic := bool_to_sl(UPDATE_KEY_REPRESENTATION /= "SIGNED");
     signal csr_filter_enable    : std_logic := '0';
     signal csr_filter_reject    : std_logic := '0';
@@ -388,6 +407,7 @@ architecture rtl of histogram_statistics_v2 is
     signal cfg_apply_request    : std_logic := '0';
     signal cfg_apply_pending    : std_logic := '0';
     signal cfg_mode             : std_logic_vector(3 downto 0) := (others => '0');
+    signal cfg_in_port          : unsigned(1 downto 0) := IN_PORT_FILL_CONST;
     signal cfg_key_unsigned     : std_logic := bool_to_sl(UPDATE_KEY_REPRESENTATION /= "SIGNED");
     signal cfg_filter_enable    : std_logic := '0';
     signal cfg_filter_reject    : std_logic := '0';
@@ -477,6 +497,19 @@ architecture rtl of histogram_statistics_v2 is
         end if;
         return std_logic_vector(result_v);
     end function build_key;
+
+    function trim_type1_payload(
+        data_word : std_logic_vector(EXTENDED_DATA_WIDTH_CONST - 1 downto 0)
+    ) return std_logic_vector is
+        variable result_v : std_logic_vector(AVST_DATA_WIDTH - 1 downto 0) := (others => '0');
+    begin
+        for bit_idx_v in 0 to AVST_DATA_WIDTH - 1 loop
+            if bit_idx_v < TYPE1_PAYLOAD_WIDTH_CONST then
+                result_v(bit_idx_v) := data_word(bit_idx_v);
+            end if;
+        end loop;
+        return result_v;
+    end function trim_type1_payload;
 
     function build_delay_key(
         data_word : std_logic_vector;
@@ -571,41 +604,49 @@ architecture rtl of histogram_statistics_v2 is
 
 begin
 
-    port_valid(0) <= asi_hist_fill_in_valid;
-    port_valid(1) <= asi_fill_in_1_valid;
-    port_valid(2) <= asi_fill_in_2_valid;
-    port_valid(3) <= asi_fill_in_3_valid;
-    port_valid(4) <= asi_fill_in_4_valid;
-    port_valid(5) <= asi_fill_in_5_valid;
-    port_valid(6) <= asi_fill_in_6_valid;
-    port_valid(7) <= asi_fill_in_7_valid;
+    port_valid(0) <= asi_hist_fill_in_valid when cfg_in_port = IN_PORT_FILL_CONST else
+                     asi_hit_type1_extended_0_valid when cfg_in_port = IN_PORT_EXT0_CONST else
+                     asi_hit_type1_extended_1_valid when cfg_in_port = IN_PORT_EXT1_CONST else
+                     '0';
+    port_valid(1) <= asi_fill_in_1_valid when cfg_in_port = IN_PORT_FILL_CONST else '0';
+    port_valid(2) <= asi_fill_in_2_valid when cfg_in_port = IN_PORT_FILL_CONST else '0';
+    port_valid(3) <= asi_fill_in_3_valid when cfg_in_port = IN_PORT_FILL_CONST else '0';
+    port_valid(4) <= asi_fill_in_4_valid when cfg_in_port = IN_PORT_FILL_CONST else '0';
+    port_valid(5) <= asi_fill_in_5_valid when cfg_in_port = IN_PORT_FILL_CONST else '0';
+    port_valid(6) <= asi_fill_in_6_valid when cfg_in_port = IN_PORT_FILL_CONST else '0';
+    port_valid(7) <= asi_fill_in_7_valid when cfg_in_port = IN_PORT_FILL_CONST else '0';
 
-    port_data(0) <= asi_hist_fill_in_data;
-    port_data(1) <= asi_fill_in_1_data;
-    port_data(2) <= asi_fill_in_2_data;
-    port_data(3) <= asi_fill_in_3_data;
-    port_data(4) <= asi_fill_in_4_data;
-    port_data(5) <= asi_fill_in_5_data;
-    port_data(6) <= asi_fill_in_6_data;
-    port_data(7) <= asi_fill_in_7_data;
+    port_data(0) <= asi_hist_fill_in_data when cfg_in_port = IN_PORT_FILL_CONST else
+                    trim_type1_payload(asi_hit_type1_extended_0_data) when cfg_in_port = IN_PORT_EXT0_CONST else
+                    trim_type1_payload(asi_hit_type1_extended_1_data) when cfg_in_port = IN_PORT_EXT1_CONST else
+                    (others => '0');
+    port_data(1) <= asi_fill_in_1_data when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_data(2) <= asi_fill_in_2_data when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_data(3) <= asi_fill_in_3_data when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_data(4) <= asi_fill_in_4_data when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_data(5) <= asi_fill_in_5_data when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_data(6) <= asi_fill_in_6_data when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_data(7) <= asi_fill_in_7_data when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
 
-    port_channel(0) <= asi_hist_fill_in_channel;
-    port_channel(1) <= asi_fill_in_1_channel;
-    port_channel(2) <= asi_fill_in_2_channel;
-    port_channel(3) <= asi_fill_in_3_channel;
-    port_channel(4) <= asi_fill_in_4_channel;
-    port_channel(5) <= asi_fill_in_5_channel;
-    port_channel(6) <= asi_fill_in_6_channel;
-    port_channel(7) <= asi_fill_in_7_channel;
+    port_channel(0) <= asi_hist_fill_in_channel when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_channel(1) <= asi_fill_in_1_channel when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_channel(2) <= asi_fill_in_2_channel when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_channel(3) <= asi_fill_in_3_channel when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_channel(4) <= asi_fill_in_4_channel when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_channel(5) <= asi_fill_in_5_channel when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_channel(6) <= asi_fill_in_6_channel when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
+    port_channel(7) <= asi_fill_in_7_channel when cfg_in_port = IN_PORT_FILL_CONST else (others => '0');
 
-    asi_hist_fill_in_ready <= port_ready(0);
-    asi_fill_in_1_ready    <= port_ready(1);
-    asi_fill_in_2_ready    <= port_ready(2);
-    asi_fill_in_3_ready    <= port_ready(3);
-    asi_fill_in_4_ready    <= port_ready(4);
-    asi_fill_in_5_ready    <= port_ready(5);
-    asi_fill_in_6_ready    <= port_ready(6);
-    asi_fill_in_7_ready    <= port_ready(7);
+    asi_hist_fill_in_ready <= port_ready(0) when cfg_in_port = IN_PORT_FILL_CONST else
+                              aso_hist_fill_out_ready when SNOOP_EN else
+                              '1';
+    asi_fill_in_1_ready    <= port_ready(1) when cfg_in_port = IN_PORT_FILL_CONST else '1';
+    asi_fill_in_2_ready    <= port_ready(2) when cfg_in_port = IN_PORT_FILL_CONST else '1';
+    asi_fill_in_3_ready    <= port_ready(3) when cfg_in_port = IN_PORT_FILL_CONST else '1';
+    asi_fill_in_4_ready    <= port_ready(4) when cfg_in_port = IN_PORT_FILL_CONST else '1';
+    asi_fill_in_5_ready    <= port_ready(5) when cfg_in_port = IN_PORT_FILL_CONST else '1';
+    asi_fill_in_6_ready    <= port_ready(6) when cfg_in_port = IN_PORT_FILL_CONST else '1';
+    asi_fill_in_7_ready    <= port_ready(7) when cfg_in_port = IN_PORT_FILL_CONST else '1';
 
     aso_hist_fill_out_valid         <= asi_hist_fill_in_valid when SNOOP_EN else '0';
     aso_hist_fill_out_data          <= asi_hist_fill_in_data when SNOOP_EN else (others => '0');
@@ -780,20 +821,26 @@ begin
                 debug_active_v := true;
             end if;
 
-            if (idx < N_PORTS) or debug_active_v then
+            if (idx < N_PORTS) or (idx = 0 and cfg_in_port /= IN_PORT_FILL_CONST) or debug_active_v then
                 stream_ready_v   := '0';
                 stream_sampled_v := '0';
-                if (idx < N_PORTS) and (cfg_apply_pending = '0') then
-                    if idx = 0 then
-                        if SNOOP_EN then
-                            stream_ready_v   := aso_hist_fill_out_ready;
-                            stream_sampled_v := port_valid(idx) and aso_hist_fill_out_ready;
+                if cfg_apply_pending = '0' then
+                    if (cfg_in_port = IN_PORT_FILL_CONST) and (idx < N_PORTS) then
+                        if idx = 0 then
+                            if SNOOP_EN then
+                                stream_ready_v   := aso_hist_fill_out_ready;
+                                stream_sampled_v := port_valid(idx) and aso_hist_fill_out_ready;
+                            else
+                                -- No-snoop mode disables the passthrough path, so ingress stays locally ready.
+                                stream_ready_v   := '1';
+                                stream_sampled_v := port_valid(idx);
+                            end if;
                         else
-                            -- No-snoop mode disables the passthrough path, so ingress stays locally ready.
                             stream_ready_v   := '1';
                             stream_sampled_v := port_valid(idx);
                         end if;
-                    else
+                    elsif (idx = 0) and (cfg_in_port = IN_PORT_EXT0_CONST or cfg_in_port = IN_PORT_EXT1_CONST) then
+                        -- Extended debug-plane inputs are readyless; histogram backpressure is absorbed locally.
                         stream_ready_v   := '1';
                         stream_sampled_v := port_valid(idx);
                     end if;
@@ -854,12 +901,28 @@ begin
                             ingress_write_req(idx) <= '1';
                         end if;
                     elsif debug_mode_v = 1 then
-                        ingress_key_next(idx) <= build_delay_key(
-                            data_word => port_data(idx),
-                            key_hi    => update_key_high_v,
-                            key_lo    => update_key_low_v,
-                            gts_value => gts_8n
-                        );
+                        if idx = 0 and cfg_in_port = IN_PORT_EXT0_CONST then
+                            ingress_key_next(idx) <= build_delay_key(
+                                data_word => asi_hit_type1_extended_0_data,
+                                key_hi    => EXTENDED_TS_HIGH_CONST,
+                                key_lo    => EXTENDED_TS_LOW_CONST,
+                                gts_value => gts_8n
+                            );
+                        elsif idx = 0 and cfg_in_port = IN_PORT_EXT1_CONST then
+                            ingress_key_next(idx) <= build_delay_key(
+                                data_word => asi_hit_type1_extended_1_data,
+                                key_hi    => EXTENDED_TS_HIGH_CONST,
+                                key_lo    => EXTENDED_TS_LOW_CONST,
+                                gts_value => gts_8n
+                            );
+                        else
+                            ingress_key_next(idx) <= build_delay_key(
+                                data_word => port_data(idx),
+                                key_hi    => update_key_high_v,
+                                key_lo    => update_key_low_v,
+                                gts_value => gts_8n
+                            );
+                        end if;
 
                         filter_pass_v := match_filter(
                             data_word      => port_data(idx),
@@ -1301,6 +1364,7 @@ begin
             if i_rst = '1' then
                 cfg_apply_pending   <= '0';
                 cfg_mode            <= (others => '0');
+                cfg_in_port         <= IN_PORT_FILL_CONST;
                 cfg_key_unsigned    <= bool_to_sl(UPDATE_KEY_REPRESENTATION /= "SIGNED");
                 cfg_filter_enable   <= '0';
                 cfg_filter_reject   <= '0';
@@ -1332,6 +1396,7 @@ begin
                 if (cfg_apply_pending = '1') and ingress_empty_v then
                     cfg_apply_pending   <= '0';
                     cfg_mode            <= csr_mode;
+                    cfg_in_port         <= csr_in_port;
                     cfg_key_unsigned    <= csr_key_unsigned;
                     cfg_filter_enable   <= csr_filter_enable;
                     cfg_filter_reject   <= csr_filter_reject;
@@ -1367,6 +1432,7 @@ begin
             if i_rst = '1' then
                 cfg_apply_request   <= '0';
                 csr_mode            <= (others => '0');
+                csr_in_port         <= IN_PORT_FILL_CONST;
                 csr_key_unsigned    <= bool_to_sl(UPDATE_KEY_REPRESENTATION /= "SIGNED");
                 csr_filter_enable   <= '0';
                 csr_filter_reject   <= '0';
@@ -1393,6 +1459,7 @@ begin
                         when 1 =>   -- META: write selector for read-mux page
                             csr_meta_sel <= avs_csr_writedata(1 downto 0);
                         when 2 =>   -- CONTROL
+                            csr_in_port       <= unsigned(avs_csr_writedata(3 downto 2));
                             csr_mode          <= avs_csr_writedata(7 downto 4);
                             csr_key_unsigned  <= avs_csr_writedata(8);
                             csr_filter_enable <= avs_csr_writedata(12);
@@ -1401,19 +1468,24 @@ begin
                                 commit_ok_v     := true;
                                 csr_error      <= '0';
                                 csr_error_info <= (others => '0');
-                                if csr_bin_width = 0 then
-                                    if csr_right_bound <= csr_left_bound then
+	                                if csr_bin_width = 0 then
+	                                    if csr_right_bound <= csr_left_bound then
+	                                        commit_ok_v     := false;
+	                                        csr_error      <= '1';
+	                                        csr_error_info <= x"1";
+	                                    end if;
+	                                else
+	                                    next_right_v   := to_integer(csr_left_bound) + to_integer(csr_bin_width) * integer(N_BINS);
+	                                    csr_right_bound <= to_signed(next_right_v, SAR_TICK_WIDTH);
+	                                end if;
+                                    if avs_csr_writedata(3 downto 2) = "11" then
                                         commit_ok_v     := false;
                                         csr_error      <= '1';
-                                        csr_error_info <= x"1";
+                                        csr_error_info <= x"2";
                                     end if;
-                                else
-                                    next_right_v   := to_integer(csr_left_bound) + to_integer(csr_bin_width) * integer(N_BINS);
-                                    csr_right_bound <= to_signed(next_right_v, SAR_TICK_WIDTH);
-                                end if;
-                                if commit_ok_v then
-                                    cfg_apply_request <= '1';
-                                end if;
+	                                if commit_ok_v then
+	                                    cfg_apply_request <= '1';
+	                                end if;
                             end if;
                         when 3 =>   -- LEFT_BOUND
                             csr_left_bound <= resize(signed(avs_csr_writedata), SAR_TICK_WIDTH);
@@ -1448,6 +1520,7 @@ begin
     begin
         control_v := (others => '0');
         control_v(1)            := cfg_apply_pending;
+        control_v(3 downto 2)   := std_logic_vector(csr_in_port);
         control_v(7 downto 4)   := csr_mode;
         control_v(8)            := csr_key_unsigned;
         control_v(12)           := csr_filter_enable;

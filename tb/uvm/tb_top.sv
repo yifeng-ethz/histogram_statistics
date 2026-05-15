@@ -34,6 +34,8 @@ module tb_top;
   hist_snoop_if #(AVST_DATA_WIDTH, AVST_CHANNEL_WIDTH) snoop_if(i_clk);
   hist_ctrl_if ctrl_if(i_clk);
   hist_debug_if #(16) dbg_if [N_DEBUG_INTERFACE](i_clk);
+  logic [86:0] hit_type1_extended_data [2];
+  logic        hit_type1_extended_valid [2];
   hist_probe_if #(
     .N_PORTS (N_PORTS),
     .PORT_W  ($clog2(N_PORTS)),
@@ -67,6 +69,10 @@ module tb_top;
     dbg_if[3].init_source();
     dbg_if[4].init_source();
     dbg_if[5].init_source();
+    hit_type1_extended_data[0]  = '0;
+    hit_type1_extended_data[1]  = '0;
+    hit_type1_extended_valid[0] = 1'b0;
+    hit_type1_extended_valid[1] = 1'b0;
     snoop_if.ready   = 1'b1;
     i_interval_reset = 1'b0;
     i_rst            = 1'b1;
@@ -176,6 +182,11 @@ module tb_top;
     .asi_fill_in_7_startofpacket     (fill_if[7].sop),
     .asi_fill_in_7_endofpacket       (fill_if[7].eop),
     .asi_fill_in_7_channel           (fill_if[7].channel),
+
+    .asi_hit_type1_extended_0_valid   (hit_type1_extended_valid[0]),
+    .asi_hit_type1_extended_0_data    (hit_type1_extended_data[0]),
+    .asi_hit_type1_extended_1_valid   (hit_type1_extended_valid[1]),
+    .asi_hit_type1_extended_1_data    (hit_type1_extended_data[1]),
 
     .aso_hist_fill_out_ready         (snoop_if.ready),
     .aso_hist_fill_out_valid         (snoop_if.valid),

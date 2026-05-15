@@ -1,27 +1,48 @@
-# Synthesis Report: histogram bridge + histogram delay sideband
+# Synthesis Report: histogram_statistics_v2 bridge-free streaming debug plane
 
 Date: 2026-05-15
 
 ## Result
 
-PASS. The standalone bridge-plus-histogram harness meets the 1.1x signoff
-target after locking the fixed-format key slice in `histogram_statistics_v2`
-and registering the queue-overflow diagnostic event before its saturating
-counter.
+Current standalone Quartus timing signoff was not rerun after the 26.3.0
+bridge-removal change. The previous PASS below was produced by the retired
+bridge-plus-histogram harness and must not be used as current bridge-free
+signoff evidence.
 
-Command:
+Current bridge-free functional evidence:
+
+```sh
+make -C histogram_statistics/tb run_all
+```
+
+Result:
+
+```text
+47 PASS, 0 FAIL
+```
+
+FEB v3 integration evidence:
+
+```text
+firmware_builds/systems/v3_pretest-260511/syn/feb_system_v3_qsys_generate_20260515_stream_debug_bridgefree_retry1_isolated.status
+exit_code=0
+error_count=0
+```
+
+The generated FEB v3 synthesis tree wires:
+
+- `mts_preprocessor_0.hit_type1_out` as the 39-bit upper-bank main Type-1 path;
+- `mts_preprocessor_1.hit_type1_out` as the 39-bit lower-bank main Type-1 path;
+- `mts_preprocessor_0.hit_type1_extended_0` directly to `histogram_statistics_0.hit_type1_extended_0`;
+- `mts_preprocessor_1.hit_type1_extended_1` directly to `histogram_statistics_0.hit_type1_extended_1`.
+
+## Archived Previous Evidence
+
+The archived 2026-05-15 bridge-plus-histogram standalone compile used:
 
 ```sh
 cd histogram_statistics/syn/quartus
 quartus_sh --flow compile hs0_board_instance -c hs0_board_instance
-```
-
-Latest evidence:
-
-```text
-histogram_statistics/syn/quartus/output_files/hs0_board_instance.flow.rpt
-histogram_statistics/syn/quartus/output_files/hs0_board_instance.sta.summary
-histogram_statistics/syn/quartus/output_files/hs0_board_instance.fit.summary
 ```
 
 Tool:
@@ -42,14 +63,7 @@ Project context:
 | 1.1x signoff target | `137.5 MHz` |
 | Period | `7.273 ns` |
 
-The harness instantiates `histogram_post_ts_sideband`,
-`histogram_ingress_bridge`, and `histogram_statistics_v2` with
-`AVST_DATA_WIDTH=87`, `UPDATE_KEY_BIT_HI=86`, `UPDATE_KEY_BIT_LO=39`,
-`SAR_TICK_WIDTH=32`, and `LOCK_KEY_RANGES=true`.
-
-## Timing Summary
-
-From `syn/quartus/output_files/hs0_board_instance.sta.summary`:
+Archived timing summary from the retired harness:
 
 | Corner | Setup Slack | Setup TNS | Hold Slack | MPW Slack |
 |---|---:|---:|---:|---:|
@@ -58,11 +72,7 @@ From `syn/quartus/output_files/hs0_board_instance.sta.summary`:
 | Fast 1100mV 85C | `+2.844 ns` | `0.000 ns` | `+0.160 ns` | `+2.841 ns` |
 | Fast 1100mV 0C | `+3.328 ns` | `0.000 ns` | `+0.150 ns` | `+2.836 ns` |
 
-Worst setup slack is `+0.401 ns` at Slow 1100mV 85C.
-
-## Resource Summary
-
-From `syn/quartus/output_files/hs0_board_instance.fit.summary`:
+Archived resource summary from the retired harness:
 
 | Resource | Usage |
 |---|---:|
@@ -73,27 +83,9 @@ From `syn/quartus/output_files/hs0_board_instance.fit.summary`:
 | RAM blocks | `2 / 1,366 (<1%)` |
 | DSP blocks | `0 / 800 (0%)` |
 
-## Validation
+## Current Closure Gap
 
-```sh
-make -C histogram_statistics/tb run_all
-make -C histogram_statistics/tb run_post_ts_sideband
-make -C histogram_statistics/tb run_pre_ts_trim
-make -C histogram_statistics/tb run_ingress_bridge_switch_contract
-```
-
-Result:
-
-- `run_all`: `47 PASS, 0 FAIL`
-- `tb_histogram_post_ts_sideband`: PASS
-- `tb_histogram_pre_ts_trim`: PASS
-- `tb_histogram_ingress_bridge_switch`: PASS
-
-## Closure Note
-
-The initial bridge-plus-hist compile failed timing through the runtime
-CSR-programmable key-range extractor. `LOCK_KEY_RANGES=true` makes fixed-format
-integrations use the generic `UPDATE_KEY_BIT_*` and `FILTER_KEY_BIT_*` ranges
-directly while CSR mode/filter/value controls remain runtime-controlled. This
-keeps delay mode configurable through CSR and removes the programmable
-bit-slice mux from the hot ingress path.
+Run a fresh standalone Quartus compile for the bridge-free
+`hs0_board_instance_top` before claiming 26.3.0 standalone timing/resource
+closure. The archived bridge-plus-hist numbers are useful only as a historical
+baseline.

@@ -22,8 +22,6 @@ set_global_assignment -name VHDL_FILE ../../rtl/true_dual_port_ram_single_clock.
 set_global_assignment -name VHDL_FILE ../../rtl/alt_dpram/alt_dpram_true.vhd
 set_global_assignment -name QIP_FILE ../../rtl/alt_dpram/alt_dpram_true.qip
 set_global_assignment -name VHDL_FILE ../../rtl/histogram_statistics_v2.vhd
-set_global_assignment -name VHDL_FILE ../../rtl/histogram_post_ts_sideband.vhd
-set_global_assignment -name VHDL_FILE ../../rtl/histogram_ingress_bridge.vhd
 set_global_assignment -name VHDL_FILE hs0_board_instance_top.vhd
 
 set_global_assignment -name SDC_FILE hs0_board_instance.sdc

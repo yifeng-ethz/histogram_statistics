@@ -88,91 +88,25 @@ entity hs0_board_instance_top is
 end entity hs0_board_instance_top;
 
 architecture rtl of hs0_board_instance_top is
-
-    signal post_sideband_data        : std_logic_vector(83 downto 0);
-    signal post_sideband_valid       : std_logic;
-    signal post_sideband_ready       : std_logic;
-    signal post_sideband_sop         : std_logic;
-    signal post_sideband_eop         : std_logic;
-
-    signal hist_ingress_data         : std_logic_vector(86 downto 0);
-    signal hist_ingress_valid        : std_logic;
-    signal hist_ingress_ready        : std_logic;
-    signal hist_ingress_sop          : std_logic;
-    signal hist_ingress_eop          : std_logic;
-    signal hist_ingress_channel      : std_logic_vector(3 downto 0);
-
 begin
 
-    post_ts_sideband_0 : entity work.histogram_post_ts_sideband
-        port map (
-            asi_post_data             => asi_post_data,
-            asi_post_valid            => asi_post_valid,
-            asi_post_ready            => asi_post_ready,
-            asi_post_startofpacket    => asi_post_startofpacket,
-            asi_post_endofpacket      => asi_post_endofpacket,
-            aso_post_data             => post_sideband_data,
-            aso_post_valid            => post_sideband_valid,
-            aso_post_ready            => post_sideband_ready,
-            aso_post_startofpacket    => post_sideband_sop,
-            aso_post_endofpacket      => post_sideband_eop,
-            rsi_reset_reset           => i_rst,
-            csi_clock_clk             => i_clk
-        );
+    avs_bridge_csr_readdata    <= (others => '0');
+    avs_bridge_csr_waitrequest <= '0';
 
-    ingress_bridge_0 : entity work.histogram_ingress_bridge
-        generic map (
-            VERSION_MAJOR         => 26,
-            VERSION_MINOR         => 0,
-            VERSION_PATCH         => 9,
-            BUILD                 => 515,
-            VERSION_DATE          => 20260515,
-            DEFAULT_SELECT_POST   => 0,
-            ENABLE_POST_FORWARD   => 0,
-            FILTER_POST_HIT_WORDS => 1
-        )
-        port map (
-            avs_csr_address          => avs_bridge_csr_address,
-            avs_csr_read             => avs_bridge_csr_read,
-            avs_csr_write            => avs_bridge_csr_write,
-            avs_csr_writedata        => avs_bridge_csr_writedata,
-            avs_csr_readdata         => avs_bridge_csr_readdata,
-            avs_csr_waitrequest      => avs_bridge_csr_waitrequest,
-            asi_pre_data             => asi_pre_data,
-            asi_pre_valid            => asi_pre_valid,
-            asi_pre_ready            => asi_pre_ready,
-            asi_pre_startofpacket    => asi_pre_startofpacket,
-            asi_pre_endofpacket      => asi_pre_endofpacket,
-            asi_pre_channel          => asi_pre_channel,
-            asi_pre_empty            => asi_pre_empty,
-            asi_pre_error            => asi_pre_error,
-            aso_pre_data             => aso_pre_data,
-            aso_pre_valid            => aso_pre_valid,
-            aso_pre_ready            => aso_pre_ready,
-            aso_pre_startofpacket    => aso_pre_startofpacket,
-            aso_pre_endofpacket      => aso_pre_endofpacket,
-            aso_pre_channel          => aso_pre_channel,
-            aso_pre_empty            => aso_pre_empty,
-            aso_pre_error            => aso_pre_error,
-            asi_post_data            => post_sideband_data,
-            asi_post_valid           => post_sideband_valid,
-            asi_post_ready           => post_sideband_ready,
-            asi_post_startofpacket   => post_sideband_sop,
-            asi_post_endofpacket     => post_sideband_eop,
-            aso_post_data            => aso_post_data,
-            aso_post_valid           => aso_post_valid,
-            aso_post_ready           => aso_post_ready,
-            aso_post_startofpacket   => aso_post_startofpacket,
-            aso_post_endofpacket     => aso_post_endofpacket,
-            aso_hist_data            => hist_ingress_data,
-            aso_hist_valid           => hist_ingress_valid,
-            aso_hist_ready           => hist_ingress_ready,
-            aso_hist_startofpacket   => hist_ingress_sop,
-            aso_hist_endofpacket     => hist_ingress_eop,
-            aso_hist_channel         => hist_ingress_channel,
-            rsi_reset_reset          => i_rst,
-            csi_clock_clk            => i_clk
-        );
+    asi_pre_ready        <= aso_pre_ready;
+    aso_pre_data         <= asi_pre_data(38 downto 0);
+    aso_pre_valid        <= asi_pre_valid;
+    aso_pre_startofpacket<= asi_pre_startofpacket;
+    aso_pre_endofpacket  <= asi_pre_endofpacket;
+    aso_pre_channel      <= asi_pre_channel;
+    aso_pre_empty        <= asi_pre_empty;
+    aso_pre_error        <= asi_pre_error;
+
+    asi_post_ready        <= aso_post_ready;
+    aso_post_data         <= asi_post_data;
+    aso_post_valid        <= asi_post_valid;
+    aso_post_startofpacket<= asi_post_startofpacket;
+    aso_post_endofpacket  <= asi_post_endofpacket;
 
     histogram_statistics_0 : entity work.histogram_statistics_v2
         generic map (
@@ -180,8 +114,8 @@ begin
             MAX_COUNT_BITS            => 32,
             DEF_LEFT_BOUND            => 0,
             DEF_BIN_WIDTH             => 1,
-            UPDATE_KEY_BIT_HI         => 86,
-            UPDATE_KEY_BIT_LO         => 39,
+            UPDATE_KEY_BIT_HI         => 29,
+            UPDATE_KEY_BIT_LO         => 17,
             UPDATE_KEY_REPRESENTATION => "UNSIGNED",
             LOCK_KEY_RANGES           => true,
             FILTER_KEY_BIT_HI         => 38,
@@ -191,7 +125,7 @@ begin
             N_PORTS                   => 1,
             CHANNELS_PER_PORT         => 32,
             COAL_QUEUE_DEPTH          => 256,
-            AVST_DATA_WIDTH           => 87,
+            AVST_DATA_WIDTH           => 39,
             AVST_CHANNEL_WIDTH        => 4,
             ENABLE_PINGPONG           => true,
             DEF_INTERVAL_CLOCKS       => 125000000,
@@ -201,11 +135,11 @@ begin
             N_DEBUG_INTERFACE         => 6,
             DEBUG                     => 0,
             VERSION_MAJOR             => 26,
-            VERSION_MINOR             => 2,
-            VERSION_PATCH             => 3,
-            BUILD                     => 514,
+            VERSION_MINOR             => 3,
+            VERSION_PATCH             => 0,
+            BUILD                     => 515,
             IP_UID                    => 1212765012,
-            VERSION_DATE              => 20260514,
+            VERSION_DATE              => 20260515,
             VERSION_GIT               => 72231161,
             INSTANCE_ID               => 0
         )
@@ -231,12 +165,12 @@ begin
             avs_csr_waitrequest             => avs_csr_waitrequest,
             asi_ctrl_data                   => asi_ctrl_data,
             asi_ctrl_valid                  => asi_ctrl_valid,
-            asi_hist_fill_in_valid          => hist_ingress_valid,
-            asi_hist_fill_in_ready          => hist_ingress_ready,
-            asi_hist_fill_in_data           => hist_ingress_data,
-            asi_hist_fill_in_startofpacket  => hist_ingress_sop,
-            asi_hist_fill_in_endofpacket    => hist_ingress_eop,
-            asi_hist_fill_in_channel        => hist_ingress_channel,
+            asi_hist_fill_in_valid          => '0',
+            asi_hist_fill_in_ready          => open,
+            asi_hist_fill_in_data           => (others => '0'),
+            asi_hist_fill_in_startofpacket  => '0',
+            asi_hist_fill_in_endofpacket    => '0',
+            asi_hist_fill_in_channel        => (others => '0'),
             asi_fill_in_1_valid             => '0',
             asi_fill_in_1_ready             => open,
             asi_fill_in_1_data              => (others => '0'),
@@ -279,6 +213,10 @@ begin
             asi_fill_in_7_startofpacket     => '0',
             asi_fill_in_7_endofpacket       => '0',
             asi_fill_in_7_channel           => (others => '0'),
+            asi_hit_type1_extended_0_valid  => asi_pre_valid,
+            asi_hit_type1_extended_0_data   => asi_pre_data,
+            asi_hit_type1_extended_1_valid  => '0',
+            asi_hit_type1_extended_1_data   => (others => '0'),
             aso_hist_fill_out_ready         => aso_hist_fill_out_ready,
             aso_hist_fill_out_valid         => aso_hist_fill_out_valid,
             aso_hist_fill_out_data          => aso_hist_fill_out_data,
