@@ -10,3 +10,29 @@ syn/quartus/*.qws
 syn/quartus/*.log
 syn/quartus/**/*.log
 lint/
+
+# --- Sim scratch (vendor libs, work, modelsim ini) ---
+altera_mf/
+lpm/
+modelsim.ini
+work/
+tb/work/
+tb/work_*/
+
+# --- Per-run sim / lint artifacts ---
+tb/REPORT/
+tb/static_screen_*/
+tb/run_*.log
+tb/transcript
+tb/*.wlf
+tb/**/transcript
+tb/**/*.wlf
+tb/**/modelsim.ini
+
+# --- qverify static-screen leftovers ---
+**/qverify_cdc_*/
+**/qverify_db/
+**/.qverify/
+
+# --- ip-packaging side products ---
+tb/histogram_ingress_bridge/work_*/
