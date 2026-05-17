@@ -37,14 +37,14 @@ Historical formal note:
 | bug_id | class | severity | encounterability | status | first seen | commit | summary |
 |---|---|---|---|---|---|---|---|
 | [BUG-001-R](#bug-001-r-phase-5-queue-depth-timing-miss-after-fifo-expansion) | R | soft error | `corner-only (standalone timing signoff)` | fixed | Phase-5 standalone Quartus signoff | `pending` | FIFO expansion exposed a histogram critical path until the FIFO head and filter fields were registered. |
-| [BUG-002-R](#bug-002-r-standalone-sta-regression-at-version-26160429) | R | soft error | `corner-only (standalone timing signoff)` | fixed | standalone Quartus signoff from HEAD `c035c35` | `pending` | VERSION 26.1.6.0429 had a standalone slow-85 setup miss; V3 direct profile now closes timing at 7.273 ns. |
-| [BUG-003-R](#bug-003-r-qsys-generated-boolean-vs-natural-shell-split-on-enable_pingpong--snoop_en--enable_packet) | R | non-datapath-refactor | `common (FEB Qsys generation)` | fixed | FEB v3_pretest-260511 Quartus full compile attempt 2026-05-11 | `pending` | Platform Designer package metadata briefly generated a NATURAL shell around BOOLEAN RTL generics. |
+| [BUG-002-R](#bug-002-r-standalone-sta-regression-at-version-26160429) | R | soft error | `corner-only (standalone timing signoff)` | fixed | standalone Quartus signoff from HEAD `c035c35` | `5c94fad` | VERSION 26.1.6.0429 had a standalone slow-85 setup miss; V3 direct profile now closes timing at 7.273 ns. |
+| [BUG-003-R](#bug-003-r-qsys-generated-boolean-vs-natural-shell-split-on-enable_pingpong--snoop_en--enable_packet) | R | non-datapath-refactor | `common (FEB Qsys generation)` | fixed | FEB v3_pretest-260511 Quartus full compile attempt 2026-05-11 | `5c94fad` | Platform Designer package metadata briefly generated a NATURAL shell around BOOLEAN RTL generics. |
 | [BUG-004-R](#bug-004-r-ctrl-sink-still-declared-asi-ctrl-ready-against-the-rc-network-readyless-contract) | R | non-datapath-refactor | `directed-only (Qsys auto-inserts timing_adapter on rc fan-out)` | fixed | FEB v3 integration audit `tb_int_run_emulator_directed` | this commit | The `ctrl` sink still declared `asi_ctrl_ready` so Qsys auto-inserted `altera_avalon_st_timing_adapter` on the rc fan-out, carrying the B002 ready-default hazard on silicon. |
 | [BUG-005-R](#bug-005-r-histogram-ingress-bridge-source-switch-stalls-on-pre-rbcam-run-level-packet-active) | R | hard stuck error | `common (routine source selection after FEB pre run starts)` | open | FEB/SWB board hist status `0x105`, IP switch TB 2026-05-14 | `pending` | `histogram_ingress_bridge` treats pre-rbCAM run-level packet activity as a source-switch hazard, leaving pre/post source requests pending through RUNNING. |
-| [BUG-006-R](#bug-006-r-feb-v3-direct-hist-topology-left-hist-inputs-undriven-in-tb_int) | R | hard stuck error | `common (FEB V3 direct source operation)` | fixed | FEB V3 direct-hist `tb_int` zero-hit debug, 2026-05-17 | `pending` | Active Qsys topology did not yet feed the new Type0/Type1 direct hist inputs, so hist bins stayed at zero until direct taps and Type1 TS sidebands were wired. |
+| [BUG-006-R](#bug-006-r-feb-v3-direct-hist-topology-left-hist-inputs-undriven-in-tb_int) | R | hard stuck error | `common (FEB V3 direct source operation)` | fixed | FEB V3 direct-hist `tb_int` zero-hit debug, 2026-05-17 | `5c94fad` | Active Qsys topology did not yet feed the new Type0/Type1 direct hist inputs, so hist bins stayed at zero until direct taps and Type1 TS sidebands were wired. |
 | [BUG-007-R](#bug-007-r-v3-direct-profile-standalone-resource-exceeds-2k-alm-target) | R | non-datapath-refactor | `corner-only (standalone resource signoff)` | open | standalone Quartus signoff 2026-05-17 | `pending` | V3 direct-input profile closes timing but still fits at 2,745 ALMs, above the requested <2k ALM target. |
 | [BUG-008-H](#bug-008-h-three-instance-signaltap-debug-file-trips-quartus-181-sld-hub-generation) | H | non-datapath-refactor | `directed-only (board debug STP compile)` | partial | FEB V3 direct-hist debug compile 2026-05-17 | `pending` | A three-clock SignalTap file triggers Quartus 18.1 SLD hub generation failure; single-domain STP generation is available but multi-instance STP remains open. |
-| [BUG-009-H](#bug-009-h-uvm-make-run-returned-success-despite-questa-sva-errors) | H | non-datapath-refactor | `common (SVA-enabled standalone DV run)` | fixed | focused V3 direct-input rerun 2026-05-17 | `pending` | `make run` returned success even when the Questa transcript reported nonzero SVA errors. |
+| [BUG-009-H](#bug-009-h-uvm-make-run-returned-success-despite-questa-sva-errors) | H | non-datapath-refactor | `common (SVA-enabled standalone DV run)` | fixed | focused V3 direct-input rerun 2026-05-17 | `5c94fad` | `make run` returned success even when the Questa transcript reported nonzero SVA errors. |
 | [BUG-010-H](#bug-010-h-v3-direct-input-test-trips-measure_clear_pulse-flushing-sva) | H | soft error | `common (V3 source-switch clear between cases)` | open | focused V3 direct-input rerun 2026-05-17 | `pending` | `hist_v3_direct_input_test` triggers four `measure_clear_pulse did not lead to flushing` SVA errors; standalone DV is not closed until this is explained. |
 
 ## 2026-05-17
@@ -120,7 +120,7 @@ Historical formal note:
   - Claude Opus 4.7 xhigh review decision:
     - pending / not run in this turn
 - Commit:
-  - pending
+  - fixed by `5c94fad`
 
 ### BUG-008-H: three-instance SignalTap debug file trips Quartus 18.1 SLD hub generation
 
@@ -241,7 +241,7 @@ Historical formal note:
   - Claude Opus 4.7 xhigh review decision:
     - pending / not run in this turn
 - Commit:
-  - pending
+  - fixed by `5c94fad`
 
 ## 2026-05-14
 
@@ -332,7 +332,7 @@ Historical formal note:
   - Claude Opus 4.7 xhigh review decision:
     - pending / not run in this turn
 - Commit:
-  - pending
+  - fixed by `5c94fad`
 
 ### BUG-002-R: Standalone STA regression at VERSION 26.1.6.0429
 
@@ -369,7 +369,7 @@ Historical formal note:
   - Claude Opus 4.7 xhigh review decision:
     - pending / not run in this turn
 - Commit:
-  - pending
+  - fixed by `5c94fad`
 
 ## 2026-04-27
 
