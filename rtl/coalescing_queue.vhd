@@ -14,6 +14,23 @@
 --      Change: Register the queue-overflow event before the saturating
 --              diagnostic counter. The counter remains exact but no longer
 --              puts hit-bin decode on the counter enable timing path.
+-- Revision: 1.3
+--      Date: May 16, 2026
+--      Change: Replace the generated per-bin kick/queued register bank with
+--              one indexed owner process. This preserves the coalescing
+--              contract while removing the 256-way replicated update cone.
+-- Revision: 1.4
+--      Date: May 16, 2026
+--      Change: Replace the per-bin resident kick table with a bounded
+--              live-cell coalescer. This is the V3 "bunched" architecture:
+--              it compares an incoming bin against the live cells, coalesces
+--              on match, allocates a FIFO cell on miss, and exposes overflow
+--              when all live cells are occupied by other bins.
+-- Revision: 1.5
+--      Date: May 16, 2026
+--      Change: Remove the redundant post-reset scrub FSM. Reset and clear
+--              already own every live-cell register, so the scrub path only
+--              added a high-fanout clear_active mux to the hot update cone.
 -- =========
 -- Description:	[Queued post-divider coalescer for histogram bin updates]
 --
@@ -47,9 +64,11 @@ entity coalescing_queue is
         i_rst            : in  std_logic;
         i_clear          : in  std_logic;
         i_hit_valid      : in  std_logic;
+        i_hit_bank       : in  std_logic;
         i_hit_bin        : in  unsigned(clog2(N_BINS) - 1 downto 0);
         i_drain_ready    : in  std_logic;
         o_drain_valid    : out std_logic;
+        o_drain_bank     : out std_logic;
         o_drain_bin      : out unsigned(clog2(N_BINS) - 1 downto 0);
         o_drain_count    : out unsigned(KICK_WIDTH - 1 downto 0);
         o_occupancy      : out unsigned(clog2(QUEUE_DEPTH + 1) - 1 downto 0);
@@ -70,34 +89,26 @@ architecture rtl of coalescing_queue is
     subtype queue_addr_t is unsigned(QUEUE_ADDR_WIDTH_CONST - 1 downto 0);
     constant KICK_MAX    : kick_t := (others => '1');
 
-    type kick_ram_t  is array (0 to N_BINS - 1) of kick_t;
-    type queued_t    is array (0 to N_BINS - 1) of std_logic;
-    type queue_mem_t is array (0 to QUEUE_DEPTH - 1) of bin_index_t;
+    type live_bin_t   is array (0 to QUEUE_DEPTH - 1) of bin_index_t;
+    type live_count_t is array (0 to QUEUE_DEPTH - 1) of kick_t;
 
-    signal kick_ram         : kick_ram_t  := (others => (others => '0'));
-    signal queued           : queued_t    := (others => '0');
-    signal queue_mem        : queue_mem_t := (others => (others => '0'));
+    signal live_valid       : std_logic_vector(QUEUE_DEPTH - 1 downto 0) := (others => '0');
+    signal live_bank        : std_logic_vector(QUEUE_DEPTH - 1 downto 0) := (others => '0');
+    signal live_bin         : live_bin_t := (others => (others => '0'));
+    signal live_count       : live_count_t := (others => (others => '0'));
     signal queue_rd_ptr     : queue_addr_t := (others => '0');
     signal queue_wr_ptr     : queue_addr_t := (others => '0');
     signal queue_level      : occ_t := (others => '0');
     signal queue_level_max  : occ_t := (others => '0');
     signal overflow_count_q : unsigned(OVERFLOW_WIDTH - 1 downto 0) := (others => '0');
     signal overflow_event_q : std_logic := '0';
-    signal clear_active     : std_logic := '0';
-    signal clear_index      : bin_index_t := (others => '0');
-    signal queue_head_bin_q   : bin_index_t := (others => '0');
-    signal queue_head_valid_q : std_logic := '0';
     signal drain_valid_q      : std_logic := '0';
+    signal drain_bank_q       : std_logic := '0';
     signal drain_bin_q        : bin_index_t := (others => '0');
     signal drain_count_q      : kick_t := (others => '0');
     signal drain_fire_c       : std_logic := '0';
-    signal drain_head_bin_c   : bin_index_t := (others => '0');
     signal head_count_c       : kick_t := (others => '0');
     signal queue_room_c       : std_logic := '0';
-
-    attribute ramstyle : string;
-    attribute ramstyle of kick_ram : signal is "MLAB,no_rw_check";
-    attribute ramstyle of queue_mem : signal is "MLAB,no_rw_check";
 
     function next_queue_ptr_f(ptr : queue_addr_t) return queue_addr_t is
     begin
@@ -110,73 +121,26 @@ architecture rtl of coalescing_queue is
 begin
 
     o_drain_valid    <= drain_valid_q;
+    o_drain_bank     <= drain_bank_q;
     o_drain_bin      <= drain_bin_q;
     o_drain_count    <= drain_count_q;
     o_occupancy      <= queue_level;
     o_occupancy_max  <= queue_level_max;
     o_overflow_count <= overflow_count_q;
-    drain_fire_c <= '1' when (clear_active = '0') and (i_drain_ready = '1') and (queue_head_valid_q = '1') else '0';
-    drain_head_bin_c <= queue_head_bin_q;
-    head_count_c <= kick_ram(to_integer(queue_head_bin_q));
+    drain_fire_c <= '1' when (i_drain_ready = '1') and (queue_level /= 0) else '0';
+    head_count_c <= live_count(to_integer(queue_rd_ptr));
     queue_room_c <= '1' when (to_integer(queue_level) < QUEUE_DEPTH) or (drain_fire_c = '1') else '0';
 
-    gen_kick_bins : for i in 0 to N_BINS - 1 generate
-        constant BIN_INDEX_C : bin_index_t := to_unsigned(i, BIN_INDEX_WIDTH_CONST);
-    begin
-        bin_reg : process (i_clk)
-            variable kick_next_v      : kick_t;
-            variable queued_effective : std_logic;
-            variable queued_next_v    : std_logic;
-        begin
-            if rising_edge(i_clk) then
-                if (i_rst = '1') or (i_clear = '1') then
-                    null;
-                elsif clear_active = '1' then
-                    if clear_index = BIN_INDEX_C then
-                        kick_ram(i) <= (others => '0');
-                        queued(i)   <= '0';
-                    end if;
-                else
-                    kick_next_v      := kick_ram(i);
-                    queued_next_v    := queued(i);
-                    queued_effective := queued(i);
-
-                    if (drain_fire_c = '1') and (drain_head_bin_c = BIN_INDEX_C) then
-                        kick_next_v      := (others => '0');
-                        queued_next_v    := '0';
-                        queued_effective := '0';
-                    end if;
-
-                    if (i_hit_valid = '1') and (i_hit_bin = BIN_INDEX_C) then
-                        if queued_effective = '1' then
-                            if kick_ram(i) /= KICK_MAX then
-                                kick_next_v := kick_ram(i) + 1;
-                            end if;
-                        elsif queue_room_c = '1' then
-                            kick_next_v   := to_unsigned(1, KICK_WIDTH);
-                            queued_next_v := '1';
-                        end if;
-                    end if;
-
-                    kick_ram(i) <= kick_next_v;
-                    queued(i)   <= queued_next_v;
-                end if;
-            end if;
-        end process bin_reg;
-    end generate gen_kick_bins;
-
     queue_reg : process (i_clk)
-        variable clear_index_v    : natural;
-        variable head_bin_v       : natural;
-        variable hit_bin_v        : natural;
+        variable hit_bin_v        : bin_index_t;
         variable level_v          : occ_t;
         variable overflow_v       : unsigned(OVERFLOW_WIDTH - 1 downto 0);
         variable overflow_event_v : std_logic;
-        variable queued_hit_v     : std_logic;
         variable rd_ptr_v         : queue_addr_t;
         variable wr_ptr_v         : queue_addr_t;
-        variable next_head_bin_v   : bin_index_t;
-        variable next_head_valid_v : std_logic;
+        variable match_valid_v    : boolean;
+        variable match_idx_v      : natural;
+        variable search_valid_v   : boolean;
     begin
         if rising_edge(i_clk) then
             drain_valid_q <= '0';
@@ -188,12 +152,13 @@ begin
                 queue_level_max  <= (others => '0');
                 overflow_count_q <= (others => '0');
                 overflow_event_q <= '0';
-                clear_active     <= '1';
-                clear_index      <= (others => '0');
-                queue_head_bin_q <= (others => '0');
-                queue_head_valid_q <= '0';
+                drain_bank_q     <= '0';
                 drain_bin_q      <= (others => '0');
                 drain_count_q    <= (others => '0');
+                live_valid       <= (others => '0');
+                live_bank        <= (others => '0');
+                live_bin         <= (others => (others => '0'));
+                live_count       <= (others => (others => '0'));
             elsif i_clear = '1' then
                 queue_rd_ptr     <= (others => '0');
                 queue_wr_ptr     <= (others => '0');
@@ -201,75 +166,67 @@ begin
                 queue_level_max  <= (others => '0');
                 overflow_count_q <= (others => '0');
                 overflow_event_q <= '0';
-                clear_active     <= '1';
-                clear_index      <= (others => '0');
-                queue_head_bin_q <= (others => '0');
-                queue_head_valid_q <= '0';
+                drain_bank_q     <= '0';
                 drain_bin_q      <= (others => '0');
                 drain_count_q    <= (others => '0');
-            elsif clear_active = '1' then
-                clear_index_v := to_integer(clear_index);
-                overflow_event_q <= '0';
-                queue_head_bin_q <= (others => '0');
-                queue_head_valid_q <= '0';
-
-                if clear_index_v = N_BINS - 1 then
-                    clear_active <= '0';
-                    clear_index  <= (others => '0');
-                else
-                    clear_index <= to_unsigned(clear_index_v + 1, clear_index'length);
-                end if;
+                live_valid       <= (others => '0');
+                live_bank        <= (others => '0');
+                live_bin         <= (others => (others => '0'));
+                live_count       <= (others => (others => '0'));
             else
-                head_bin_v   := 0;
-                hit_bin_v    := 0;
+                hit_bin_v    := (others => '0');
                 level_v      := queue_level;
                 overflow_v   := overflow_count_q;
                 overflow_event_v := '0';
                 rd_ptr_v     := queue_rd_ptr;
                 wr_ptr_v     := queue_wr_ptr;
-                next_head_bin_v := queue_head_bin_q;
-                next_head_valid_v := queue_head_valid_q;
+                match_valid_v := false;
+                match_idx_v   := 0;
                 drain_valid_q <= drain_fire_c;
-                drain_bin_q   <= queue_head_bin_q;
+                drain_bank_q  <= live_bank(to_integer(queue_rd_ptr));
+                drain_bin_q   <= live_bin(to_integer(queue_rd_ptr));
                 drain_count_q <= head_count_c;
 
                 if overflow_event_q = '1' then
                     overflow_v := sat_inc(overflow_v);
                 end if;
 
-                if (next_head_valid_v = '0') and (queue_level /= 0) then
-                    next_head_bin_v   := queue_mem(to_integer(queue_rd_ptr));
-                    next_head_valid_v := '1';
-                end if;
-
                 if drain_fire_c = '1' then
-                    head_bin_v  := to_integer(queue_head_bin_q);
-
+                    live_valid(to_integer(rd_ptr_v)) <= '0';
+                    live_bank(to_integer(rd_ptr_v))  <= '0';
+                    live_bin(to_integer(rd_ptr_v))   <= (others => '0');
+                    live_count(to_integer(rd_ptr_v)) <= (others => '0');
                     rd_ptr_v     := next_queue_ptr_f(rd_ptr_v);
                     level_v      := level_v - 1;
-
-                    if queue_level > 1 then
-                        next_head_bin_v := queue_mem(to_integer(rd_ptr_v));
-                        next_head_valid_v := '1';
-                    else
-                        next_head_valid_v := '0';
-                    end if;
                 end if;
 
                 if i_hit_valid = '1' then
-                    hit_bin_v    := to_integer(i_hit_bin);
-                    queued_hit_v := queued(hit_bin_v);
+                    hit_bin_v := i_hit_bin;
 
-                    if (drain_fire_c = '1') and (head_bin_v = hit_bin_v) then
-                        queued_hit_v := '0';
-                    end if;
+                    for cell_idx in 0 to QUEUE_DEPTH - 1 loop
+                        search_valid_v := live_valid(cell_idx) = '1';
+                        if (drain_fire_c = '1') and (cell_idx = to_integer(queue_rd_ptr)) then
+                            search_valid_v := false;
+                        end if;
 
-                    if queued_hit_v = '1' then
-                        if kick_ram(hit_bin_v) = KICK_MAX then
+                        if search_valid_v and (live_bank(cell_idx) = i_hit_bank) and
+                           (live_bin(cell_idx) = hit_bin_v) and (not match_valid_v) then
+                            match_valid_v := true;
+                            match_idx_v   := cell_idx;
+                        end if;
+                    end loop;
+
+                    if match_valid_v then
+                        if live_count(match_idx_v) = KICK_MAX then
                             overflow_event_v := '1';
+                        else
+                            live_count(match_idx_v) <= live_count(match_idx_v) + 1;
                         end if;
                     elsif queue_room_c = '1' then
-                        queue_mem(to_integer(wr_ptr_v)) <= i_hit_bin;
+                        live_valid(to_integer(wr_ptr_v)) <= '1';
+                        live_bank(to_integer(wr_ptr_v))  <= i_hit_bank;
+                        live_bin(to_integer(wr_ptr_v))   <= hit_bin_v;
+                        live_count(to_integer(wr_ptr_v)) <= to_unsigned(1, KICK_WIDTH);
                         wr_ptr_v := next_queue_ptr_f(wr_ptr_v);
                         level_v  := level_v + 1;
                     else
@@ -280,13 +237,11 @@ begin
                 queue_rd_ptr <= rd_ptr_v;
                 queue_wr_ptr <= wr_ptr_v;
                 queue_level  <= level_v;
-                queue_head_bin_q <= next_head_bin_v;
-                queue_head_valid_q <= next_head_valid_v;
                 overflow_count_q <= overflow_v;
                 overflow_event_q <= overflow_event_v;
 
-                if queue_level > queue_level_max then
-                    queue_level_max <= queue_level;
+                if level_v > queue_level_max then
+                    queue_level_max <= level_v;
                 end if;
             end if;
         end if;

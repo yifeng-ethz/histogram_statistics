@@ -1,6 +1,6 @@
 # Verification Signoff: histogram_statistics_v2
 
-Status: `HISTORICAL SIGNOFF BASELINE PASS; ACTIVE QUESTAONE 2026 FULL TOOLCHAIN VALIDATION PASS`
+Status: `HISTORICAL SIGNOFF BASELINE PASS; ACTIVE V3 DIRECT-INPUT STANDALONE CLOSURE OPEN`
 
 This signoff records the historical `v7` regression baseline plus a promoted
 long-run coverage farm. Those signoff artifacts remain useful evidence for DUT
@@ -10,6 +10,17 @@ current tree has been rerun through a fresh `54 / 54` toolchain-validation pass
 on that runtime. A follow-up smoke rerun also passes after the local
 `modelsim.ini` write-path fix, so the current flow no longer relies on editing
 the shared simulator installation tree.
+
+Current V3 direct-input addendum, 2026-05-17:
+
+- The direct Type0/Type1 payload proof is present, but standalone V3 DV closure
+  is open on BUG-010-H.
+- `hist_v3_direct_input_test` at `SEED=7` observes the expected Type0 and Type1
+  hit counts but fails the make target after BUG-009-H because the Questa
+  transcript contains four `hist_pipeline_sva: measure_clear_pulse did not lead
+  to flushing` assertion errors.
+- Do not use the zero-UVM-error summary alone as closure evidence for the V3
+  direct-input profile.
 
 ## Scope
 

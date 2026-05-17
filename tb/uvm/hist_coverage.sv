@@ -3,6 +3,7 @@ class hist_coverage extends uvm_component;
 
   hist_env_cfg cfg;
   bit [3:0]    cov_mode;
+  bit [1:0]    cov_source_select;
   bit          cov_key_unsigned;
   bit          cov_filter_enable;
   bit          cov_filter_reject;
@@ -23,6 +24,7 @@ class hist_coverage extends uvm_component;
 
   covergroup cg_config with function sample(
     bit [3:0] mode,
+    bit [1:0] source_select,
     bit key_unsigned,
     bit filter_enable,
     bit filter_reject,
@@ -31,8 +33,14 @@ class hist_coverage extends uvm_component;
   );
     cp_mode : coverpoint mode {
       bins normal  = {4'h0};
+      bins delay   = {4'h1};
       bins debug[] = {4'hA, 4'hB, 4'hC, 4'hD, 4'hE, 4'hF};
-      bins other[] = {[4'h1:4'h9]};
+      bins other[] = {[4'h2:4'h9]};
+    }
+    cp_source_select : coverpoint source_select {
+      bins type0      = {HS_SOURCE_TYPE0};
+      bins type1_up   = {HS_SOURCE_TYPE1_UP};
+      bins type1_down = {HS_SOURCE_TYPE1_DOWN};
     }
     cp_key_unsigned : coverpoint key_unsigned {
       bins signed_mode   = {1'b0};
@@ -135,6 +143,7 @@ class hist_coverage extends uvm_component;
       `uvm_fatal(get_type_name(), "missing env_cfg")
     end
     cov_mode          = 4'h0;
+    cov_source_select = HS_SOURCE_TYPE0;
     cov_key_unsigned  = 1'b1;
     cov_filter_enable = 1'b0;
     cov_filter_reject = 1'b0;
@@ -146,6 +155,7 @@ class hist_coverage extends uvm_component;
   function void sample_config();
     cg_config.sample(
       cov_mode,
+      cov_source_select,
       cov_key_unsigned,
       cov_filter_enable,
       cov_filter_reject,
@@ -162,6 +172,7 @@ class hist_coverage extends uvm_component;
     case (txn.address)
       5'd2: begin
         cov_mode          = txn.writedata[7:4];
+        cov_source_select = txn.writedata[17:16];
         cov_key_unsigned  = txn.writedata[8];
         cov_filter_enable = txn.writedata[12];
         cov_filter_reject = txn.writedata[13];

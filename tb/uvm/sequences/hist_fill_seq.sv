@@ -4,6 +4,7 @@ class hist_fill_seq extends uvm_sequence #(hist_fill_txn);
   rand int unsigned                port_index;
   rand int unsigned                inter_gap_cycles;
   rand logic [HS_AVST_DATA_W-1:0]  raw_words[$];
+  rand logic [HS_TS_W-1:0]         timestamps[$];
   rand bit [HS_AVST_CH_W-1:0]      channels[$];
   rand bit                         sops[$];
   rand bit                         eops[$];
@@ -44,7 +45,7 @@ class hist_fill_seq extends uvm_sequence #(hist_fill_txn);
     for (int idx = 0; idx < num_items_v; idx++) begin
       req = hist_fill_txn::type_id::create($sformatf("req_%0d", idx));
       start_item(req);
-      req.port_index = port_index[2:0];
+      req.port_index = port_index;
       req.data = use_raw_words ? raw_words[idx] : hist_build_fill_word(
         key_values[idx],
         update_lo,
@@ -53,6 +54,7 @@ class hist_fill_seq extends uvm_sequence #(hist_fill_txn);
         filter_lo,
         filter_hi
       );
+      req.ts      = (idx < timestamps.size()) ? timestamps[idx] : '0;
       req.channel = (idx < channels.size()) ? channels[idx] : '0;
       req.sop     = (idx < sops.size()) ? sops[idx] : 1'b0;
       req.eop     = (idx < eops.size()) ? eops[idx] : 1'b0;

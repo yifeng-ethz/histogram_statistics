@@ -2,8 +2,8 @@
 
 **Parent:** DV_PLAN.md
 **Companion docs:** [DV_PLAN.md](DV_PLAN.md), [DV_REPORT.md](DV_REPORT.md), [DV_CROSS.md](DV_CROSS.md)
-**ID Range:** P001-P148
-**Total:** 148 cases
+**ID Range:** P001-P154
+**Total:** 154 cases
 **Method:** R (constrained-random), S (sweep), K (soak)
 
 These tests characterize throughput limits, stress conditions, and long-running behaviors of the histogram_statistics_v2 IP core. Each test maps to a specific system-level performance question about the multi-port ingress path, coalescing queue, ping-pong SRAM, and readout pipeline. Every case explains what throughput limit it probes or what long-running behavior it validates.
@@ -11,8 +11,9 @@ These tests characterize throughput limits, stress conditions, and long-running 
 **General methodology:** Each test runs a parameterised sequence with LCG-seeded stimulus (Questa FSE: no `rand`/`constraint`). Cycle-accurate throughput, drop rates, and bin counts are measured by the scoreboard and counter-based coverage. Results are compared against analytical bounds derived from pipeline structure.
 
 **Key architectural constants:**
-- N_BINS=256, N_PORTS=8, FIFO depth=256 (FIFO_ADDR_WIDTH=8), COAL_QUEUE_DEPTH=256, KICK_WIDTH=8 (max coalesced=255)
-- Pipeline latency: ingress(1) + arb_pipe(1) + key_pipe(1) + divider_in(1) + bin_divider(8) + queue_hit_pipe(1) = 13 cycles from FIFO read to queue entry
+- V3 resource profile: N_BINS=256, N_PORTS=8, FIFO depth=4 (FIFO_ADDR_WIDTH=2), COAL_QUEUE_DEPTH=4, MAX_COUNT_BITS=20, KICK_WIDTH=4 (max coalesced=15)
+- Legacy Phase-5 stress profile: FIFO depth=256 and COAL_QUEUE_DEPTH=256. Those cases are retained for historical stress planning but are not the V3 less-than-2k-ALM signoff profile.
+- Pipeline latency: ingress(1) + arb_pipe(1) + key_pipe(1) + divider_in(1) + bin_divider(2 in V3 power-of-two mode) + queue_hit_pipe(1) = 7 cycles from FIFO read to queue entry
 - Arbiter: round-robin, 1 grant/cycle, same-port consecutive grants allowed when it is the only ready FIFO
 - Pingpong update pipeline: 4 stages (issue/read/add+sum/write) with RAW forwarding
 - Bank clear: 256 cycles (N_BINS), upd_ready=0 during clear
@@ -21,6 +22,12 @@ These tests characterize throughput limits, stress conditions, and long-running 
 `P04_all_channel_injection_frame`, driving 8 ports x 32 channels in one frame.
 Expected result is 256 accepted hits, zero dropped hits, zero coalescing
 overflow, and all 256 bins matching after bank swap.
+
+**V3 direct-input performance smoke:** `hist_v3_direct_input_test` is the active
+V3 profile smoke. It drives Type0 at 100 kHz per ASIC for 5 ms with a 1 ms
+ping-pong interval, then drives Type1 up/down in rate and delay modes. Latest
+evidence with the 4-cell coalescer reports Type0 `last_interval_total=1600`,
+Type1 up/down rate and delay `delta_total=256`, and `dropped=0` for every phase.
 
 ---
 
@@ -76,7 +83,7 @@ All 8 ports active with varying per-port rates. The round-robin arbiter services
 
 ## 3. Coalescing Efficiency (COE) -- 14 cases
 
-The coalescing queue (depth=256, kick_width=8) merges repeated hits to the same bin into a single (bin, count) update. Coalescing efficiency determines how much downstream bandwidth is saved. When all 256 bins are uniformly hit, the queue quickly fills (each bin gets a separate entry). When hits cluster on few bins, the queue stays shallow but kick counters can saturate at 255.
+The coalescing queue (depth=256, kick_width=4 in V3) merges repeated hits to the same bin into a single (bin, count) update. Coalescing efficiency determines how much downstream bandwidth is saved. When all 256 bins are uniformly hit, the queue quickly fills (each bin gets a separate entry). When hits cluster on few bins, the queue stays shallow but kick counters can saturate at 15.
 
 **Why this section exists:** The coalescing queue is the critical path between the bin_divider (1 hit/cycle input) and the pingpong_sram (1 update per 4 cycles throughput). Without coalescing, the SRAM update pipeline would bottleneck at 0.25 hits/cycle. Coalescing collapses N hits to the same bin into 1 update, so the effective throughput depends entirely on how well the workload coalesces. These tests map the coalescing efficiency curve.
 
@@ -85,7 +92,7 @@ The coalescing queue (depth=256, kick_width=8) merges repeated hits to the same 
 | ID | Method | Scenario | Duration/Iter | Stimulus | Checker |
 |----|--------|----------|---------------|----------|---------|
 | P025 | S | Uniform distribution: all 256 bins equally likely | 10k hits | Port 0, 50% rate | Queue fills to ~256 after 256 distinct bins seen; coalescing_ratio ~ N_hits/256 |
-| P026 | S | Single-bin: all hits to bin 0 | 10k hits | Port 0, 50% rate | Queue occupancy stays at 1; kick counter saturates at 255 every 255 hits; overflow_count = floor(10000/255)-1 |
+| P026 | S | Single-bin: all hits to bin 0 | 10k hits | Port 0, 50% rate | Queue occupancy stays at 1; V3 kick counter saturates at 15 every 15 hits; overflow_count follows the 4-bit saturation model |
 | P027 | S | Two-bin: alternating bin 0 and bin 1 | 10k hits | Port 0, 50% rate | Queue occupancy stays at 2; excellent coalescing |
 | P028 | S | 4-bin cluster: bins 0-3 uniformly | 10k hits | Port 0, 50% rate | Queue occupancy 4; drain_count_avg ~ 2500/drain_events |
 | P029 | S | 16-bin cluster | 10k hits | Port 0, 50% rate | Queue occupancy 16; good coalescing |
@@ -93,7 +100,7 @@ The coalescing queue (depth=256, kick_width=8) merges repeated hits to the same 
 | P031 | S | 128-bin uniform | 10k hits | Port 0, 50% rate | Queue occupancy 128; coalescing still helps |
 | P032 | S | 256-bin uniform (worst case for queue) | 10k hits | Port 0, 50% rate | Queue at max capacity; drain_count_avg ~1; minimal coalescing |
 | P033 | R | Zipf distribution: bin 0 gets 50% of hits, rest distributed | 10k hits | Port 0, LCG | Queue occupancy < 256; bin 0 dominates; kick counter for bin 0 saturates repeatedly |
-| P034 | S | Kick saturation stress: 256 consecutive hits to same bin | 512 hits x 4 | Port 0, 100% rate | Kick counter saturates at 255; overflow_count increments on 256th hit; verify no data corruption |
+| P034 | S | Kick saturation stress: 16 consecutive hits to same bin | 512 hits x 4 | Port 0, 100% rate | Kick counter saturates at 15; overflow_count increments on the 16th same-bin hit; verify no data corruption |
 | P035 | R | Random bin distribution with 8 ports active | 20k hits total | All ports, LCG bins | Queue occupancy higher due to port offset (key = raw + port*32); measure effective coalescing |
 | P036 | S | Sequential scan: bins 0,1,2,...,255,0,1,... | 10k hits | Port 0, 100% rate | Worst-case queue fill: each bin enqueued before first drain; queue full after 256 entries |
 | P037 | S | Reverse scan: bins 255,254,...,0,255,... | 10k hits | Port 0, 100% rate | Same queue behavior as P036; verify no ordering-dependent bugs |
@@ -295,9 +302,9 @@ The round-robin arbiter gives each port equal priority regardless of FIFO fill l
 
 ## 12. Queue Saturation (QST) -- 14 cases
 
-The coalescing queue has COAL_QUEUE_DEPTH=256 entries. When all 256 entries are occupied (256 distinct bins in-flight) and a new distinct bin arrives, either the queue must drain an entry first (if drain_fire happens simultaneously) or the hit is counted as overflow. The kick counter is 8 bits: a bin already in the queue can absorb up to 255 hits before the counter saturates.
+The V3 resource profile has `COAL_QUEUE_DEPTH=4` live entries. When all live entries are occupied by other bins and a new distinct bin arrives, either the queue must drain an entry first (if `drain_fire` happens simultaneously) or the hit is counted as overflow. The V3 kick counter is 4 bits: a bin already in the queue can absorb up to 15 hits before the counter saturates. The 256-entry cases below remain legacy stress-plan rows and need V3-scaled variants before they can be used as current signoff evidence.
 
-**Why this section exists:** The queue is the most complex resource in the design. Its overflow counter is the primary diagnostic for understanding whether the histogram is losing data. These tests verify that (a) the overflow counter accurately counts every lost hit, (b) the queue correctly handles simultaneous enqueue and drain, (c) kick saturation at 255 is handled without corruption, (d) the queue clears correctly after overflow, and (e) the overflow counter itself does not wrap (16-bit saturating).
+**Why this section exists:** The queue is the most complex resource in the design. Its overflow counter is the primary diagnostic for understanding whether the histogram is losing data. These tests verify that (a) the overflow counter accurately counts every lost hit, (b) the queue correctly handles simultaneous enqueue and drain, (c) kick saturation at 15 is handled without corruption, (d) the queue clears correctly after overflow, and (e) the overflow counter itself does not wrap (16-bit saturating).
 
 **Output per test:** `{queue_overflow_count, queue_occupancy_max, expected_overflow, kick_saturation_events, bin_accuracy}`.
 
@@ -307,8 +314,8 @@ The coalescing queue has COAL_QUEUE_DEPTH=256 entries. When all 256 entries are 
 | P128 | S | Drive 257 distinct bins (impossible: only 256 exist) via same-bin wrapping | 512 hits | Port 0, 100%, sequential scan x2 | Second pass coalesces with first; queue stays at 256; zero overflow |
 | P129 | S | Fill queue to 256, then send 100 hits to new bins (all already queued) | 356 hits | Port 0, sequential then repeat | All 100 extra hits coalesce; overflow_count == 0 |
 | P130 | S | Fill queue to 256, then send hits while drain_ready = 0 | 300 hits | Port 0, 100%, queue stalled | Queue cannot drain; hits to already-queued bins still coalesce; hits to new bins impossible (all 256 bins queued); kick saturation causes overflow |
-| P131 | S | Kick saturation: 256 consecutive hits to bin 0 | 256 hits | Port 0, 100%, single bin | kick_count reaches 255 on 255th hit; 256th hit: kick already at max, overflow_count += 1 |
-| P132 | S | Kick saturation across all bins: 256 hits each to all 256 bins | 65536 hits | Port 0, 50% rate | Each bin's kick saturates once at 255; drain and refill; total overflow == 256 (one per bin) |
+| P131 | S | Kick saturation: 16 consecutive hits to bin 0 | 16 hits | Port 0, 100%, single bin | kick_count reaches 15 on 15th hit; 16th hit: kick already at max, overflow_count += 1 |
+| P132 | S | Kick saturation across all bins: 16 hits each to all 256 bins | 4096 hits | Port 0, 50% rate | Each bin's kick saturates once at 15; drain and refill; total overflow == 256 (one per bin) |
 | P133 | S | Queue drain race: hit and drain to same bin on same cycle | 1k hits | Port 0, 50%, single-bin focus | Simultaneous drain_fire and hit_valid for same bin; verify clean handoff (queued_effective = 0) |
 | P134 | S | Queue occupancy_max accuracy: fill to 200, drain to 0, fill to 256 | 1k hits | Port 0, controlled pattern | occupancy_max == 256 (tracks true peak); never resets until clear |
 | P135 | S | Overflow counter saturation: drive 65536+ overflow events | Until overflow saturates | Port 0, 100%, single bin | overflow_count saturates at 0xFFFF (16-bit); no wrap to 0 |
@@ -348,6 +355,22 @@ delta_toggle_pct, plateau_assessment}`.
 
 ---
 
+## 14. V3 Direct Source-Select Evidence -- 6 cases
+
+These are required FEB V3 evidence cases. They must drive the histogram IP
+directly and must not instantiate or route through `histogram_ingress_bridge`.
+
+| ID | Method | Scenario | Duration/Iter | Stimulus | Checker |
+|----|--------|----------|---------------|----------|---------|
+| P149 | S | Type0 direct rate, 100 kHz/channel selector | 5 ms RUNNING, 1 ms ping-pong | one deterministic selected channel per ASIC, all 8 Type0 lanes | CSR source_select readback=0; total hits nonzero; dropped=0; bins match accepted Type0 keys |
+| P150 | S | Type1 up direct rate | 5 ms RUNNING | `type1_up` 39-bit data, ts sideband stable but ignored | source_select=1; rate mode uses normal data fields; filter pass/reject works before coalescing |
+| P151 | S | Type1 down direct rate | 5 ms RUNNING | `type1_down` 39-bit data, ts sideband stable but ignored | source_select=2; rate mode uses normal data fields; filter pass/reject works before coalescing |
+| P152 | S | Type1 up direct delay | 5 ms RUNNING | `type1_up` data plus programmed ts offsets | delay key equals GTS minus ts; lifetime distribution matches programmed offsets |
+| P153 | S | Type1 down direct delay | 5 ms RUNNING | `type1_down` data plus programmed ts offsets | delay key equals GTS minus ts; lifetime distribution matches programmed offsets |
+| P154 | S | Source mux exclusion | configuration sweep | write source_select 0,1,2,3 before RUNNING | selected physical ready only; invalid 3 rejected with CONTROL error; Type0+delay rejected |
+
+---
+
 ## Summary
 
 | Section | Cases | ID Range | Focus |
@@ -365,4 +388,5 @@ delta_toggle_pct, plateau_assessment}`.
 | Port Imbalance (PIB) | 10 | P117-P126 | Round-robin starvation, hot/cold fairness |
 | Queue Saturation (QST) | 14 | P127-P140 | Overflow counter, kick saturation, pointer wrap |
 | Long-Run Coverage Harvest (LHC) | 8 | P141-P148 | Coverage-vs-wall-clock closure and plateau signoff |
-| **Total** | **148** | P001-P148 | |
+| V3 Direct Source-Select Evidence | 6 | P149-P154 | Direct Type0/Type1 rate and delay evidence |
+| **Total** | **154** | P001-P154 | |

@@ -54,6 +54,48 @@
 --		        static generic update/filter bit ranges in the hot ingress
 --		        path instead of timing through the CSR-programmable range
 --		        extractor.
+-- Revision: 1.14
+--		Date: May 16, 2026
+--		Change: Replace the public generic fill input contract with explicit
+--		        FEB V3 Type0 lane and Type1 up/down inputs. Type1 timestamp
+--		        is a separate 48-bit sideband, CSR CONTROL[17:16] selects
+--		        Type0/up/down, and the coalescer kick count is now a generic
+--		        so the V3 image can use 4-bit coalesced updates.
+-- Revision: 1.15
+--		Date: May 16, 2026
+--		Change: Make the V3 fixed-format datapath the default resource target:
+--		        source-aware Type0/Type1 key and filter slices are used when
+--		        LOCK_KEY_RANGES is enabled, and the default ingress FIFO depth
+--		        is reduced for direct MTS/FEB traffic.
+-- Revision: 1.16
+--		Date: May 16, 2026
+--		Change: Make the V3 default resource profile explicit: legacy
+--		        debug/snoop paths are disabled unless requested, the
+--		        coalescer uses the bunched live-cell queue, and the default
+--		        tick width covers a 5 ms FEB run without carrying a 32-bit
+--		        key path through every pipeline stage.
+-- Revision: 1.17
+--		Date: May 16, 2026
+--		Change: Tighten the FEB V3 resource profile: 20-bit bin counters,
+--		        4-entry ingress FIFOs, 8 live coalescer cells, and
+--		        power-of-two-only bin widths with CSR-visible rejection for
+--		        unsupported widths.
+-- Revision: 1.18
+--		Date: May 16, 2026
+--		Change: Match the V3 bunched-coalescer evidence envelope with four
+--		        live cells and narrow live interval statistics to the same
+--		        20-bit counter width used by the histogram bins.
+-- Revision: 1.19
+--      Date: May 17, 2026
+--      Change: Pipeline per-bank pending-hit accounting into registered
+--              increment/decrement deltas so ping-pong read stability does
+--              not put all ingress accepts and coalescer drains through one
+--              wide same-cycle counter update.
+-- Revision: 1.20
+--      Date: May 17, 2026
+--      Change: Register the FIFO-write side of the pending-hit delta before
+--              summing per-bank increments, while retaining a current-cycle
+--              bank-pending write-seen guard for ping-pong read arbitration.
 -- Revision: 1.3
 --		Date: Apr 25, 2026
 --		Change: Parameterize the ingress FIFO depth for bursty post-stack
@@ -106,25 +148,30 @@ entity histogram_statistics_v2 is
         UPDATE_KEY_BIT_HI        : natural := 29;
         UPDATE_KEY_BIT_LO        : natural := 17;
         UPDATE_KEY_REPRESENTATION: string  := "UNSIGNED";
-        LOCK_KEY_RANGES          : boolean := false;
+        LOCK_KEY_RANGES          : boolean := true;
         FILTER_KEY_BIT_HI        : natural := 38;
         FILTER_KEY_BIT_LO        : natural := 35;
-        SAR_TICK_WIDTH           : natural := 32;
+        SAR_TICK_WIDTH           : natural := 21;
         SAR_KEY_WIDTH            : natural := 16;
         N_BINS                   : natural := 256;
-        MAX_COUNT_BITS           : natural := 32;
+        MAX_COUNT_BITS           : natural := 20;
         DEF_LEFT_BOUND           : integer := -1000;
         DEF_BIN_WIDTH            : natural := 16;
+        POWER2_BIN_WIDTH_ONLY    : boolean := true;
         AVS_ADDR_WIDTH           : natural := 8;
         N_PORTS                  : natural := 8;
-        FIFO_ADDR_WIDTH          : natural := 8;
+        FIFO_ADDR_WIDTH          : natural := 2;
         CHANNELS_PER_PORT        : natural := 32;
-        COAL_QUEUE_DEPTH         : natural := 256;
+        COAL_QUEUE_DEPTH         : natural := 4;
         ENABLE_PINGPONG          : boolean := true;
         DEF_INTERVAL_CLOCKS      : natural := 125000000;
-        AVST_DATA_WIDTH          : natural := 39;
+        AVST_DATA_WIDTH          : natural := 45;
+        TYPE0_DATA_WIDTH         : natural := 45;
+        TYPE1_DATA_WIDTH         : natural := 39;
         AVST_CHANNEL_WIDTH       : natural := 4;
-        N_DEBUG_INTERFACE        : natural := 6;
+        KICK_COUNT_WIDTH         : natural := 4;
+        N_DEBUG_INTERFACE        : natural := 0;
+        ENABLE_DEBUG_INPUTS      : boolean := false;
         VERSION_MAJOR            : natural := 26;
         VERSION_MINOR            : natural := 2;
         VERSION_PATCH            : natural := 0;
@@ -133,8 +180,8 @@ entity histogram_statistics_v2 is
         VERSION_DATE             : natural := 20260511;
         VERSION_GIT              : natural := 375124078;
         INSTANCE_ID              : natural := 0;
-        SNOOP_EN                 : boolean := true;
-        ENABLE_PACKET            : boolean := true;
+        SNOOP_EN                 : boolean := false;
+        ENABLE_PACKET            : boolean := false;
         DEBUG                    : natural := 0
     );
     port (
@@ -156,61 +203,97 @@ entity histogram_statistics_v2 is
         avs_csr_write                   : in  std_logic;
         avs_csr_writedata               : in  std_logic_vector(31 downto 0);
 
-        asi_hist_fill_in_ready          : out std_logic;
-        asi_hist_fill_in_valid          : in  std_logic;
-        asi_hist_fill_in_data           : in  std_logic_vector(AVST_DATA_WIDTH - 1 downto 0);
-        asi_hist_fill_in_startofpacket  : in  std_logic;
-        asi_hist_fill_in_endofpacket    : in  std_logic;
-        asi_hist_fill_in_channel        : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane0_ready           : out std_logic;
+        asi_type0_lane0_valid           : in  std_logic;
+        asi_type0_lane0_data            : in  std_logic_vector(TYPE0_DATA_WIDTH - 1 downto 0);
+        asi_type0_lane0_startofpacket   : in  std_logic;
+        asi_type0_lane0_endofpacket     : in  std_logic;
+        asi_type0_lane0_channel         : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane0_error           : in  std_logic_vector(2 downto 0) := (others => '0');
+        asi_type0_lane0_endofrun        : in  std_logic := '0';
 
-        asi_fill_in_1_ready             : out std_logic;
-        asi_fill_in_1_valid             : in  std_logic;
-        asi_fill_in_1_data              : in  std_logic_vector(AVST_DATA_WIDTH - 1 downto 0);
-        asi_fill_in_1_startofpacket     : in  std_logic;
-        asi_fill_in_1_endofpacket       : in  std_logic;
-        asi_fill_in_1_channel           : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane1_ready           : out std_logic;
+        asi_type0_lane1_valid           : in  std_logic;
+        asi_type0_lane1_data            : in  std_logic_vector(TYPE0_DATA_WIDTH - 1 downto 0);
+        asi_type0_lane1_startofpacket   : in  std_logic;
+        asi_type0_lane1_endofpacket     : in  std_logic;
+        asi_type0_lane1_channel         : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane1_error           : in  std_logic_vector(2 downto 0) := (others => '0');
+        asi_type0_lane1_endofrun        : in  std_logic := '0';
 
-        asi_fill_in_2_ready             : out std_logic;
-        asi_fill_in_2_valid             : in  std_logic;
-        asi_fill_in_2_data              : in  std_logic_vector(AVST_DATA_WIDTH - 1 downto 0);
-        asi_fill_in_2_startofpacket     : in  std_logic;
-        asi_fill_in_2_endofpacket       : in  std_logic;
-        asi_fill_in_2_channel           : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane2_ready           : out std_logic;
+        asi_type0_lane2_valid           : in  std_logic;
+        asi_type0_lane2_data            : in  std_logic_vector(TYPE0_DATA_WIDTH - 1 downto 0);
+        asi_type0_lane2_startofpacket   : in  std_logic;
+        asi_type0_lane2_endofpacket     : in  std_logic;
+        asi_type0_lane2_channel         : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane2_error           : in  std_logic_vector(2 downto 0) := (others => '0');
+        asi_type0_lane2_endofrun        : in  std_logic := '0';
 
-        asi_fill_in_3_ready             : out std_logic;
-        asi_fill_in_3_valid             : in  std_logic;
-        asi_fill_in_3_data              : in  std_logic_vector(AVST_DATA_WIDTH - 1 downto 0);
-        asi_fill_in_3_startofpacket     : in  std_logic;
-        asi_fill_in_3_endofpacket       : in  std_logic;
-        asi_fill_in_3_channel           : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane3_ready           : out std_logic;
+        asi_type0_lane3_valid           : in  std_logic;
+        asi_type0_lane3_data            : in  std_logic_vector(TYPE0_DATA_WIDTH - 1 downto 0);
+        asi_type0_lane3_startofpacket   : in  std_logic;
+        asi_type0_lane3_endofpacket     : in  std_logic;
+        asi_type0_lane3_channel         : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane3_error           : in  std_logic_vector(2 downto 0) := (others => '0');
+        asi_type0_lane3_endofrun        : in  std_logic := '0';
 
-        asi_fill_in_4_ready             : out std_logic;
-        asi_fill_in_4_valid             : in  std_logic;
-        asi_fill_in_4_data              : in  std_logic_vector(AVST_DATA_WIDTH - 1 downto 0);
-        asi_fill_in_4_startofpacket     : in  std_logic;
-        asi_fill_in_4_endofpacket       : in  std_logic;
-        asi_fill_in_4_channel           : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane4_ready           : out std_logic;
+        asi_type0_lane4_valid           : in  std_logic;
+        asi_type0_lane4_data            : in  std_logic_vector(TYPE0_DATA_WIDTH - 1 downto 0);
+        asi_type0_lane4_startofpacket   : in  std_logic;
+        asi_type0_lane4_endofpacket     : in  std_logic;
+        asi_type0_lane4_channel         : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane4_error           : in  std_logic_vector(2 downto 0) := (others => '0');
+        asi_type0_lane4_endofrun        : in  std_logic := '0';
 
-        asi_fill_in_5_ready             : out std_logic;
-        asi_fill_in_5_valid             : in  std_logic;
-        asi_fill_in_5_data              : in  std_logic_vector(AVST_DATA_WIDTH - 1 downto 0);
-        asi_fill_in_5_startofpacket     : in  std_logic;
-        asi_fill_in_5_endofpacket       : in  std_logic;
-        asi_fill_in_5_channel           : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane5_ready           : out std_logic;
+        asi_type0_lane5_valid           : in  std_logic;
+        asi_type0_lane5_data            : in  std_logic_vector(TYPE0_DATA_WIDTH - 1 downto 0);
+        asi_type0_lane5_startofpacket   : in  std_logic;
+        asi_type0_lane5_endofpacket     : in  std_logic;
+        asi_type0_lane5_channel         : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane5_error           : in  std_logic_vector(2 downto 0) := (others => '0');
+        asi_type0_lane5_endofrun        : in  std_logic := '0';
 
-        asi_fill_in_6_ready             : out std_logic;
-        asi_fill_in_6_valid             : in  std_logic;
-        asi_fill_in_6_data              : in  std_logic_vector(AVST_DATA_WIDTH - 1 downto 0);
-        asi_fill_in_6_startofpacket     : in  std_logic;
-        asi_fill_in_6_endofpacket       : in  std_logic;
-        asi_fill_in_6_channel           : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane6_ready           : out std_logic;
+        asi_type0_lane6_valid           : in  std_logic;
+        asi_type0_lane6_data            : in  std_logic_vector(TYPE0_DATA_WIDTH - 1 downto 0);
+        asi_type0_lane6_startofpacket   : in  std_logic;
+        asi_type0_lane6_endofpacket     : in  std_logic;
+        asi_type0_lane6_channel         : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane6_error           : in  std_logic_vector(2 downto 0) := (others => '0');
+        asi_type0_lane6_endofrun        : in  std_logic := '0';
 
-        asi_fill_in_7_ready             : out std_logic;
-        asi_fill_in_7_valid             : in  std_logic;
-        asi_fill_in_7_data              : in  std_logic_vector(AVST_DATA_WIDTH - 1 downto 0);
-        asi_fill_in_7_startofpacket     : in  std_logic;
-        asi_fill_in_7_endofpacket       : in  std_logic;
-        asi_fill_in_7_channel           : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane7_ready           : out std_logic;
+        asi_type0_lane7_valid           : in  std_logic;
+        asi_type0_lane7_data            : in  std_logic_vector(TYPE0_DATA_WIDTH - 1 downto 0);
+        asi_type0_lane7_startofpacket   : in  std_logic;
+        asi_type0_lane7_endofpacket     : in  std_logic;
+        asi_type0_lane7_channel         : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type0_lane7_error           : in  std_logic_vector(2 downto 0) := (others => '0');
+        asi_type0_lane7_endofrun        : in  std_logic := '0';
+
+        asi_type1_up_ready              : out std_logic;
+        asi_type1_up_valid              : in  std_logic;
+        asi_type1_up_data               : in  std_logic_vector(TYPE1_DATA_WIDTH - 1 downto 0);
+        asi_type1_up_ts                 : in  std_logic_vector(47 downto 0);
+        asi_type1_up_startofpacket      : in  std_logic;
+        asi_type1_up_endofpacket        : in  std_logic;
+        asi_type1_up_channel            : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type1_up_empty              : in  std_logic := '0';
+        asi_type1_up_error              : in  std_logic := '0';
+
+        asi_type1_down_ready            : out std_logic;
+        asi_type1_down_valid            : in  std_logic;
+        asi_type1_down_data             : in  std_logic_vector(TYPE1_DATA_WIDTH - 1 downto 0);
+        asi_type1_down_ts               : in  std_logic_vector(47 downto 0);
+        asi_type1_down_startofpacket    : in  std_logic;
+        asi_type1_down_endofpacket      : in  std_logic;
+        asi_type1_down_channel          : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
+        asi_type1_down_empty            : in  std_logic := '0';
+        asi_type1_down_error            : in  std_logic := '0';
 
         aso_hist_fill_out_ready         : in  std_logic := '1';
         aso_hist_fill_out_valid         : out std_logic;
@@ -251,15 +334,41 @@ architecture rtl of histogram_statistics_v2 is
     -- does not get dropped before it reaches the divider/coalescer.
     constant FIFO_ADDR_WIDTH_CONST  : natural := FIFO_ADDR_WIDTH;
     constant BIN_INDEX_WIDTH_CONST  : natural := clog2(N_BINS);
-    constant KICK_WIDTH_CONST       : natural := 8;
+    constant KICK_WIDTH_CONST       : natural := KICK_COUNT_WIDTH;
     constant COUNT_WIDTH_CONST      : natural := MAX_COUNT_BITS;
+    constant STATS_COUNT_WIDTH_CONST : natural := MAX_COUNT_BITS;
     constant PORT_WIDTH_CONST       : natural := clog2(MAX_PORTS_CONST);
 
+    function max_nat(
+        lhs : natural;
+        rhs : natural
+    ) return natural is
+    begin
+        if lhs > rhs then
+            return lhs;
+        end if;
+        return rhs;
+    end function max_nat;
+
     constant DELAY_TIMESTAMP_WIDTH_CONST : natural := 48;
+    constant HIST_SOURCE_TYPE0_CONST      : unsigned(1 downto 0) := "00";
+    constant HIST_SOURCE_TYPE1_UP_CONST   : unsigned(1 downto 0) := "01";
+    constant HIST_SOURCE_TYPE1_DOWN_CONST : unsigned(1 downto 0) := "10";
+    constant FIFO_WORD_WIDTH_CONST        : natural := SAR_TICK_WIDTH + 1;
+    constant FIFO_BANK_BIT_CONST          : natural := SAR_TICK_WIDTH;
+    constant PENDING_DELTA_WIDTH_CONST    : natural := max_nat(clog2(MAX_PORTS_CONST + 1), KICK_WIDTH_CONST) + 1;
     constant UPDATE_KEY_LOW_CONST        : unsigned(7 downto 0) := to_unsigned(UPDATE_KEY_BIT_LO, 8);
     constant UPDATE_KEY_HIGH_CONST       : unsigned(7 downto 0) := to_unsigned(UPDATE_KEY_BIT_HI, 8);
     constant FILTER_KEY_LOW_CONST        : unsigned(7 downto 0) := to_unsigned(FILTER_KEY_BIT_LO, 8);
     constant FILTER_KEY_HIGH_CONST       : unsigned(7 downto 0) := to_unsigned(FILTER_KEY_BIT_HI, 8);
+    constant TYPE0_UPDATE_KEY_LOW_CONST  : natural := 21;
+    constant TYPE0_UPDATE_KEY_HIGH_CONST : natural := 35;
+    constant TYPE0_FILTER_KEY_LOW_CONST  : natural := 41;
+    constant TYPE0_FILTER_KEY_HIGH_CONST : natural := 44;
+    constant TYPE1_UPDATE_KEY_LOW_CONST  : natural := 17;
+    constant TYPE1_UPDATE_KEY_HIGH_CONST : natural := 29;
+    constant TYPE1_FILTER_KEY_LOW_CONST  : natural := 35;
+    constant TYPE1_FILTER_KEY_HIGH_CONST : natural := 38;
 
     subtype tick_t      is signed(SAR_TICK_WIDTH - 1 downto 0);
     subtype tick_slv_t  is std_logic_vector(SAR_TICK_WIDTH - 1 downto 0);
@@ -267,7 +376,9 @@ architecture rtl of histogram_statistics_v2 is
     subtype fifo_level_t is unsigned(FIFO_ADDR_WIDTH_CONST downto 0);
     subtype port_index_t is unsigned(PORT_WIDTH_CONST - 1 downto 0);
     subtype bin_index_t is unsigned(BIN_INDEX_WIDTH_CONST - 1 downto 0);
+    subtype stats_count_t is unsigned(STATS_COUNT_WIDTH_CONST - 1 downto 0);
     subtype status_byte_t is unsigned(7 downto 0);
+    subtype bank_pending_count_t is unsigned(STATS_COUNT_WIDTH_CONST - 1 downto 0);
 
     type run_state_t is (
         IDLE,
@@ -286,22 +397,25 @@ architecture rtl of histogram_statistics_v2 is
 
     signal port_valid     : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
     signal port_data      : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(AVST_DATA_WIDTH - 1 downto 0);
+    signal port_ts        : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(DELAY_TIMESTAMP_WIDTH_CONST - 1 downto 0);
     signal port_channel   : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(AVST_CHANNEL_WIDTH - 1 downto 0);
     signal port_ready     : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
     signal ingress_accept : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
     signal ingress_write_req : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
     signal ingress_key_next : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(SAR_TICK_WIDTH - 1 downto 0);
+    signal ingress_bank_next : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
     signal ingress_stage_valid : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
     signal ingress_stage_write_req : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
     signal ingress_stage_key : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(SAR_TICK_WIDTH - 1 downto 0);
+    signal ingress_stage_bank : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
     signal fifo_write     : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
     signal fifo_read      : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
     signal fifo_empty     : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
     signal fifo_full      : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
     signal fifo_level     : hs_unsigned_array_t(0 to MAX_PORTS_CONST - 1)(FIFO_ADDR_WIDTH_CONST downto 0);
     signal fifo_level_max : hs_unsigned_array_t(0 to MAX_PORTS_CONST - 1)(FIFO_ADDR_WIDTH_CONST downto 0);
-    signal fifo_rd_data   : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(SAR_TICK_WIDTH - 1 downto 0);
-    signal fifo_wr_data   : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(SAR_TICK_WIDTH - 1 downto 0);
+    signal fifo_rd_data   : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(FIFO_WORD_WIDTH_CONST - 1 downto 0);
+    signal fifo_wr_data   : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(FIFO_WORD_WIDTH_CONST - 1 downto 0);
     signal accept_pulse   : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
     signal drop_pulse     : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
     signal accept_stat_pulse_d1 : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
@@ -315,32 +429,49 @@ architecture rtl of histogram_statistics_v2 is
 
     signal arb_valid      : std_logic;
     signal arb_port       : port_index_t;
-    signal arb_key_data   : std_logic_vector(SAR_TICK_WIDTH - 1 downto 0);
+    signal arb_key_data   : std_logic_vector(FIFO_WORD_WIDTH_CONST - 1 downto 0);
     signal arb_pipe_valid    : std_logic := '0';
     signal arb_pipe_port     : port_index_t := (others => '0');
     signal arb_pipe_key      : std_logic_vector(SAR_TICK_WIDTH - 1 downto 0) := (others => '0');
+    signal arb_pipe_bank     : std_logic := '0';
     signal key_pipe_valid    : std_logic := '0';
     signal key_pipe          : tick_t := (others => '0');
     signal key_pipe_count    : unsigned(KICK_WIDTH_CONST - 1 downto 0) := (others => '0');
+    signal key_pipe_bank     : std_logic := '0';
     signal divider_in_valid  : std_logic := '0';
     signal divider_in_key    : tick_t := (others => '0');
     signal divider_in_count  : unsigned(KICK_WIDTH_CONST - 1 downto 0) := (others => '0');
+    signal divider_in_bank   : std_logic := '0';
 
     signal divider_valid      : std_logic;
     signal divider_underflow  : std_logic;
     signal divider_overflow   : std_logic;
     signal divider_bin_index  : bin_index_t;
     signal divider_count      : unsigned(KICK_WIDTH_CONST - 1 downto 0);
+    signal divider_bank       : std_logic;
     signal queue_hit_valid    : std_logic := '0';
+    signal queue_hit_bank     : std_logic := '0';
     signal queue_hit_bin      : bin_index_t := (others => '0');
 
     signal queue_drain_valid    : std_logic;
+    signal queue_drain_bank     : std_logic;
     signal queue_drain_bin      : bin_index_t;
     signal queue_drain_count    : unsigned(KICK_WIDTH_CONST - 1 downto 0);
     signal queue_drain_ready    : std_logic;
     signal queue_occupancy      : unsigned(clog2(COAL_QUEUE_DEPTH + 1) - 1 downto 0);
     signal queue_occupancy_max  : unsigned(clog2(COAL_QUEUE_DEPTH + 1) - 1 downto 0);
     signal queue_overflow_count : unsigned(15 downto 0);
+    signal bank_pending_count   : hs_unsigned_array_t(0 to 1)(STATS_COUNT_WIDTH_CONST - 1 downto 0) := (others => (others => '0'));
+    signal bank_pending         : std_logic_vector(1 downto 0) := (others => '0');
+    signal fifo_write_d1        : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
+    signal fifo_write_bank_d1   : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
+    signal bank_pending_write_seen : std_logic_vector(1 downto 0) := (others => '0');
+    signal bank_pending_inc_count      : hs_unsigned_array_t(0 to 1)(PENDING_DELTA_WIDTH_CONST - 1 downto 0) := (others => (others => '0'));
+    signal bank_pending_dec_count      : hs_unsigned_array_t(0 to 1)(PENDING_DELTA_WIDTH_CONST - 1 downto 0) := (others => (others => '0'));
+    signal bank_pending_inc_seen       : std_logic_vector(1 downto 0) := (others => '0');
+    signal bank_pending_inc_count_d1   : hs_unsigned_array_t(0 to 1)(PENDING_DELTA_WIDTH_CONST - 1 downto 0) := (others => (others => '0'));
+    signal bank_pending_dec_count_d1   : hs_unsigned_array_t(0 to 1)(PENDING_DELTA_WIDTH_CONST - 1 downto 0) := (others => (others => '0'));
+    signal bank_pending_inc_seen_d1    : std_logic_vector(1 downto 0) := (others => '0');
 
     signal hist_readdata        : std_logic_vector(31 downto 0);
     signal hist_readdatavalid   : std_logic;
@@ -368,12 +499,13 @@ architecture rtl of histogram_statistics_v2 is
     signal csr_filter_key_high  : unsigned(7 downto 0) := to_unsigned(FILTER_KEY_BIT_HI, 8);
     signal csr_update_key       : unsigned(SAR_KEY_WIDTH - 1 downto 0) := (others => '0');
     signal csr_filter_key       : unsigned(SAR_KEY_WIDTH - 1 downto 0) := (others => '0');
-    signal csr_underflow_count  : unsigned(31 downto 0) := (others => '0');
-    signal csr_overflow_count   : unsigned(31 downto 0) := (others => '0');
-    signal csr_total_hits       : unsigned(31 downto 0) := (others => '0');
-    signal csr_dropped_hits     : unsigned(31 downto 0) := (others => '0');
-    signal csr_last_interval_total_hits   : unsigned(31 downto 0) := (others => '0');
-    signal csr_last_interval_dropped_hits : unsigned(31 downto 0) := (others => '0');
+    signal csr_source_select    : unsigned(1 downto 0) := HIST_SOURCE_TYPE0_CONST;
+    signal csr_underflow_count  : stats_count_t := (others => '0');
+    signal csr_overflow_count   : stats_count_t := (others => '0');
+    signal csr_total_hits       : stats_count_t := (others => '0');
+    signal csr_dropped_hits     : stats_count_t := (others => '0');
+    signal csr_last_interval_total_hits   : stats_count_t := (others => '0');
+    signal csr_last_interval_dropped_hits : stats_count_t := (others => '0');
     signal csr_interval_cfg     : unsigned(31 downto 0) := to_unsigned(DEF_INTERVAL_CLOCKS, 32);
     signal csr_scratch          : std_logic_vector(31 downto 0) := (others => '0');
     signal csr_meta_sel         : std_logic_vector(1 downto 0)  := (others => '0');
@@ -400,6 +532,7 @@ architecture rtl of histogram_statistics_v2 is
     signal cfg_filter_key_high  : unsigned(7 downto 0) := to_unsigned(FILTER_KEY_BIT_HI, 8);
     signal cfg_update_key       : unsigned(SAR_KEY_WIDTH - 1 downto 0) := (others => '0');
     signal cfg_filter_key       : unsigned(SAR_KEY_WIDTH - 1 downto 0) := (others => '0');
+    signal cfg_source_select    : unsigned(1 downto 0) := HIST_SOURCE_TYPE0_CONST;
     signal cfg_interval_cfg     : unsigned(31 downto 0) := to_unsigned(DEF_INTERVAL_CLOCKS, 32);
     signal cfg_filter_enable_port  : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
     signal cfg_filter_reject_port  : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
@@ -416,16 +549,18 @@ architecture rtl of histogram_statistics_v2 is
     signal status_queue_occupancy_max_shadow : status_byte_t := (others => '0');
     signal status_queue_overflow_shadow     : unsigned(15 downto 0) := (others => '0');
 
-    attribute preserve : boolean;
-    attribute preserve of arb_pipe_valid   : signal is true;
-    attribute preserve of arb_pipe_port    : signal is true;
-    attribute preserve of arb_pipe_key     : signal is true;
-    attribute preserve of key_pipe_valid   : signal is true;
-    attribute preserve of key_pipe         : signal is true;
-    attribute preserve of key_pipe_count   : signal is true;
-    attribute preserve of divider_in_valid : signal is true;
-    attribute preserve of divider_in_key   : signal is true;
-    attribute preserve of divider_in_count : signal is true;
+    function extend_to_hist_data(
+        data_word : std_logic_vector
+    ) return std_logic_vector is
+        variable result_v : std_logic_vector(AVST_DATA_WIDTH - 1 downto 0) := (others => '0');
+    begin
+        for bit_idx_v in data_word'range loop
+            if bit_idx_v <= result_v'high then
+                result_v(bit_idx_v) := data_word(bit_idx_v);
+            end if;
+        end loop;
+        return result_v;
+    end function extend_to_hist_data;
 
     function match_filter(
         data_word       : std_logic_vector;
@@ -452,6 +587,134 @@ architecture rtl of histogram_statistics_v2 is
         return match_v;
     end function match_filter;
 
+    function is_power2_u(
+        value : unsigned
+    ) return boolean is
+        variable seen_one_v : boolean := false;
+    begin
+        for bit_idx in value'range loop
+            if value(bit_idx) = '1' then
+                if seen_one_v then
+                    return false;
+                end if;
+                seen_one_v := true;
+            end if;
+        end loop;
+        return seen_one_v;
+    end function is_power2_u;
+
+    function extract_fixed_unsigned(
+        data_word : std_logic_vector;
+        bit_hi    : natural;
+        bit_lo    : natural
+    ) return unsigned is
+        variable result_v  : unsigned(SAR_KEY_WIDTH - 1 downto 0) := (others => '0');
+        variable src_idx_v : natural;
+    begin
+        for dst_idx_v in 0 to SAR_KEY_WIDTH - 1 loop
+            src_idx_v := dst_idx_v + bit_lo;
+            if (dst_idx_v <= (bit_hi - bit_lo)) and (src_idx_v >= data_word'low) and (src_idx_v <= data_word'high) then
+                result_v(dst_idx_v) := data_word(src_idx_v);
+            end if;
+        end loop;
+        return result_v;
+    end function extract_fixed_unsigned;
+
+    function extract_fixed_signed(
+        data_word : std_logic_vector;
+        bit_hi    : natural;
+        bit_lo    : natural
+    ) return signed is
+        variable raw_v      : unsigned(SAR_KEY_WIDTH - 1 downto 0) := (others => '0');
+        variable result_v   : signed(SAR_KEY_WIDTH - 1 downto 0);
+        variable sign_bit_v : std_logic := '0';
+        variable src_idx_v  : natural;
+    begin
+        if (bit_hi >= data_word'low) and (bit_hi <= data_word'high) then
+            sign_bit_v := data_word(bit_hi);
+        end if;
+
+        raw_v := (others => sign_bit_v);
+        for dst_idx_v in 0 to SAR_KEY_WIDTH - 1 loop
+            src_idx_v := dst_idx_v + bit_lo;
+            if (dst_idx_v <= (bit_hi - bit_lo)) and (src_idx_v >= data_word'low) and (src_idx_v <= data_word'high) then
+                raw_v(dst_idx_v) := data_word(src_idx_v);
+            end if;
+        end loop;
+
+        result_v := signed(raw_v);
+        return result_v;
+    end function extract_fixed_signed;
+
+    function fixed_update_hi(
+        source_select : unsigned(1 downto 0)
+    ) return natural is
+    begin
+        if source_select = HIST_SOURCE_TYPE0_CONST then
+            return TYPE0_UPDATE_KEY_HIGH_CONST;
+        end if;
+        return TYPE1_UPDATE_KEY_HIGH_CONST;
+    end function fixed_update_hi;
+
+    function fixed_update_lo(
+        source_select : unsigned(1 downto 0)
+    ) return natural is
+    begin
+        if source_select = HIST_SOURCE_TYPE0_CONST then
+            return TYPE0_UPDATE_KEY_LOW_CONST;
+        end if;
+        return TYPE1_UPDATE_KEY_LOW_CONST;
+    end function fixed_update_lo;
+
+    function fixed_filter_hi(
+        source_select : unsigned(1 downto 0)
+    ) return natural is
+    begin
+        if source_select = HIST_SOURCE_TYPE0_CONST then
+            return TYPE0_FILTER_KEY_HIGH_CONST;
+        end if;
+        return TYPE1_FILTER_KEY_HIGH_CONST;
+    end function fixed_filter_hi;
+
+    function fixed_filter_lo(
+        source_select : unsigned(1 downto 0)
+    ) return natural is
+    begin
+        if source_select = HIST_SOURCE_TYPE0_CONST then
+            return TYPE0_FILTER_KEY_LOW_CONST;
+        end if;
+        return TYPE1_FILTER_KEY_LOW_CONST;
+    end function fixed_filter_lo;
+
+    function match_fixed_filter(
+        data_word       : std_logic_vector;
+        source_select   : unsigned(1 downto 0);
+        filter_enable   : std_logic;
+        filter_reject   : std_logic;
+        filter_key      : unsigned
+    ) return boolean is
+        variable field_v : unsigned(filter_key'range);
+        variable match_v : boolean;
+    begin
+        if filter_enable = '0' then
+            return true;
+        end if;
+
+        field_v := resize(
+            extract_fixed_unsigned(
+                data_word,
+                fixed_filter_hi(source_select),
+                fixed_filter_lo(source_select)
+            ),
+            filter_key'length
+        );
+        match_v := field_v = filter_key;
+        if filter_reject = '1' then
+            return not match_v;
+        end if;
+        return match_v;
+    end function match_fixed_filter;
+
     function build_key(
         data_word    : std_logic_vector;
         key_hi       : unsigned(7 downto 0);
@@ -477,6 +740,33 @@ architecture rtl of histogram_statistics_v2 is
         end if;
         return std_logic_vector(result_v);
     end function build_key;
+
+    function build_fixed_key(
+        data_word     : std_logic_vector;
+        source_select : unsigned(1 downto 0);
+        key_unsigned  : std_logic
+    ) return std_logic_vector is
+        variable result_v : tick_t := (others => '0');
+        variable raw_u_v  : unsigned(SAR_KEY_WIDTH - 1 downto 0);
+        variable raw_s_v  : signed(SAR_KEY_WIDTH - 1 downto 0);
+    begin
+        if key_unsigned = '1' then
+            raw_u_v := extract_fixed_unsigned(
+                data_word,
+                fixed_update_hi(source_select),
+                fixed_update_lo(source_select)
+            );
+            result_v := signed(resize(raw_u_v, SAR_TICK_WIDTH));
+        else
+            raw_s_v := extract_fixed_signed(
+                data_word,
+                fixed_update_hi(source_select),
+                fixed_update_lo(source_select)
+            );
+            result_v := resize(raw_s_v, SAR_TICK_WIDTH);
+        end if;
+        return std_logic_vector(result_v);
+    end function build_fixed_key;
 
     function build_delay_key(
         data_word : std_logic_vector;
@@ -505,6 +795,28 @@ architecture rtl of histogram_statistics_v2 is
 
         return std_logic_vector(result_v);
     end function build_delay_key;
+
+    function build_delay_key_from_ts(
+        hit_ts    : std_logic_vector(DELAY_TIMESTAMP_WIDTH_CONST - 1 downto 0);
+        gts_value : unsigned
+    ) return std_logic_vector is
+        variable gts_full_v : delay_ts_t := (others => '0');
+        variable hit_full_v : delay_ts_t := (others => '0');
+        variable delay_v    : delay_ts_t := (others => '0');
+        variable result_v   : tick_t := (others => '0');
+    begin
+        gts_full_v := resize(gts_value, DELAY_TIMESTAMP_WIDTH_CONST);
+        hit_full_v := unsigned(hit_ts);
+        delay_v    := gts_full_v - hit_full_v;
+
+        for bit_idx_v in 0 to SAR_TICK_WIDTH - 1 loop
+            if bit_idx_v < DELAY_TIMESTAMP_WIDTH_CONST then
+                result_v(bit_idx_v) := delay_v(bit_idx_v);
+            end if;
+        end loop;
+
+        return std_logic_vector(result_v);
+    end function build_delay_key_from_ts;
 
     function build_debug_key(
         debug_mode : integer;
@@ -571,47 +883,69 @@ architecture rtl of histogram_statistics_v2 is
 
 begin
 
-    port_valid(0) <= asi_hist_fill_in_valid;
-    port_valid(1) <= asi_fill_in_1_valid;
-    port_valid(2) <= asi_fill_in_2_valid;
-    port_valid(3) <= asi_fill_in_3_valid;
-    port_valid(4) <= asi_fill_in_4_valid;
-    port_valid(5) <= asi_fill_in_5_valid;
-    port_valid(6) <= asi_fill_in_6_valid;
-    port_valid(7) <= asi_fill_in_7_valid;
+    port_valid(0) <= asi_type0_lane0_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else
+                     asi_type1_up_valid    when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else
+                     asi_type1_down_valid  when cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST else
+                     '0';
+    port_valid(1) <= asi_type0_lane1_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    port_valid(2) <= asi_type0_lane2_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    port_valid(3) <= asi_type0_lane3_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    port_valid(4) <= asi_type0_lane4_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    port_valid(5) <= asi_type0_lane5_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    port_valid(6) <= asi_type0_lane6_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    port_valid(7) <= asi_type0_lane7_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
 
-    port_data(0) <= asi_hist_fill_in_data;
-    port_data(1) <= asi_fill_in_1_data;
-    port_data(2) <= asi_fill_in_2_data;
-    port_data(3) <= asi_fill_in_3_data;
-    port_data(4) <= asi_fill_in_4_data;
-    port_data(5) <= asi_fill_in_5_data;
-    port_data(6) <= asi_fill_in_6_data;
-    port_data(7) <= asi_fill_in_7_data;
+    port_data(0) <= extend_to_hist_data(asi_type0_lane0_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else
+                    extend_to_hist_data(asi_type1_up_data)    when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else
+                    extend_to_hist_data(asi_type1_down_data)  when cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST else
+                    (others => '0');
+    port_data(1) <= extend_to_hist_data(asi_type0_lane1_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_data(2) <= extend_to_hist_data(asi_type0_lane2_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_data(3) <= extend_to_hist_data(asi_type0_lane3_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_data(4) <= extend_to_hist_data(asi_type0_lane4_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_data(5) <= extend_to_hist_data(asi_type0_lane5_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_data(6) <= extend_to_hist_data(asi_type0_lane6_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_data(7) <= extend_to_hist_data(asi_type0_lane7_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
 
-    port_channel(0) <= asi_hist_fill_in_channel;
-    port_channel(1) <= asi_fill_in_1_channel;
-    port_channel(2) <= asi_fill_in_2_channel;
-    port_channel(3) <= asi_fill_in_3_channel;
-    port_channel(4) <= asi_fill_in_4_channel;
-    port_channel(5) <= asi_fill_in_5_channel;
-    port_channel(6) <= asi_fill_in_6_channel;
-    port_channel(7) <= asi_fill_in_7_channel;
+    port_ts(0) <= asi_type1_up_ts   when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else
+                  asi_type1_down_ts when cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST else
+                  (others => '0');
+    port_ts(1) <= (others => '0');
+    port_ts(2) <= (others => '0');
+    port_ts(3) <= (others => '0');
+    port_ts(4) <= (others => '0');
+    port_ts(5) <= (others => '0');
+    port_ts(6) <= (others => '0');
+    port_ts(7) <= (others => '0');
 
-    asi_hist_fill_in_ready <= port_ready(0);
-    asi_fill_in_1_ready    <= port_ready(1);
-    asi_fill_in_2_ready    <= port_ready(2);
-    asi_fill_in_3_ready    <= port_ready(3);
-    asi_fill_in_4_ready    <= port_ready(4);
-    asi_fill_in_5_ready    <= port_ready(5);
-    asi_fill_in_6_ready    <= port_ready(6);
-    asi_fill_in_7_ready    <= port_ready(7);
+    port_channel(0) <= asi_type0_lane0_channel when cfg_source_select = HIST_SOURCE_TYPE0_CONST else
+                       asi_type1_up_channel    when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else
+                       asi_type1_down_channel  when cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST else
+                       (others => '0');
+    port_channel(1) <= asi_type0_lane1_channel when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_channel(2) <= asi_type0_lane2_channel when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_channel(3) <= asi_type0_lane3_channel when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_channel(4) <= asi_type0_lane4_channel when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_channel(5) <= asi_type0_lane5_channel when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_channel(6) <= asi_type0_lane6_channel when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
+    port_channel(7) <= asi_type0_lane7_channel when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
 
-    aso_hist_fill_out_valid         <= asi_hist_fill_in_valid when SNOOP_EN else '0';
-    aso_hist_fill_out_data          <= asi_hist_fill_in_data when SNOOP_EN else (others => '0');
-    aso_hist_fill_out_startofpacket <= asi_hist_fill_in_startofpacket when (SNOOP_EN and ENABLE_PACKET) else '0';
-    aso_hist_fill_out_endofpacket   <= asi_hist_fill_in_endofpacket when (SNOOP_EN and ENABLE_PACKET) else '0';
-    aso_hist_fill_out_channel       <= asi_hist_fill_in_channel when SNOOP_EN else (others => '0');
+    asi_type0_lane0_ready <= port_ready(0) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    asi_type0_lane1_ready <= port_ready(1) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    asi_type0_lane2_ready <= port_ready(2) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    asi_type0_lane3_ready <= port_ready(3) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    asi_type0_lane4_ready <= port_ready(4) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    asi_type0_lane5_ready <= port_ready(5) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    asi_type0_lane6_ready <= port_ready(6) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    asi_type0_lane7_ready <= port_ready(7) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
+    asi_type1_up_ready    <= port_ready(0) when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else '0';
+    asi_type1_down_ready  <= port_ready(0) when cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST else '0';
+
+    aso_hist_fill_out_valid         <= asi_type0_lane0_valid when (SNOOP_EN and cfg_source_select = HIST_SOURCE_TYPE0_CONST) else '0';
+    aso_hist_fill_out_data          <= extend_to_hist_data(asi_type0_lane0_data) when (SNOOP_EN and cfg_source_select = HIST_SOURCE_TYPE0_CONST) else (others => '0');
+    aso_hist_fill_out_startofpacket <= asi_type0_lane0_startofpacket when (SNOOP_EN and ENABLE_PACKET and cfg_source_select = HIST_SOURCE_TYPE0_CONST) else '0';
+    aso_hist_fill_out_endofpacket   <= asi_type0_lane0_endofpacket when (SNOOP_EN and ENABLE_PACKET and cfg_source_select = HIST_SOURCE_TYPE0_CONST) else '0';
+    aso_hist_fill_out_channel       <= asi_type0_lane0_channel when (SNOOP_EN and cfg_source_select = HIST_SOURCE_TYPE0_CONST) else (others => '0');
 
     -- rc-network is readyless in v26.2.0; no asi_ctrl_ready driver here.
     avs_hist_bin_waitrequest        <= '0';
@@ -723,8 +1057,9 @@ begin
         ingress_accept    <= (others => '0');
         ingress_write_req <= (others => '0');
         ingress_key_next  <= (others => (others => '0'));
+        ingress_bank_next <= (others => '0');
         debug_mode_v     := to_integer(signed(cfg_mode));
-        debug_dual_mts_v := debug_mode_v = -7;
+        debug_dual_mts_v := ENABLE_DEBUG_INPUTS and (debug_mode_v = -7);
         debug_valid_v    := '0';
         debug_data_v     := (others => '0');
         debug_source_v   := 0;
@@ -741,28 +1076,30 @@ begin
             filter_key_high_v := cfg_filter_key_high;
         end if;
 
-        case debug_mode_v is
-            when -1 =>
-                debug_valid_v := asi_debug_1_valid;
-                debug_data_v  := asi_debug_1_data;
-            when -2 =>
-                debug_valid_v := asi_debug_2_valid;
-                debug_data_v  := asi_debug_2_data;
-            when -3 =>
-                debug_valid_v := asi_debug_3_valid;
-                debug_data_v  := asi_debug_3_data;
-            when -4 =>
-                debug_valid_v := asi_debug_4_valid;
-                debug_data_v  := asi_debug_4_data;
-            when -5 =>
-                debug_valid_v := asi_debug_5_valid;
-                debug_data_v  := asi_debug_5_data;
-            when -6 =>
-                debug_valid_v := asi_debug_6_valid;
-                debug_data_v  := asi_debug_6_data;
-            when others =>
-                null;
-        end case;
+        if ENABLE_DEBUG_INPUTS then
+            case debug_mode_v is
+                when -1 =>
+                    debug_valid_v := asi_debug_1_valid;
+                    debug_data_v  := asi_debug_1_data;
+                when -2 =>
+                    debug_valid_v := asi_debug_2_valid;
+                    debug_data_v  := asi_debug_2_data;
+                when -3 =>
+                    debug_valid_v := asi_debug_3_valid;
+                    debug_data_v  := asi_debug_3_data;
+                when -4 =>
+                    debug_valid_v := asi_debug_4_valid;
+                    debug_data_v  := asi_debug_4_data;
+                when -5 =>
+                    debug_valid_v := asi_debug_5_valid;
+                    debug_data_v  := asi_debug_5_data;
+                when -6 =>
+                    debug_valid_v := asi_debug_6_valid;
+                    debug_data_v  := asi_debug_6_data;
+                when others =>
+                    null;
+            end case;
+        end if;
 
         for idx in 0 to MAX_PORTS_CONST - 1 loop
             if LOCK_KEY_RANGES then
@@ -776,7 +1113,7 @@ begin
             debug_active_v := false;
             if debug_dual_mts_v and idx < 2 then
                 debug_active_v := true;
-            elsif debug_mode_v < 0 and idx = 0 then
+            elsif ENABLE_DEBUG_INPUTS and (debug_mode_v < 0) and (idx = 0) then
                 debug_active_v := true;
             end if;
 
@@ -784,7 +1121,7 @@ begin
                 stream_ready_v   := '0';
                 stream_sampled_v := '0';
                 if (idx < N_PORTS) and (cfg_apply_pending = '0') then
-                    if idx = 0 then
+                    if (idx = 0) and (cfg_source_select = HIST_SOURCE_TYPE0_CONST) then
                         if SNOOP_EN then
                             stream_ready_v   := aso_hist_fill_out_ready;
                             stream_sampled_v := port_valid(idx) and aso_hist_fill_out_ready;
@@ -801,7 +1138,7 @@ begin
                 port_ready(idx) <= stream_ready_v;
 
                 sampled_v := stream_sampled_v;
-                if debug_mode_v < 0 then
+                if ENABLE_DEBUG_INPUTS and (debug_mode_v < 0) then
                     debug_source_v := 0;
                     if debug_dual_mts_v then
                         case idx is
@@ -829,9 +1166,10 @@ begin
 
                 accept_pulse(idx)   <= sampled_v;
                 ingress_accept(idx) <= sampled_v;
+                ingress_bank_next(idx) <= active_bank;
 
                 if sampled_v = '1' then
-                    if debug_mode_v < 0 then
+                    if ENABLE_DEBUG_INPUTS and (debug_mode_v < 0) then
                         ingress_key_next(idx) <= build_debug_key(
                             debug_mode => debug_mode_v,
                             data_word  => debug_data_v
@@ -854,21 +1192,29 @@ begin
                             ingress_write_req(idx) <= '1';
                         end if;
                     elsif debug_mode_v = 1 then
-                        ingress_key_next(idx) <= build_delay_key(
-                            data_word => port_data(idx),
-                            key_hi    => update_key_high_v,
-                            key_lo    => update_key_low_v,
+                        ingress_key_next(idx) <= build_delay_key_from_ts(
+                            hit_ts    => port_ts(idx),
                             gts_value => gts_8n
                         );
 
-                        filter_pass_v := match_filter(
-                            data_word      => port_data(idx),
-                            filter_enable  => cfg_filter_enable_port(idx),
-                            filter_reject  => cfg_filter_reject_port(idx),
-                            filter_hi      => filter_key_high_v,
-                            filter_lo      => filter_key_low_v,
-                            filter_key     => cfg_filter_key_port(idx)
-                        );
+                        if LOCK_KEY_RANGES then
+                            filter_pass_v := match_fixed_filter(
+                                data_word      => port_data(idx),
+                                source_select  => cfg_source_select,
+                                filter_enable  => cfg_filter_enable_port(idx),
+                                filter_reject  => cfg_filter_reject_port(idx),
+                                filter_key     => cfg_filter_key_port(idx)
+                            );
+                        else
+                            filter_pass_v := match_filter(
+                                data_word      => port_data(idx),
+                                filter_enable  => cfg_filter_enable_port(idx),
+                                filter_reject  => cfg_filter_reject_port(idx),
+                                filter_hi      => filter_key_high_v,
+                                filter_lo      => filter_key_low_v,
+                                filter_key     => cfg_filter_key_port(idx)
+                            );
+                        end if;
                         if filter_pass_v then
                             ingress_write_req(idx) <= '1';
                         end if;
@@ -876,21 +1222,37 @@ begin
                         -- Compute key unconditionally (don't gate by filter_pass)
                         -- to break timing from cfg_filter_key_low → ingress_stage_key.
                         -- Key value is don't-care when write_req = '0'.
-                        ingress_key_next(idx) <= build_key(
-                            data_word    => port_data(idx),
-                            key_hi       => update_key_high_v,
-                            key_lo       => update_key_low_v,
-                            key_unsigned => cfg_key_unsigned
-                        );
+                        if LOCK_KEY_RANGES then
+                            ingress_key_next(idx) <= build_fixed_key(
+                                data_word     => port_data(idx),
+                                source_select => cfg_source_select,
+                                key_unsigned  => cfg_key_unsigned
+                            );
 
-                        filter_pass_v := match_filter(
-                            data_word      => port_data(idx),
-                            filter_enable  => cfg_filter_enable_port(idx),
-                            filter_reject  => cfg_filter_reject_port(idx),
-                            filter_hi      => filter_key_high_v,
-                            filter_lo      => filter_key_low_v,
-                            filter_key     => cfg_filter_key_port(idx)
-                        );
+                            filter_pass_v := match_fixed_filter(
+                                data_word      => port_data(idx),
+                                source_select  => cfg_source_select,
+                                filter_enable  => cfg_filter_enable_port(idx),
+                                filter_reject  => cfg_filter_reject_port(idx),
+                                filter_key     => cfg_filter_key_port(idx)
+                            );
+                        else
+                            ingress_key_next(idx) <= build_key(
+                                data_word    => port_data(idx),
+                                key_hi       => update_key_high_v,
+                                key_lo       => update_key_low_v,
+                                key_unsigned => cfg_key_unsigned
+                            );
+
+                            filter_pass_v := match_filter(
+                                data_word      => port_data(idx),
+                                filter_enable  => cfg_filter_enable_port(idx),
+                                filter_reject  => cfg_filter_reject_port(idx),
+                                filter_hi      => filter_key_high_v,
+                                filter_lo      => filter_key_low_v,
+                                filter_key     => cfg_filter_key_port(idx)
+                            );
+                        end if;
                         if filter_pass_v then
                             ingress_write_req(idx) <= '1';
                         end if;
@@ -902,7 +1264,8 @@ begin
                 if ingress_stage_write_req(idx) = '1' then
                     if fifo_full(idx) = '0' then
                         fifo_write(idx)   <= '1';
-                        fifo_wr_data(idx) <= ingress_stage_key(idx);
+                        fifo_wr_data(idx)(SAR_TICK_WIDTH - 1 downto 0) <= ingress_stage_key(idx);
+                        fifo_wr_data(idx)(FIFO_BANK_BIT_CONST) <= ingress_stage_bank(idx);
                     else
                         drop_pulse(idx) <= '1';
                     end if;
@@ -918,18 +1281,21 @@ begin
                 ingress_stage_valid     <= (others => '0');
                 ingress_stage_write_req <= (others => '0');
                 ingress_stage_key       <= (others => (others => '0'));
+                ingress_stage_bank      <= (others => '0');
             else
                 for idx in 0 to MAX_PORTS_CONST - 1 loop
                     if ingress_stage_valid(idx) = '1' then
                         ingress_stage_valid(idx)     <= '0';
                         ingress_stage_write_req(idx) <= '0';
                         ingress_stage_key(idx)       <= (others => '0');
+                        ingress_stage_bank(idx)      <= '0';
                     end if;
 
                     if (idx < N_PORTS) and (ingress_accept(idx) = '1') then
                         ingress_stage_valid(idx)     <= '1';
                         ingress_stage_write_req(idx) <= ingress_write_req(idx);
                         ingress_stage_key(idx)       <= ingress_key_next(idx);
+                        ingress_stage_bank(idx)      <= ingress_bank_next(idx);
                     end if;
                 end loop;
             end if;
@@ -939,7 +1305,7 @@ begin
     fifo_gen : for idx in 0 to MAX_PORTS_CONST - 1 generate
         fifo_inst : entity work.hit_fifo
             generic map (
-                DATA_WIDTH      => SAR_TICK_WIDTH,
+                DATA_WIDTH      => FIFO_WORD_WIDTH_CONST,
                 FIFO_ADDR_WIDTH => FIFO_ADDR_WIDTH_CONST
             )
             port map (
@@ -960,7 +1326,7 @@ begin
     arb_inst : entity work.rr_arbiter
         generic map (
             N_PORTS     => MAX_PORTS_CONST,
-            DATA_WIDTH  => SAR_TICK_WIDTH,
+            DATA_WIDTH  => FIFO_WORD_WIDTH_CONST,
             LEVEL_WIDTH => FIFO_ADDR_WIDTH_CONST + 1
         )
         port map (
@@ -985,23 +1351,28 @@ begin
                 arb_pipe_valid <= '0';
                 arb_pipe_port  <= (others => '0');
                 arb_pipe_key   <= (others => '0');
+                arb_pipe_bank  <= '0';
                 key_pipe_valid <= '0';
                 key_pipe       <= (others => '0');
                 key_pipe_count <= (others => '0');
+                key_pipe_bank  <= '0';
                 divider_in_valid <= '0';
                 divider_in_key   <= (others => '0');
                 divider_in_count <= (others => '0');
+                divider_in_bank  <= '0';
             else
                 arb_pipe_valid <= arb_valid;
                 arb_pipe_port  <= arb_port;
-                arb_pipe_key   <= arb_key_data;
+                arb_pipe_key   <= arb_key_data(SAR_TICK_WIDTH - 1 downto 0);
+                arb_pipe_bank  <= arb_key_data(FIFO_BANK_BIT_CONST);
 
                 key_pipe_valid <= arb_pipe_valid;
                 key_pipe_count <= (others => '0');
                 key_pipe       <= (others => '0');
+                key_pipe_bank  <= arb_pipe_bank;
 
                 if arb_pipe_valid = '1' then
-                    if to_integer(signed(cfg_mode)) < 0 then
+                    if ENABLE_DEBUG_INPUTS and (to_integer(signed(cfg_mode)) < 0) then
                         port_offset_v := (others => '0');
                     else
                         port_offset_v := to_signed(to_integer(arb_pipe_port) * CHANNELS_PER_PORT, SAR_TICK_WIDTH);
@@ -1013,6 +1384,7 @@ begin
                 divider_in_valid <= key_pipe_valid;
                 divider_in_key   <= key_pipe;
                 divider_in_count <= key_pipe_count;
+                divider_in_bank  <= key_pipe_bank;
             end if;
         end if;
     end process divider_pipe;
@@ -1021,7 +1393,8 @@ begin
         generic map (
             TICK_WIDTH      => SAR_TICK_WIDTH,
             BIN_INDEX_WIDTH => BIN_INDEX_WIDTH_CONST,
-            COUNT_WIDTH     => KICK_WIDTH_CONST
+            COUNT_WIDTH     => KICK_WIDTH_CONST,
+            POWER2_BIN_WIDTH_ONLY => POWER2_BIN_WIDTH_ONLY
         )
         port map (
             i_clk         => i_clk,
@@ -1030,6 +1403,7 @@ begin
             i_valid       => divider_in_valid,
             i_key         => divider_in_key,
             i_count       => divider_in_count,
+            i_user        => divider_in_bank,
             i_left_bound  => cfg_left_bound,
             i_right_bound => cfg_right_bound,
             i_bin_width   => resize(cfg_bin_width, SAR_TICK_WIDTH),
@@ -1037,7 +1411,8 @@ begin
             o_underflow   => divider_underflow,
             o_overflow    => divider_overflow,
             o_bin_index   => divider_bin_index,
-            o_count       => divider_count
+            o_count       => divider_count,
+            o_user        => divider_bank
         );
 
     queue_hit_pipe : process (i_clk)
@@ -1045,9 +1420,11 @@ begin
         if rising_edge(i_clk) then
             if (i_rst = '1') or (measure_clear_pulse = '1') then
                 queue_hit_valid <= '0';
+                queue_hit_bank  <= '0';
                 queue_hit_bin   <= (others => '0');
             else
                 queue_hit_valid <= divider_valid and not divider_underflow and not divider_overflow;
+                queue_hit_bank  <= divider_bank;
                 queue_hit_bin   <= divider_bin_index;
             end if;
         end if;
@@ -1065,15 +1442,137 @@ begin
             i_rst            => i_rst,
             i_clear          => measure_clear_pulse,
             i_hit_valid      => queue_hit_valid,
+            i_hit_bank       => queue_hit_bank,
             i_hit_bin        => queue_hit_bin,
             i_drain_ready    => queue_drain_ready,
             o_drain_valid    => queue_drain_valid,
+            o_drain_bank     => queue_drain_bank,
             o_drain_bin      => queue_drain_bin,
             o_drain_count    => queue_drain_count,
             o_occupancy      => queue_occupancy,
             o_occupancy_max  => queue_occupancy_max,
             o_overflow_count => queue_overflow_count
         );
+
+    pending_write_seen_comb : process (all)
+        variable seen_v : std_logic_vector(1 downto 0);
+        variable bank_idx_v : natural;
+    begin
+        seen_v := (others => '0');
+        for idx in 0 to MAX_PORTS_CONST - 1 loop
+            if fifo_write(idx) = '1' then
+                bank_idx_v := 0;
+                if fifo_wr_data(idx)(FIFO_BANK_BIT_CONST) = '1' then
+                    bank_idx_v := 1;
+                end if;
+                seen_v(bank_idx_v) := '1';
+            end if;
+        end loop;
+        bank_pending_write_seen <= seen_v;
+    end process pending_write_seen_comb;
+
+    pending_write_reg : process (i_clk)
+    begin
+        if rising_edge(i_clk) then
+            if i_rst = '1' or measure_clear_pulse = '1' then
+                fifo_write_d1      <= (others => '0');
+                fifo_write_bank_d1 <= (others => '0');
+            else
+                fifo_write_d1 <= fifo_write;
+                for idx in 0 to MAX_PORTS_CONST - 1 loop
+                    fifo_write_bank_d1(idx) <= fifo_wr_data(idx)(FIFO_BANK_BIT_CONST);
+                end loop;
+            end if;
+        end if;
+    end process pending_write_reg;
+
+    pending_delta_comb : process (all)
+        variable inc_count_v : hs_unsigned_array_t(0 to 1)(PENDING_DELTA_WIDTH_CONST - 1 downto 0);
+        variable dec_count_v : hs_unsigned_array_t(0 to 1)(PENDING_DELTA_WIDTH_CONST - 1 downto 0);
+        variable inc_seen_v  : std_logic_vector(1 downto 0);
+        variable bank_idx_v  : natural;
+    begin
+        inc_count_v := (others => (others => '0'));
+        dec_count_v := (others => (others => '0'));
+        inc_seen_v  := (others => '0');
+
+        for idx in 0 to MAX_PORTS_CONST - 1 loop
+            if fifo_write_d1(idx) = '1' then
+                bank_idx_v := 0;
+                if fifo_write_bank_d1(idx) = '1' then
+                    bank_idx_v := 1;
+                end if;
+                inc_count_v(bank_idx_v) := sat_add(inc_count_v(bank_idx_v), to_unsigned(1, PENDING_DELTA_WIDTH_CONST));
+                inc_seen_v(bank_idx_v)  := '1';
+            end if;
+        end loop;
+
+        if (divider_valid = '1') and ((divider_underflow = '1') or (divider_overflow = '1')) then
+            bank_idx_v := 0;
+            if divider_bank = '1' then
+                bank_idx_v := 1;
+            end if;
+            dec_count_v(bank_idx_v) := sat_add(dec_count_v(bank_idx_v), resize(divider_count, PENDING_DELTA_WIDTH_CONST));
+        end if;
+
+        if (queue_drain_valid = '1') and (queue_drain_ready = '1') then
+            bank_idx_v := 0;
+            if queue_drain_bank = '1' then
+                bank_idx_v := 1;
+            end if;
+            dec_count_v(bank_idx_v) := sat_add(dec_count_v(bank_idx_v), resize(queue_drain_count, PENDING_DELTA_WIDTH_CONST));
+        end if;
+
+        bank_pending_inc_count <= inc_count_v;
+        bank_pending_dec_count <= dec_count_v;
+        bank_pending_inc_seen  <= inc_seen_v;
+    end process pending_delta_comb;
+
+    bank_pending(0) <= bool_to_sl(bank_pending_count(0) /= 0) or bank_pending_write_seen(0) or bank_pending_inc_seen(0) or bank_pending_inc_seen_d1(0);
+    bank_pending(1) <= bool_to_sl(bank_pending_count(1) /= 0) or bank_pending_write_seen(1) or bank_pending_inc_seen(1) or bank_pending_inc_seen_d1(1);
+
+    pending_delta_reg : process (i_clk)
+    begin
+        if rising_edge(i_clk) then
+            if i_rst = '1' or measure_clear_pulse = '1' then
+                bank_pending_inc_count_d1 <= (others => (others => '0'));
+                bank_pending_dec_count_d1 <= (others => (others => '0'));
+                bank_pending_inc_seen_d1  <= (others => '0');
+            else
+                bank_pending_inc_count_d1 <= bank_pending_inc_count;
+                bank_pending_dec_count_d1 <= bank_pending_dec_count;
+                bank_pending_inc_seen_d1  <= bank_pending_inc_seen;
+            end if;
+        end if;
+    end process pending_delta_reg;
+
+    bank_pending_reg : process (i_clk)
+        variable next_pending_v : hs_unsigned_array_t(0 to 1)(STATS_COUNT_WIDTH_CONST - 1 downto 0);
+        variable inc_v          : bank_pending_count_t;
+        variable dec_v          : bank_pending_count_t;
+        variable sum_v          : bank_pending_count_t;
+    begin
+        if rising_edge(i_clk) then
+            if i_rst = '1' or measure_clear_pulse = '1' then
+                bank_pending_count <= (others => (others => '0'));
+            else
+                next_pending_v := bank_pending_count;
+
+                for bank_idx in 0 to 1 loop
+                    inc_v := resize(bank_pending_inc_count_d1(bank_idx), STATS_COUNT_WIDTH_CONST);
+                    dec_v := resize(bank_pending_dec_count_d1(bank_idx), STATS_COUNT_WIDTH_CONST);
+                    sum_v := sat_add(bank_pending_count(bank_idx), inc_v);
+                    if sum_v > dec_v then
+                        next_pending_v(bank_idx) := sum_v - dec_v;
+                    else
+                        next_pending_v(bank_idx) := (others => '0');
+                    end if;
+                end loop;
+
+                bank_pending_count <= next_pending_v;
+            end if;
+        end if;
+    end process bank_pending_reg;
 
     pingpong_inst : entity work.pingpong_sram
         generic map (
@@ -1088,8 +1587,10 @@ begin
             i_enable_pingpong   => bool_to_sl(ENABLE_PINGPONG),
             i_interval_clocks   => cfg_interval_cfg,
             i_upd_valid         => queue_drain_valid,
+            i_upd_bank          => queue_drain_bank,
             i_upd_bin           => queue_drain_bin,
             i_upd_count         => queue_drain_count,
+            i_bank_pending      => bank_pending,
             o_upd_ready         => queue_drain_ready,
             i_hist_read         => avs_hist_bin_read,
             i_hist_address      => unsigned(avs_hist_bin_address),
@@ -1128,10 +1629,10 @@ begin
     end process stats_pipe;
 
     stats_reg : process (i_clk)
-        variable total_hits_v    : unsigned(31 downto 0);
-        variable dropped_hits_v  : unsigned(31 downto 0);
-        variable underflow_cnt_v : unsigned(31 downto 0);
-        variable overflow_cnt_v  : unsigned(31 downto 0);
+        variable total_hits_v    : stats_count_t;
+        variable dropped_hits_v  : stats_count_t;
+        variable underflow_cnt_v : stats_count_t;
+        variable overflow_cnt_v  : stats_count_t;
         variable accept_count_v  : unsigned(3 downto 0);
         variable drop_count_v    : unsigned(3 downto 0);
     begin
@@ -1150,20 +1651,6 @@ begin
                 overflow_cnt_v  := csr_overflow_count;
                 accept_count_v  := (others => '0');
                 drop_count_v    := (others => '0');
-
-                if stats_reset_pulse_d1 = '1' then
-                    if stats_interval_pulse_d1 = '1' then
-                        csr_last_interval_total_hits   <= total_hits_v;
-                        csr_last_interval_dropped_hits <= dropped_hits_v;
-                    elsif stats_clear_pulse_d1 = '1' then
-                        csr_last_interval_total_hits   <= (others => '0');
-                        csr_last_interval_dropped_hits <= (others => '0');
-                    end if;
-                    underflow_cnt_v := (others => '0');
-                    overflow_cnt_v  := (others => '0');
-                    total_hits_v    := (others => '0');
-                    dropped_hits_v  := (others => '0');
-                end if;
 
                 for idx in 0 to MAX_PORTS_CONST - 1 loop
                     if accept_stat_pulse_d1(idx) = '1' then
@@ -1187,6 +1674,20 @@ begin
                     elsif divider_stat_overflow_d1 = '1' then
                         overflow_cnt_v := sat_inc(overflow_cnt_v);
                     end if;
+                end if;
+
+                if stats_reset_pulse_d1 = '1' then
+                    if stats_interval_pulse_d1 = '1' then
+                        csr_last_interval_total_hits   <= total_hits_v;
+                        csr_last_interval_dropped_hits <= dropped_hits_v;
+                    elsif stats_clear_pulse_d1 = '1' then
+                        csr_last_interval_total_hits   <= (others => '0');
+                        csr_last_interval_dropped_hits <= (others => '0');
+                    end if;
+                    underflow_cnt_v := (others => '0');
+                    overflow_cnt_v  := (others => '0');
+                    total_hits_v    := (others => '0');
+                    dropped_hits_v  := (others => '0');
                 end if;
 
                 csr_total_hits      <= total_hits_v;
@@ -1313,6 +1814,7 @@ begin
                 cfg_filter_key_high <= to_unsigned(FILTER_KEY_BIT_HI, 8);
                 cfg_update_key      <= (others => '0');
                 cfg_filter_key      <= (others => '0');
+                cfg_source_select   <= HIST_SOURCE_TYPE0_CONST;
                 cfg_interval_cfg    <= to_unsigned(DEF_INTERVAL_CLOCKS, 32);
                 for idx in 0 to MAX_PORTS_CONST - 1 loop
                     cfg_filter_enable_port(idx)  <= '0';
@@ -1344,6 +1846,7 @@ begin
                     cfg_filter_key_high <= csr_filter_key_high;
                     cfg_update_key      <= csr_update_key;
                     cfg_filter_key      <= csr_filter_key;
+                    cfg_source_select   <= csr_source_select;
                     cfg_interval_cfg    <= csr_interval_cfg;
                     for idx in 0 to MAX_PORTS_CONST - 1 loop
                         cfg_filter_enable_port(idx)  <= csr_filter_enable;
@@ -1362,6 +1865,9 @@ begin
     csr_reg : process (i_clk)
         variable next_right_v : integer;
         variable commit_ok_v  : boolean;
+        variable control_mode_v : std_logic_vector(3 downto 0);
+        variable control_source_v : unsigned(1 downto 0);
+        variable control_mode_i_v : integer;
     begin
         if rising_edge(i_clk) then
             if i_rst = '1' then
@@ -1381,6 +1887,7 @@ begin
                 csr_filter_key_high <= to_unsigned(FILTER_KEY_BIT_HI, 8);
                 csr_update_key      <= (others => '0');
                 csr_filter_key      <= (others => '0');
+                csr_source_select   <= HIST_SOURCE_TYPE0_CONST;
                 csr_interval_cfg    <= to_unsigned(DEF_INTERVAL_CLOCKS, 32);
                 csr_scratch         <= (others => '0');
                 csr_meta_sel        <= (others => '0');
@@ -1393,15 +1900,35 @@ begin
                         when 1 =>   -- META: write selector for read-mux page
                             csr_meta_sel <= avs_csr_writedata(1 downto 0);
                         when 2 =>   -- CONTROL
+                            control_mode_v   := avs_csr_writedata(7 downto 4);
+                            control_source_v := unsigned(avs_csr_writedata(17 downto 16));
+                            control_mode_i_v := to_integer(signed(control_mode_v));
                             csr_mode          <= avs_csr_writedata(7 downto 4);
                             csr_key_unsigned  <= avs_csr_writedata(8);
                             csr_filter_enable <= avs_csr_writedata(12);
                             csr_filter_reject <= avs_csr_writedata(13);
+                            csr_source_select <= unsigned(avs_csr_writedata(17 downto 16));
                             if avs_csr_writedata(0) = '1' then
                                 commit_ok_v     := true;
                                 csr_error      <= '0';
                                 csr_error_info <= (others => '0');
-                                if csr_bin_width = 0 then
+                                if control_source_v = "11" then
+                                    commit_ok_v     := false;
+                                    csr_error      <= '1';
+                                    csr_error_info <= x"2";
+                                elsif (not ENABLE_DEBUG_INPUTS) and (control_mode_i_v < 0) then
+                                    commit_ok_v     := false;
+                                    csr_error      <= '1';
+                                    csr_error_info <= x"4";
+                                elsif (control_source_v = HIST_SOURCE_TYPE0_CONST) and (control_mode_i_v = 1) then
+                                    commit_ok_v     := false;
+                                    csr_error      <= '1';
+                                    csr_error_info <= x"3";
+                                elsif POWER2_BIN_WIDTH_ONLY and (csr_bin_width /= 0) and (not is_power2_u(csr_bin_width)) then
+                                    commit_ok_v     := false;
+                                    csr_error      <= '1';
+                                    csr_error_info <= x"5";
+                                elsif csr_bin_width = 0 then
                                     if csr_right_bound <= csr_left_bound then
                                         commit_ok_v     := false;
                                         csr_error      <= '1';
@@ -1452,6 +1979,7 @@ begin
         control_v(8)            := csr_key_unsigned;
         control_v(12)           := csr_filter_enable;
         control_v(13)           := csr_filter_reject;
+        control_v(17 downto 16) := std_logic_vector(csr_source_select);
         control_v(24)           := csr_error;
         control_v(31 downto 28) := csr_error_info;
 
@@ -1491,9 +2019,9 @@ begin
                 csr_readdata_mux <= std_logic_vector(resize(csr_filter_key, 16)) &
                                    std_logic_vector(resize(csr_update_key, 16));
             when 8 =>   -- UNDERFLOW_COUNT
-                csr_readdata_mux <= std_logic_vector(csr_underflow_count);
+                csr_readdata_mux <= std_logic_vector(resize(csr_underflow_count, 32));
             when 9 =>   -- OVERFLOW_COUNT
-                csr_readdata_mux <= std_logic_vector(csr_overflow_count);
+                csr_readdata_mux <= std_logic_vector(resize(csr_overflow_count, 32));
             when 10 =>  -- INTERVAL_CFG
                 csr_readdata_mux <= std_logic_vector(csr_interval_cfg);
             when 11 =>  -- BANK_STATUS
@@ -1501,17 +2029,17 @@ begin
             when 12 =>  -- PORT_STATUS
                 csr_readdata_mux <= csr_port_status;
             when 13 =>  -- TOTAL_HITS
-                csr_readdata_mux <= std_logic_vector(csr_total_hits);
+                csr_readdata_mux <= std_logic_vector(resize(csr_total_hits, 32));
             when 14 =>  -- DROPPED_HITS
-                csr_readdata_mux <= std_logic_vector(csr_dropped_hits);
+                csr_readdata_mux <= std_logic_vector(resize(csr_dropped_hits, 32));
             when 15 =>  -- COAL_STATUS
                 csr_readdata_mux <= csr_coal_status;
             when 16 =>  -- SCRATCH
                 csr_readdata_mux <= csr_scratch;
             when 17 =>  -- LAST_INTERVAL_TOTAL_HITS
-                csr_readdata_mux <= std_logic_vector(csr_last_interval_total_hits);
+                csr_readdata_mux <= std_logic_vector(resize(csr_last_interval_total_hits, 32));
             when 18 =>  -- LAST_INTERVAL_DROPPED_HITS
-                csr_readdata_mux <= std_logic_vector(csr_last_interval_dropped_hits);
+                csr_readdata_mux <= std_logic_vector(resize(csr_last_interval_dropped_hits, 32));
             when others =>
                 csr_readdata_mux <= (others => '0');
         end case;

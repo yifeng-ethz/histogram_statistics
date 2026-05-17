@@ -9,9 +9,12 @@ package hist_env_pkg;
   `uvm_analysis_imp_decl(_snoop)
 
   localparam int HS_N_PORTS         = 8;
+  localparam int HS_N_TYPE1_BANKS   = 2;
   localparam int HS_N_DEBUG         = 6;
   localparam int HS_N_BINS          = 256;
-  localparam int HS_AVST_DATA_W     = 39;
+  localparam int HS_AVST_DATA_W     = 45;
+  localparam int HS_TYPE1_DATA_W    = 39;
+  localparam int HS_TS_W            = 48;
   localparam int HS_AVST_CH_W       = 4;
   localparam int HS_DEF_LEFT_BOUND  = -1000;
   localparam int HS_DEF_BIN_WIDTH   = 16;
@@ -22,7 +25,7 @@ package hist_env_pkg;
   localparam int HS_DEF_FILTER_HI   = 38;
   localparam int HS_DEF_INTERVAL    = 125_000_000;
   localparam int HS_CHANNELS_PER_PORT = 32;
-  localparam int HS_FIFO_DEPTH      = 16;
+  localparam int HS_FIFO_DEPTH      = 4;
   localparam int HS_BIN_W           = $clog2(HS_N_BINS);
   localparam int HS_PORT_W          = $clog2(HS_N_PORTS);
   // MuTRiG timestamp-processor hit_type1 payload layout from online_dpv2.
@@ -38,6 +41,22 @@ package hist_env_pkg;
   localparam int HS_TYPE1_TFINE_LO  = 9;
   localparam int HS_TYPE1_ET1N6_HI  = 8;
   localparam int HS_TYPE1_ET1N6_LO  = 0;
+
+  localparam int HS_TYPE0_ASIC_HI   = 44;
+  localparam int HS_TYPE0_ASIC_LO   = 41;
+  localparam int HS_TYPE0_CH_HI     = 40;
+  localparam int HS_TYPE0_CH_LO     = 36;
+  localparam int HS_TYPE0_TCC_HI    = 35;
+  localparam int HS_TYPE0_TCC_LO    = 21;
+  localparam int HS_TYPE0_TFINE_HI  = 20;
+  localparam int HS_TYPE0_TFINE_LO  = 16;
+  localparam int HS_TYPE0_ECC_HI    = 15;
+  localparam int HS_TYPE0_ECC_LO    = 1;
+  localparam int HS_TYPE0_EFLAG     = 0;
+
+  localparam bit [1:0] HS_SOURCE_TYPE0      = 2'd0;
+  localparam bit [1:0] HS_SOURCE_TYPE1_UP   = 2'd1;
+  localparam bit [1:0] HS_SOURCE_TYPE1_DOWN = 2'd2;
 
   typedef enum int unsigned {
     HIST_EVT_BIN       = 0,
@@ -153,12 +172,34 @@ package hist_env_pkg;
     return word_v;
   endfunction
 
+  function automatic logic [HS_AVST_DATA_W-1:0] hist_build_type0_word(
+    input int unsigned asic_id,
+    input int unsigned channel_id,
+    input int unsigned tcc,
+    input int unsigned tfine = 0,
+    input int unsigned ecc = 0,
+    input bit eflag = 1'b0
+  );
+    logic [HS_AVST_DATA_W-1:0] word_v;
+
+    word_v = '0;
+    word_v[HS_TYPE0_ASIC_HI:HS_TYPE0_ASIC_LO] = asic_id[3:0];
+    word_v[HS_TYPE0_CH_HI:HS_TYPE0_CH_LO]     = channel_id[4:0];
+    word_v[HS_TYPE0_TCC_HI:HS_TYPE0_TCC_LO]   = tcc[14:0];
+    word_v[HS_TYPE0_TFINE_HI:HS_TYPE0_TFINE_LO] = tfine[4:0];
+    word_v[HS_TYPE0_ECC_HI:HS_TYPE0_ECC_LO]   = ecc[14:0];
+    word_v[HS_TYPE0_EFLAG]                    = eflag;
+    return word_v;
+  endfunction
+
   class hist_env_cfg extends uvm_object;
     `uvm_object_utils(hist_env_cfg)
 
     virtual hist_csr_if          csr_vif;
     virtual hist_bin_if          bin_vif;
     virtual hist_fill_if         fill_vifs[HS_N_PORTS];
+    virtual hist_fill_if         type1_up_vif;
+    virtual hist_fill_if         type1_down_vif;
     virtual hist_ctrl_if         ctrl_vif;
     virtual hist_debug_if        dbg_vifs[HS_N_DEBUG];
     virtual hist_snoop_if        snoop_vif;
@@ -187,6 +228,7 @@ package hist_env_pkg;
     bit [7:0]      filter_key_high;
     bit [15:0]     update_key;
     bit [15:0]     filter_key;
+    bit [1:0]      source_select;
     bit [31:0]     interval_cfg;
 
     function new(string name = "hist_cfg_state");
@@ -208,6 +250,7 @@ package hist_env_pkg;
       filter_key_high = HS_DEF_FILTER_HI[7:0];
       update_key      = 16'h0000;
       filter_key      = 16'h0000;
+      source_select   = HS_SOURCE_TYPE0;
       interval_cfg    = HS_DEF_INTERVAL;
     endfunction
 
@@ -233,13 +276,15 @@ package hist_env_pkg;
       filter_key_high = rhs_t.filter_key_high;
       update_key      = rhs_t.update_key;
       filter_key      = rhs_t.filter_key;
+      source_select   = rhs_t.source_select;
       interval_cfg    = rhs_t.interval_cfg;
     endfunction
 
     function string convert2string();
       return $sformatf(
-        "mode=%0d key_unsigned=%0b filter_en=%0b filter_rej=%0b left=%0d right=%0d bin_width=%0d upd[%0d:%0d]=0x%0h filt[%0d:%0d]=0x%0h interval=%0d",
+        "mode=%0d source=%0d key_unsigned=%0b filter_en=%0b filter_rej=%0b left=%0d right=%0d bin_width=%0d upd[%0d:%0d]=0x%0h filt[%0d:%0d]=0x%0h interval=%0d",
         mode_int(),
+        source_select,
         key_unsigned,
         filter_enable,
         filter_reject,
@@ -296,8 +341,10 @@ package hist_env_pkg;
   endclass
 
   class hist_fill_txn extends uvm_sequence_item;
-    rand bit [2:0]                port_index;
+    rand int unsigned             port_index;
     rand logic [HS_AVST_DATA_W-1:0] data;
+    rand logic [HS_TS_W-1:0]      ts;
+    logic [HS_TS_W-1:0]           gts;
     rand bit [HS_AVST_CH_W-1:0]   channel;
     rand bit                      sop;
     rand bit                      eop;
@@ -306,6 +353,8 @@ package hist_env_pkg;
     `uvm_object_utils_begin(hist_fill_txn)
       `uvm_field_int(port_index, UVM_DEFAULT)
       `uvm_field_int(data, UVM_DEFAULT)
+      `uvm_field_int(ts, UVM_DEFAULT)
+      `uvm_field_int(gts, UVM_DEFAULT | UVM_NOCOMPARE)
       `uvm_field_int(channel, UVM_DEFAULT)
       `uvm_field_int(sop, UVM_DEFAULT)
       `uvm_field_int(eop, UVM_DEFAULT)
@@ -560,18 +609,15 @@ package hist_env_pkg;
 
     task run_phase(uvm_phase phase);
       hist_fill_txn req;
-      hist_fill_txn rsp;
 
       vif.init_source();
       forever begin
         seq_item_port.get_next_item(req);
-        rsp = hist_fill_txn::type_id::create("rsp");
-        rsp.copy(req);
-        rsp.port_index = port_index[2:0];
 
         @(vif.drv_cb);
         vif.drv_cb.valid   <= 1'b1;
         vif.drv_cb.data    <= req.data;
+        vif.drv_cb.ts      <= req.ts;
         vif.drv_cb.sop     <= req.sop;
         vif.drv_cb.eop     <= req.eop;
         vif.drv_cb.channel <= req.channel;
@@ -582,6 +628,7 @@ package hist_env_pkg;
 
         vif.drv_cb.valid   <= 1'b0;
         vif.drv_cb.data    <= '0;
+        vif.drv_cb.ts      <= '0;
         vif.drv_cb.sop     <= 1'b0;
         vif.drv_cb.eop     <= 1'b0;
         vif.drv_cb.channel <= '0;
@@ -590,8 +637,7 @@ package hist_env_pkg;
           @(vif.drv_cb);
         end
 
-        rsp.set_id_info(req);
-        seq_item_port.item_done(rsp);
+        seq_item_port.item_done();
       end
     endtask
   endclass
@@ -813,8 +859,10 @@ package hist_env_pkg;
         @(vif.mon_cb);
         if (vif.mon_cb.valid && vif.mon_cb.ready) begin
           txn = hist_fill_txn::type_id::create("txn");
-          txn.port_index = port_index[2:0];
+          txn.port_index = port_index;
           txn.data       = vif.mon_cb.data;
+          txn.ts         = vif.mon_cb.ts;
+          txn.gts        = vif.mon_cb.gts;
           txn.channel    = vif.mon_cb.channel;
           txn.sop        = vif.mon_cb.sop;
           txn.eop        = vif.mon_cb.eop;
@@ -1148,6 +1196,7 @@ package hist_env_pkg;
   `include "tests/hist_debug_test.sv"
   `include "tests/hist_stats_test.sv"
   `include "tests/hist_burst_test.sv"
+  `include "tests/hist_v3_direct_input_test.sv"
 
   // DV_EDGE tests
   `include "tests/hist_edge_divider_test.sv"

@@ -18,6 +18,7 @@ MERGED_UCDB ?= merged.ucdb
 COV_HTML_DIR ?= cov_html
 COVERAGE ?= 0
 PLUSARGS ?=
+RUN_LOG ?= $(WORK)/$(TEST)_$(SEED).log
 VCD_FILE ?= $(TEST).vcd
 WAVE_SCOPE ?= /tb_top/*
 CASE_ID ?= P141_real_triad
@@ -43,6 +44,16 @@ SV_SRCS = \
 TB_INCLUDE_DEPS = $(sort $(wildcard *.sv) $(wildcard tests/*.sv) $(wildcard sva/*.sv))
 
 .PHONY: check_license license_diag full_questa_probe compile compile_cov run run_cov run_vcd merge_cov wave_index cov_trend cov_farm clean
+
+define CHECK_RUN_LOG
+	status=$$?; \
+	cat $(RUN_LOG); \
+	if [ $$status -ne 0 ]; then exit $$status; fi; \
+	if grep -Eq '^# \\*\\* Error:|^# Errors: [1-9][0-9]*,' $(RUN_LOG); then \
+	  echo "ERROR: simulator transcript contains nonzero errors; failing run"; \
+	  exit 1; \
+	fi
+endef
 
 check_license:
 	@echo "=== Checking Mentor floating license features ==="
@@ -163,7 +174,8 @@ run: compile
 	  -suppress 19 -suppress 3009 -suppress 3473 \
 	  +UVM_TESTNAME=$(TEST) -sv_seed $(SEED) $(PLUSARGS) \
 	  -do "quietly set NumericStdNoWarnings 1; quietly set StdArithNoWarnings 1; run -all; quit -f" \
-	  $(TB_TOP)
+	  $(TB_TOP) > $(RUN_LOG) 2>&1; \
+	$(CHECK_RUN_LOG)
 
 run_cov: compile_cov
 	@echo "=== Running TEST=$(TEST) SEED=$(SEED) with coverage ==="
@@ -172,7 +184,8 @@ run_cov: compile_cov
 	  -coverage \
 	  +UVM_TESTNAME=$(TEST) -sv_seed $(SEED) $(PLUSARGS) \
 	  -do "quietly set NumericStdNoWarnings 1; quietly set StdArithNoWarnings 1; coverage save -onexit $(UCDB); run -all; quit -f" \
-	  $(TB_TOP)
+	  $(TB_TOP) > $(RUN_LOG) 2>&1; \
+	$(CHECK_RUN_LOG)
 
 run_vcd: compile
 	@echo "=== Running TEST=$(TEST) SEED=$(SEED) with VCD ==="
@@ -180,7 +193,8 @@ run_vcd: compile
 	  -suppress 19 -suppress 3009 -suppress 3473 \
 	  +UVM_TESTNAME=$(TEST) -sv_seed $(SEED) $(PLUSARGS) \
 	  -do "quietly set NumericStdNoWarnings 1; quietly set StdArithNoWarnings 1; vcd file $(VCD_FILE); vcd add -r $(WAVE_SCOPE); run -all; vcd flush; quit -f" \
-	  $(TB_TOP)
+	  $(TB_TOP) > $(RUN_LOG) 2>&1; \
+	$(CHECK_RUN_LOG)
 
 merge_cov:
 	$(VCOVER) merge $(MERGED_UCDB) *.ucdb

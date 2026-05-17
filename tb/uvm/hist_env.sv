@@ -5,6 +5,8 @@ class hist_env extends uvm_env;
   hist_csr_agent     csr_agent;
   hist_bin_agent     bin_agent;
   hist_fill_agent    fill_agents[HS_N_PORTS];
+  hist_fill_agent    type1_up_agent;
+  hist_fill_agent    type1_down_agent;
   hist_ctrl_agent    ctrl_agent;
   hist_debug_agent   dbg_agents[HS_N_DEBUG];
   hist_snoop_monitor snoop_mon;
@@ -39,6 +41,13 @@ class hist_env extends uvm_env;
       fill_agents[idx] = hist_fill_agent::type_id::create($sformatf("fill_agent_%0d", idx), this);
     end
 
+    uvm_config_db#(virtual hist_fill_if)::set(this, "type1_up_agent.*", "vif", cfg.type1_up_vif);
+    uvm_config_db#(virtual hist_fill_if)::set(this, "type1_down_agent.*", "vif", cfg.type1_down_vif);
+    uvm_config_db#(int unsigned)::set(this, "type1_up_agent.*", "port_index", 0);
+    uvm_config_db#(int unsigned)::set(this, "type1_down_agent.*", "port_index", 0);
+    type1_up_agent = hist_fill_agent::type_id::create("type1_up_agent", this);
+    type1_down_agent = hist_fill_agent::type_id::create("type1_down_agent", this);
+
     foreach (dbg_agents[idx]) begin
       uvm_config_db#(virtual hist_debug_if)::set(this, $sformatf("dbg_agent_%0d.*", idx), "vif", cfg.dbg_vifs[idx]);
       uvm_config_db#(int unsigned)::set(this, $sformatf("dbg_agent_%0d.*", idx), "debug_index", idx);
@@ -63,6 +72,8 @@ class hist_env extends uvm_env;
       foreach (fill_agents[idx]) begin
         fill_agents[idx].mon.ap.connect(scoreboard.fill_imp);
       end
+      type1_up_agent.mon.ap.connect(scoreboard.fill_imp);
+      type1_down_agent.mon.ap.connect(scoreboard.fill_imp);
       foreach (dbg_agents[idx]) begin
         dbg_agents[idx].mon.ap.connect(scoreboard.dbg_imp);
       end
@@ -75,6 +86,8 @@ class hist_env extends uvm_env;
       foreach (fill_agents[idx]) begin
         fill_agents[idx].mon.ap.connect(coverage.fill_imp);
       end
+      type1_up_agent.mon.ap.connect(coverage.fill_imp);
+      type1_down_agent.mon.ap.connect(coverage.fill_imp);
       foreach (dbg_agents[idx]) begin
         dbg_agents[idx].mon.ap.connect(coverage.dbg_imp);
       end

@@ -1,95 +1,73 @@
-# Signoff - histogram_statistics_v2 standalone STA refresh
+# ⚠️ Signoff — histogram_statistics_v2 V3 direct input profile
 
-**DUT:** `histogram_statistics_v2`
-**VERSION:** `26.1.6.0429`
-**RTL HEAD before this documentation commit:** `c035c35a96478387e21d692c2a17554bcff20806`
-**Refresh date:** `2026-05-11`
-**Decision:** FAIL / REGRESSION
+**DUT:** `histogram_statistics_v2` &nbsp; **Date:** `2026-05-17` &nbsp;
+**Release under check:** dirty worktree V3 direct Type0/Type1 resource profile
 
-This page records the standalone Quartus signoff refresh requested for the
-latest committed IP. The newest VERSION is treated as authentic; no downgrade
-or fallback build was used.
+This page is the master signoff dashboard for the current standalone V3
+histogram IP slice. Detailed synthesis evidence lives in
+[`../syn/SYN_REPORT.md`](../syn/SYN_REPORT.md); detailed DV intent and evidence
+live in [`../tb/DV_PLAN.md`](../tb/DV_PLAN.md).
 
-## Standalone Target
+## Legend
 
-| Item | Value |
-|---|---|
-| Project | `syn/quartus/histogram_statistics_v2_signoff.qpf` |
-| Revision | `histogram_statistics_v2_standalone` |
-| Top | `histogram_statistics_v2` |
-| Device | Arria V `5AGXBA7D4F31C5` |
-| Quartus | `18.1.0 Build 625 09/12/2018 SJ Standard Edition` |
-| Nominal F_target | `125 MHz` |
-| 1.1x signoff target | `137.5 MHz` |
-| Constrained period | `7.273 ns` |
-| SDC | `syn/quartus/histogram_statistics_v2_standalone.sdc` |
+✅ pass / closed &middot; ⚠️ partial / caveat &middot; ❌ failed / blocked &middot; ❓ pending &middot; ℹ️ informational
 
-The requested corner names were Slow/Fast 900mV 100C/0C. For this Arria V
-Quartus 18.1 standalone project, TimeQuest reports the four available setup
-timing models as Slow/Fast 1100mV 85C/0C. The table below records those actual
-report corners.
+## Health
 
-## Evidence
+| status | field | value |
+|:---:|---|---|
+| ⚠️ | standalone_syn | `2,745` ALMs, `2,310` registers, `2` M10Ks, `0` DSPs; timing closes, but resource is above the requested `<2k ALM` target |
+| ✅ | timing | closes the 7.273 ns standalone signoff period; worst slow-85C setup slack `+0.809 ns`, worst hold slack `+0.154 ns` across reported corners |
+| ✅ | v3_direct_uvm | Type0 direct 5 ms / 1 ms ping-pong plus Type1 up/down rate and delay pass with zero UVM errors/fatals |
+| ✅ | direct_tb_int | FEB V3 direct `tb_int` matrix runs 10 ms with 1 ms ping-pong and passes Type0 rate plus Type1 up/down rate and latency |
+| ⚠️ | full_coverage | direct V3 smoke UCDB exists, but full strict merged coverage closure is not claimed in this dirty worktree |
 
-| Artifact | Path |
-|---|---|
-| Compile log | `syn/quartus/compile_histogram_statistics_v2_standalone_20260511.log` |
-| Flow report | `syn/quartus/output_files/histogram_statistics_v2_standalone.flow.rpt` |
-| Fit summary | `syn/quartus/output_files/histogram_statistics_v2_standalone.fit.summary` |
-| STA summary | `syn/quartus/output_files/histogram_statistics_v2_standalone.sta.summary` |
-| STA full report | `syn/quartus/output_files/histogram_statistics_v2_standalone.sta.rpt` |
-| Worst-path report | `syn/quartus/output_files/histogram_statistics_v2_standalone.worst_setup_paths.rpt` |
-| Worst-path STA log | `syn/quartus/sta_worst_setup_paths_20260511.log` |
-| Static screen log | `tb/static_screen_20260511_v2cone/questa_static_screen.log` |
+## Verification
 
-The full compile finished successfully with `0 errors, 10022 warnings`.
-`histogram_statistics_v2_standalone.flow.rpt` records `Flow Status :
-Successful - Mon May 11 10:59:18 2026`; the compile log ended at
-`Mon May 11 10:59:44 2026`. The detailed worst-path STA report was regenerated
-at `Mon May 11 11:04:51 2026`.
+| status | area | result | source |
+|:---:|---|---|---|
+| ✅ | Type0 direct | 5 ms RUNNING, 1 ms ping-pong, 100 kHz one selected channel per ASIC; CSR readback `last_interval_total=1600`, `live_total=16`, `dropped=0`, `coal_status=0x00000400` | `/tmp/hist_v3_direct_q4.log` |
+| ✅ | Type1 up rate | `delta_total=256`, `dropped=0`, `coal_status=0x00000100` | `/tmp/hist_v3_direct_q4.log` |
+| ✅ | Type1 up delay | `delta_total=256`, `dropped=0`, `coal_status=0x00000100` | `/tmp/hist_v3_direct_q4.log` |
+| ✅ | Type1 down rate | `delta_total=256`, `dropped=0`, `coal_status=0x00000100` | `/tmp/hist_v3_direct_q4.log` |
+| ✅ | Type1 down delay | `delta_total=256`, `dropped=0`, `coal_status=0x00000100` | `/tmp/hist_v3_direct_q4.log` |
+| ✅ | coverage-enabled replay | same direct V3 test passes with UCDB `/tmp/hist_v3_direct_q4.ucdb`; total instance coverage for this focused smoke is `35.87%` | `/tmp/hist_v3_direct_q4_cov.log` |
+| ✅ | basic smoke | `hist_smoke_test SEED=7` passes with zero UVM errors/fatals | `/tmp/hist_smoke_q4.log` |
+| ✅ | Type0 `tb_int` rate | `100 kHz`, `500 kHz`, and `1 MHz` per ASIC pass for one-random-channel and all-channel patterns; 10 intervals, zero drops | `firmware_builds/systems/v3_pretest-260511-emutype0-dualport-260512/tb_int/REPORT/hist_direct_v3_matrix_20260517_021842_summary.csv` |
+| ✅ | Type1 `tb_int` rate | up/down banks pass `100 kHz`, `500 kHz`, and `1 MHz` per ASIC for one-random-channel and all-channel patterns; zero drops | same CSV |
+| ✅ | Type1 `tb_int` latency | up/down banks pass latency mode at all rates/patterns; delay bin range is `[128,128]` in the direct timestamp-sideband test | same CSV |
 
-## Timing Result
+## Synthesis
 
-| Corner | Setup slack | Setup TNS | Hold slack | MPW slack | Fmax | Worst setup path |
-|---|---:|---:|---:|---:|---:|---|
-| Slow 1100mV 85C | `-0.234 ns` | `-6.359 ns` | `0.274 ns` | `2.698 ns` | `133.21 MHz` | `queue_hit_bin[3]` to `coalescing_queue:queue_inst|overflow_count_q[0]` |
-| Slow 1100mV 0C | `0.036 ns` | `0.000 ns` | `0.255 ns` | `2.667 ns` | `138.18 MHz` | `cfg_mode[3]` to `ingress_stage_write_req[1]` |
-| Fast 1100mV 85C | `2.459 ns` | `0.000 ns` | `0.162 ns` | `2.849 ns` | n/a | `rr_arbiter:arb_inst|select_idx_q[2]` to `hit_fifo:\fifo_gen:4:fifo_inst|read_data_q[20]` |
-| Fast 1100mV 0C | `2.950 ns` | `0.000 ns` | `0.148 ns` | `2.839 ns` | n/a | `rr_arbiter:arb_inst|select_idx_q[2]` to `hit_fifo:\fifo_gen:4:fifo_inst|read_data_q[20]` |
+| status | item | value |
+|:---:|---|---|
+| ✅ | revision | `histogram_statistics_v2_standalone` |
+| ✅ | device | Arria V `5AGXBA7D4F31C5` |
+| ✅ | nominal target | `125 MHz` |
+| ✅ | signoff constraint | `137.5 MHz` / `7.273 ns` (`1.1 x 125 MHz`) |
+| ✅ | slow 85C WNS / TNS | `+0.809 ns` / `0.000 ns` |
+| ✅ | slow 0C WNS / TNS | `+0.909 ns` / `0.000 ns` |
+| ✅ | worst hold slack | `+0.154 ns` |
+| ⚠️ | fitted resources | `2,745 ALMs`, `2,310 regs`, `2 M10Ks`, `10,240` block memory bits, `0 DSPs` |
+| ❌ | ALM target | `2,745 > 2,000`; resource closure remains open |
+| ℹ️ | largest resource nodes | top self about `1,298.5` ALMs, `pingpong_sram` about `803.8` ALMs, 8x FIFOs about `45-47` ALMs each |
 
-Worst overall clock: `i_clk`. Worst overall setup slack: `-0.234 ns` at
-Slow 1100mV 85C.
+## Evidence Index
 
-## Failing Path Detail
+- [`../RTL_V3_NOTE.md`](../RTL_V3_NOTE.md) — direct V3 interface contract and resource rationale
+- [`../tb/DV_PLAN.md`](../tb/DV_PLAN.md) — standalone DV plan and direct-input evidence
+- [`../tb/DV_HARNESS.md`](../tb/DV_HARNESS.md) — UVM direct Type0/Type1 harness notes
+- [`../tb/DV_PROF.md`](../tb/DV_PROF.md) — performance/stress plan with V3 resource-profile caveats
+- [`../syn/SYN_REPORT.md`](../syn/SYN_REPORT.md) — standalone synthesis report
+- [`../syn/quartus/output_files/histogram_statistics_v2_standalone.fit.summary`](../syn/quartus/output_files/histogram_statistics_v2_standalone.fit.summary) — fitter resource summary
+- [`../syn/quartus/output_files/histogram_statistics_v2_standalone.sta.summary`](../syn/quartus/output_files/histogram_statistics_v2_standalone.sta.summary) — TimeQuest summary
+- [`../syn/quartus/output_files/worst_setup_paths.rpt`](../syn/quartus/output_files/worst_setup_paths.rpt) — regenerated worst setup paths
 
-| Corner | From | To | Data delay | Clock skew | Logic levels | Slack |
-|---|---|---|---:|---:|---:|---:|
-| Slow 1100mV 85C | `queue_hit_bin[3]` | `coalescing_queue:queue_inst|overflow_count_q[0]` | `7.429 ns` | `-0.078 ns` | `7` | `-0.234 ns` |
-| Slow 1100mV 0C | `cfg_mode[3]` | `ingress_stage_write_req[1]` | `7.135 ns` | `-0.102 ns` | `8` | `0.036 ns` |
-| Fast 1100mV 85C | `rr_arbiter:arb_inst|select_idx_q[2]` | `hit_fifo:\fifo_gen:4:fifo_inst|read_data_q[20]` | `4.763 ns` | `-0.051 ns` | `5` | `2.459 ns` |
-| Fast 1100mV 0C | `rr_arbiter:arb_inst|select_idx_q[2]` | `hit_fifo:\fifo_gen:4:fifo_inst|read_data_q[20]` | `4.279 ns` | `-0.044 ns` | `5` | `2.950 ns` |
+## Notes
 
-## Static Screen
-
-The current v2 standalone cone was screened with the Questa static wrapper using
-`tb/histogram_statistics_v2_static.f`.
-
-| Check | Result | Report |
-|---|---|---|
-| Lint errors | `0` | `tb/static_screen_20260511_v2cone/qverify_db/lint.rpt` |
-| CDC violations | `0` | `tb/static_screen_20260511_v2cone/reports/cdc.rpt` |
-| RDC violations | `0` | `tb/static_screen_20260511_v2cone/qverify_db/rdc.rpt` |
-
-Lint still reports warnings, but no lint errors. CDC and RDC report zero checks
-with zero violations because the standalone cone has one inferred clock domain
-and one synchronous reset domain.
-
-## Signoff Decision
-
-Standalone IP signoff requires setup slack `>= 0 ns` at every available
-standalone signoff corner. VERSION `26.1.6.0429` fails that rule at Slow
-1100mV 85C with `-0.234 ns` setup slack on `i_clk`.
-
-Status: REGRESSION. Newest version fails standalone signoff; integration must
-apply an SDC false_path only if the arc is architecturally false, or the IP must
-register-split the path.
+- The signoff claim is limited to the standalone V3 direct-input IP profile.
+- The direct FEB V3 `tb_int` harness now instantiates `histogram_statistics_v2`
+  directly and does not use `histogram_ingress_bridge` as stimulus evidence.
+- Resource closure is still not done: the next RTL work should reduce the
+  `pingpong_sram` bank-valid/pending/readback logic and top-level
+  CSR/source-select/readback cone.
