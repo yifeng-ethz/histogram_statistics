@@ -2,10 +2,10 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  3
-set VERSION_PATCH_DEFAULT_CONST  0
+set VERSION_PATCH_DEFAULT_CONST  4
 set BUILD_DEFAULT_CONST          517
 set VERSION_DATE_DEFAULT_CONST   20260517
-set VERSION_GIT_DEFAULT_CONST    375124078
+set VERSION_GIT_DEFAULT_CONST    0
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
     $VERSION_MINOR_DEFAULT_CONST \
@@ -88,12 +88,12 @@ set CSR_TABLE_HTML {<html><table border="1" cellpadding="3" width="100%">
 <tr><td>0x0A</td><td>0x028</td><td>INTERVAL_CFG</td><td>RW</td><td>Ping-pong interval timer configuration in clock cycles.</td></tr>
 <tr><td>0x0B</td><td>0x02C</td><td>BANK_STATUS</td><td>RO</td><td>Ping-pong bank-selection and flush-progress status.</td></tr>
 <tr><td>0x0C</td><td>0x030</td><td>PORT_STATUS</td><td>RO</td><td>Ingress FIFO empty-mask and maximum observed fill level.</td></tr>
-<tr><td>0x0D</td><td>0x034</td><td>TOTAL_HITS</td><td>RO</td><td>Live accepted hit count in the current interval. Resets at manual clear and at every interval pulse.</td></tr>
-<tr><td>0x0E</td><td>0x038</td><td>DROPPED_HITS</td><td>RO</td><td>Live dropped-hit count caused by FIFO or queue overflow in the current interval. Resets at manual clear and at every interval pulse.</td></tr>
+<tr><td>0x0D</td><td>0x034</td><td>TOTAL_HITS</td><td>RO</td><td>Live accepted hit count in the current interval. Resets at manual clear, at the run-control RUNNING transition, and at every interval pulse.</td></tr>
+<tr><td>0x0E</td><td>0x038</td><td>DROPPED_HITS</td><td>RO</td><td>Live dropped-hit count caused by FIFO or queue overflow in the current interval. Resets at manual clear, at the run-control RUNNING transition, and at every interval pulse.</td></tr>
 <tr><td>0x0F</td><td>0x03C</td><td>COAL_STATUS</td><td>RO</td><td>Coalescing-queue occupancy, occupancy max, and overflow count.</td></tr>
 <tr><td>0x10</td><td>0x040</td><td>SCRATCH</td><td>RW</td><td>General-purpose scratch register for integration testing.</td></tr>
-<tr><td>0x11</td><td>0x044</td><td>LAST_INTERVAL_TOTAL_HITS</td><td>RO</td><td>Accepted-hit count latched at the most recent interval pulse before the live counter reset.</td></tr>
-<tr><td>0x12</td><td>0x048</td><td>LAST_INTERVAL_DROPPED_HITS</td><td>RO</td><td>Dropped-hit count latched at the most recent interval pulse before the live counter reset.</td></tr>
+<tr><td>0x11</td><td>0x044</td><td>LAST_INTERVAL_TOTAL_HITS</td><td>RO</td><td>Accepted-hit count latched at the most recent regular or termination-forced interval pulse before the live counter reset.</td></tr>
+<tr><td>0x12</td><td>0x048</td><td>LAST_INTERVAL_DROPPED_HITS</td><td>RO</td><td>Dropped-hit count latched at the most recent regular or termination-forced interval pulse before the live counter reset.</td></tr>
 </table></html>}
 
 set META_FIELDS_HTML [format {<html><table border="1" cellpadding="3" width="100%%">

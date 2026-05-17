@@ -96,6 +96,28 @@
 --      Change: Register the FIFO-write side of the pending-hit delta before
 --              summing per-bank increments, while retaining a current-cycle
 --              bank-pending write-seen guard for ping-pong read arbitration.
+-- Revision: 1.21
+--      Date: May 17, 2026
+--      Change: Clear the live measurement window on the run-control RUNNING
+--              transition so ping-pong rate intervals are phase-aligned to
+--              the FEB run rather than to earlier CSR programming traffic.
+-- Revision: 1.22
+--      Date: May 17, 2026
+--      Change: Force one final ping-pong interval on run-control TERMINATING
+--              after pending updates drain, making the final partial run bank
+--              readable without waiting for a full extra interval.
+-- Revision: 1.23
+--      Date: May 17, 2026
+--      Change: Drive hist_bin waitrequest from the ping-pong read engine so
+--              decomposed generated-Qsys reads cannot be silently dropped.
+-- Revision: 1.24
+--      Date: May 17, 2026
+--      Change: Force the termination interval only after the histogram
+--              ingress, queue, and SRAM update pipeline are fully drained.
+-- Revision: 1.25
+--      Date: May 17, 2026
+--      Change: Pair with pingpong_sram 1.6 so same-cycle interval-boundary
+--              updates are preserved before generated-Qsys readout.
 -- Revision: 1.3
 --		Date: Apr 25, 2026
 --		Change: Parameterize the ingress FIFO depth for bursty post-stack
@@ -475,6 +497,9 @@ architecture rtl of histogram_statistics_v2 is
 
     signal hist_readdata        : std_logic_vector(31 downto 0);
     signal hist_readdatavalid   : std_logic;
+    signal hist_waitrequest     : std_logic;
+    signal hist_update_busy     : std_logic;
+    signal hist_pipeline_busy   : std_logic := '0';
     signal hist_writeresp_valid : std_logic := '0';
     signal active_bank          : std_logic;
     signal flushing             : std_logic;
@@ -483,6 +508,9 @@ architecture rtl of histogram_statistics_v2 is
     signal clear_pulse          : std_logic;
     signal measure_clear_comb   : std_logic;
     signal measure_clear_pulse  : std_logic := '0';
+    signal run_start_clear_pulse : std_logic := '0';
+    signal term_flush_armed      : std_logic := '0';
+    signal force_interval_pulse  : std_logic := '0';
 
     signal csr_mode             : std_logic_vector(3 downto 0) := (others => '0');
     signal csr_key_unsigned     : std_logic := bool_to_sl(UPDATE_KEY_REPRESENTATION /= "SIGNED");
@@ -948,7 +976,7 @@ begin
     aso_hist_fill_out_channel       <= asi_type0_lane0_channel when (SNOOP_EN and cfg_source_select = HIST_SOURCE_TYPE0_CONST) else (others => '0');
 
     -- rc-network is readyless in v26.2.0; no asi_ctrl_ready driver here.
-    avs_hist_bin_waitrequest        <= '0';
+    avs_hist_bin_waitrequest        <= hist_waitrequest;
     avs_hist_bin_writeresponsevalid <= hist_writeresp_valid;
     avs_hist_bin_response           <= (others => '0');
     avs_csr_waitrequest             <= '0';
@@ -956,8 +984,8 @@ begin
     avs_hist_bin_readdatavalid      <= hist_readdatavalid;
     avs_csr_readdata                <= csr_readdata_reg;
 
-    clear_pulse        <= bool_to_sl((avs_hist_bin_write = '1') and (avs_hist_bin_writedata = x"00000000"));
-    measure_clear_comb <= clear_pulse or i_interval_reset;
+    clear_pulse        <= bool_to_sl((avs_hist_bin_write = '1') and (hist_waitrequest = '0') and (avs_hist_bin_writedata = x"00000000"));
+    measure_clear_comb <= clear_pulse or i_interval_reset or run_start_clear_pulse;
 
     -- register measure_clear to break timing from AVMM interconnect address decode
     measure_clear_reg : process (i_clk)
@@ -983,7 +1011,9 @@ begin
         if rising_edge(i_clk) then
             if i_rst = '1' then
                 run_state_cmd <= IDLE;
+                run_start_clear_pulse <= '0';
             elsif asi_ctrl_valid = '1' then
+                run_start_clear_pulse <= '0';
                 case asi_ctrl_data is
                     when "000000001" =>
                         run_state_cmd <= IDLE;
@@ -992,6 +1022,9 @@ begin
                     when "000000100" =>
                         run_state_cmd <= SYNC;
                     when "000001000" =>
+                        if run_state_cmd /= RUNNING then
+                            run_start_clear_pulse <= '1';
+                        end if;
                         run_state_cmd <= RUNNING;
                     when "000010000" =>
                         run_state_cmd <= TERMINATING;
@@ -1006,9 +1039,76 @@ begin
                     when others =>
                         run_state_cmd <= ERROR;
                 end case;
+            else
+                run_start_clear_pulse <= '0';
             end if;
         end if;
     end process run_management_reg;
+
+    pipeline_busy_comb : process (all)
+        variable busy_v : std_logic;
+    begin
+        busy_v := '0';
+        for idx in 0 to MAX_PORTS_CONST - 1 loop
+            if (port_valid(idx) = '1') or
+               (ingress_accept(idx) = '1') or
+               (ingress_stage_valid(idx) = '1') or
+               (fifo_write(idx) = '1') or
+               (fifo_write_d1(idx) = '1') or
+               (fifo_read(idx) = '1') or
+               (fifo_empty(idx) = '0') or
+               (accept_pulse(idx) = '1') or
+               (accept_stat_pulse_d1(idx) = '1') then
+                busy_v := '1';
+            end if;
+        end loop;
+
+        if (arb_valid = '1') or
+           (arb_pipe_valid = '1') or
+           (key_pipe_valid = '1') or
+           (divider_in_valid = '1') or
+           (divider_valid = '1') or
+           (divider_stat_valid_d1 = '1') or
+           (queue_hit_valid = '1') or
+           (queue_drain_valid = '1') or
+           (hist_update_busy = '1') or
+           (bank_pending(0) = '1') or
+           (bank_pending(1) = '1') or
+           (bank_pending_inc_seen(0) = '1') or
+           (bank_pending_inc_seen(1) = '1') or
+           (bank_pending_inc_seen_d1(0) = '1') or
+           (bank_pending_inc_seen_d1(1) = '1') or
+           (queue_occupancy /= 0) then
+            busy_v := '1';
+        end if;
+
+        hist_pipeline_busy <= busy_v;
+    end process pipeline_busy_comb;
+
+    termination_flush_reg : process (i_clk)
+    begin
+        if rising_edge(i_clk) then
+            if i_rst = '1' then
+                term_flush_armed     <= '0';
+                force_interval_pulse <= '0';
+            else
+                force_interval_pulse <= '0';
+
+                if run_start_clear_pulse = '1' then
+                    term_flush_armed <= '1';
+                elsif run_state_cmd = TERMINATING then
+                    if (term_flush_armed = '1') and
+                       (hist_pipeline_busy = '0') and
+                       (csr_total_hits /= 0) then
+                        force_interval_pulse <= '1';
+                        term_flush_armed <= '0';
+                    end if;
+                elsif run_state_cmd = IDLE then
+                    term_flush_armed <= '0';
+                end if;
+            end if;
+        end if;
+    end process termination_flush_reg;
 
     gts_reset_reg : process (i_clk)
     begin
@@ -1586,6 +1686,7 @@ begin
             i_clear             => measure_clear_pulse,
             i_enable_pingpong   => bool_to_sl(ENABLE_PINGPONG),
             i_interval_clocks   => cfg_interval_cfg,
+            i_force_interval    => force_interval_pulse,
             i_upd_valid         => queue_drain_valid,
             i_upd_bank          => queue_drain_bank,
             i_upd_bin           => queue_drain_bin,
@@ -1597,6 +1698,8 @@ begin
             i_hist_burstcount   => unsigned(avs_hist_bin_burstcount),
             o_hist_readdata     => hist_readdata,
             o_hist_readdatavalid=> hist_readdatavalid,
+            o_hist_waitrequest  => hist_waitrequest,
+            o_update_busy       => hist_update_busy,
             o_active_bank       => active_bank,
             o_flushing          => flushing,
             o_flush_addr        => flush_addr,
