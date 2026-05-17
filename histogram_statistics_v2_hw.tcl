@@ -70,6 +70,9 @@ set CSR_ADDR_W_CONST        5
 set RUN_CONTROL_WIDTH_CONST 9
 set IP_UID_DEFAULT_CONST    1212765012
 set INSTANCE_ID_DEFAULT_CONST 0
+set AVST_DATA_WIDTH_DEFAULT_CONST  45
+set TYPE0_DATA_WIDTH_DEFAULT_CONST 45
+set TYPE1_DATA_WIDTH_DEFAULT_CONST 39
 
 # --- CSR register map (documentation) ---------------------------------------------
 
@@ -990,13 +993,12 @@ for {set idx 0} {$idx <= 7} {incr idx} {
     add_interface $ifname avalon_streaming end
     set_interface_property $ifname associatedClock clock
     set_interface_property $ifname associatedReset reset
-    set_interface_property $ifname dataBitsPerSymbol TYPE0_DATA_WIDTH
+    set_interface_property $ifname dataBitsPerSymbol $TYPE0_DATA_WIDTH_DEFAULT_CONST
     set_interface_property $ifname maxChannel 15
     set_interface_property $ifname readyLatency 0
     set_interface_property $ifname errorDescriptor "hiterr frameerr overflow"
     set_interface_property $ifname ENABLED true
     add_interface_port $ifname "asi_type0_lane${idx}_valid" valid Input 1
-    add_interface_port $ifname "asi_type0_lane${idx}_ready" ready Output 1
     add_interface_port $ifname "asi_type0_lane${idx}_data" data Input TYPE0_DATA_WIDTH
     add_interface_port $ifname "asi_type0_lane${idx}_startofpacket" startofpacket Input 1
     add_interface_port $ifname "asi_type0_lane${idx}_endofpacket" endofpacket Input 1
@@ -1009,13 +1011,12 @@ foreach ifname {type1_up type1_down} {
     add_interface $ifname avalon_streaming end
     set_interface_property $ifname associatedClock clock
     set_interface_property $ifname associatedReset reset
-    set_interface_property $ifname dataBitsPerSymbol TYPE1_DATA_WIDTH
+    set_interface_property $ifname dataBitsPerSymbol $TYPE1_DATA_WIDTH_DEFAULT_CONST
     set_interface_property $ifname maxChannel 15
     set_interface_property $ifname readyLatency 0
     set_interface_property $ifname errorDescriptor "stream_error"
     set_interface_property $ifname ENABLED true
     add_interface_port $ifname "asi_${ifname}_valid" valid Input 1
-    add_interface_port $ifname "asi_${ifname}_ready" ready Output 1
     add_interface_port $ifname "asi_${ifname}_data" data Input TYPE1_DATA_WIDTH
     add_interface_port $ifname "asi_${ifname}_startofpacket" startofpacket Input 1
     add_interface_port $ifname "asi_${ifname}_endofpacket" endofpacket Input 1
@@ -1039,7 +1040,7 @@ add_interface_port type1_down_ts asi_type1_down_ts export Input 48
 add_interface fill_out avalon_streaming start
 set_interface_property fill_out associatedClock clock
 set_interface_property fill_out associatedReset reset
-set_interface_property fill_out dataBitsPerSymbol AVST_DATA_WIDTH
+set_interface_property fill_out dataBitsPerSymbol $AVST_DATA_WIDTH_DEFAULT_CONST
 set_interface_property fill_out maxChannel 15
 set_interface_property fill_out readyLatency 0
 set_interface_property fill_out ENABLED true
