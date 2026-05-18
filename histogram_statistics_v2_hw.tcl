@@ -3,7 +3,7 @@ package require -exact qsys 16.1
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  3
 set VERSION_PATCH_DEFAULT_CONST  5
-set BUILD_DEFAULT_CONST          519
+set BUILD_DEFAULT_CONST          520
 set VERSION_DATE_DEFAULT_CONST   20260518
 set VERSION_GIT_DEFAULT_CONST    0
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
@@ -485,14 +485,14 @@ add_fileset QUARTUS_SYNTH QUARTUS_SYNTH "" ""
 set_fileset_property QUARTUS_SYNTH TOP_LEVEL histogram_statistics_v2
 set_fileset_property QUARTUS_SYNTH ENABLE_RELATIVE_INCLUDE_PATHS false
 set_fileset_property QUARTUS_SYNTH ENABLE_FILE_OVERWRITE_MODE false
-add_fileset_file histogram_statistics_v2.vhd VHDL_2008 PATH rtl/histogram_statistics_v2.vhd TOP_LEVEL_FILE
-add_fileset_file histogram_statistics_v2_pkg.vhd VHDL_2008 PATH rtl/histogram_statistics_v2_pkg.vhd
-add_fileset_file hit_fifo.vhd VHDL_2008 PATH rtl/hit_fifo.vhd
-add_fileset_file coalescing_queue.vhd VHDL_2008 PATH rtl/coalescing_queue.vhd
-add_fileset_file rr_arbiter.vhd VHDL_2008 PATH rtl/rr_arbiter.vhd
-add_fileset_file bin_divider.vhd VHDL_2008 PATH rtl/bin_divider.vhd
-add_fileset_file true_dual_port_ram_single_clock.vhd VHDL_2008 PATH rtl/true_dual_port_ram_single_clock.vhd
-add_fileset_file pingpong_sram.vhd VHDL_2008 PATH rtl/pingpong_sram.vhd
+add_fileset_file histogram_statistics_v2.vhd VHDL PATH rtl/histogram_statistics_v2.vhd TOP_LEVEL_FILE
+add_fileset_file histogram_statistics_v2_pkg.vhd VHDL PATH rtl/histogram_statistics_v2_pkg.vhd
+add_fileset_file hit_fifo.vhd VHDL PATH rtl/hit_fifo.vhd
+add_fileset_file coalescing_queue.vhd VHDL PATH rtl/coalescing_queue.vhd
+add_fileset_file rr_arbiter.vhd VHDL PATH rtl/rr_arbiter.vhd
+add_fileset_file bin_divider.vhd VHDL PATH rtl/bin_divider.vhd
+add_fileset_file true_dual_port_ram_single_clock.vhd VHDL PATH rtl/true_dual_port_ram_single_clock.vhd
+add_fileset_file pingpong_sram.vhd VHDL PATH rtl/pingpong_sram.vhd
 
 # SIM_VHDL fileset: mirror of QUARTUS_SYNTH so qsys-generate --simulation can
 # emit a VHDL simulation tree for the histogram inside tb_int / parent system
@@ -503,14 +503,14 @@ add_fileset SIM_VHDL SIM_VHDL "" ""
 set_fileset_property SIM_VHDL TOP_LEVEL histogram_statistics_v2
 set_fileset_property SIM_VHDL ENABLE_RELATIVE_INCLUDE_PATHS false
 set_fileset_property SIM_VHDL ENABLE_FILE_OVERWRITE_MODE false
-add_fileset_file histogram_statistics_v2.vhd VHDL_2008 PATH rtl/histogram_statistics_v2.vhd TOP_LEVEL_FILE
-add_fileset_file histogram_statistics_v2_pkg.vhd VHDL_2008 PATH rtl/histogram_statistics_v2_pkg.vhd
-add_fileset_file hit_fifo.vhd VHDL_2008 PATH rtl/hit_fifo.vhd
-add_fileset_file coalescing_queue.vhd VHDL_2008 PATH rtl/coalescing_queue.vhd
-add_fileset_file rr_arbiter.vhd VHDL_2008 PATH rtl/rr_arbiter.vhd
-add_fileset_file bin_divider.vhd VHDL_2008 PATH rtl/bin_divider.vhd
-add_fileset_file true_dual_port_ram_single_clock.vhd VHDL_2008 PATH rtl/true_dual_port_ram_single_clock.vhd
-add_fileset_file pingpong_sram.vhd VHDL_2008 PATH rtl/pingpong_sram.vhd
+add_fileset_file histogram_statistics_v2.vhd VHDL PATH rtl/histogram_statistics_v2.vhd TOP_LEVEL_FILE
+add_fileset_file histogram_statistics_v2_pkg.vhd VHDL PATH rtl/histogram_statistics_v2_pkg.vhd
+add_fileset_file hit_fifo.vhd VHDL PATH rtl/hit_fifo.vhd
+add_fileset_file coalescing_queue.vhd VHDL PATH rtl/coalescing_queue.vhd
+add_fileset_file rr_arbiter.vhd VHDL PATH rtl/rr_arbiter.vhd
+add_fileset_file bin_divider.vhd VHDL PATH rtl/bin_divider.vhd
+add_fileset_file true_dual_port_ram_single_clock.vhd VHDL PATH rtl/true_dual_port_ram_single_clock.vhd
+add_fileset_file pingpong_sram.vhd VHDL PATH rtl/pingpong_sram.vhd
 
 # SIM_VERILOG fileset: same file list, VHDL files (mixed-language Verilog
 # simulators read VHDL via vcom). Allows qsys-generate --simulation=VERILOG
@@ -519,14 +519,14 @@ add_fileset SIM_VERILOG SIM_VERILOG "" ""
 set_fileset_property SIM_VERILOG TOP_LEVEL histogram_statistics_v2
 set_fileset_property SIM_VERILOG ENABLE_RELATIVE_INCLUDE_PATHS false
 set_fileset_property SIM_VERILOG ENABLE_FILE_OVERWRITE_MODE false
-add_fileset_file histogram_statistics_v2.vhd VHDL_2008 PATH rtl/histogram_statistics_v2.vhd TOP_LEVEL_FILE
-add_fileset_file histogram_statistics_v2_pkg.vhd VHDL_2008 PATH rtl/histogram_statistics_v2_pkg.vhd
-add_fileset_file hit_fifo.vhd VHDL_2008 PATH rtl/hit_fifo.vhd
-add_fileset_file coalescing_queue.vhd VHDL_2008 PATH rtl/coalescing_queue.vhd
-add_fileset_file rr_arbiter.vhd VHDL_2008 PATH rtl/rr_arbiter.vhd
-add_fileset_file bin_divider.vhd VHDL_2008 PATH rtl/bin_divider.vhd
-add_fileset_file true_dual_port_ram_single_clock.vhd VHDL_2008 PATH rtl/true_dual_port_ram_single_clock.vhd
-add_fileset_file pingpong_sram.vhd VHDL_2008 PATH rtl/pingpong_sram.vhd
+add_fileset_file histogram_statistics_v2.vhd VHDL PATH rtl/histogram_statistics_v2.vhd TOP_LEVEL_FILE
+add_fileset_file histogram_statistics_v2_pkg.vhd VHDL PATH rtl/histogram_statistics_v2_pkg.vhd
+add_fileset_file hit_fifo.vhd VHDL PATH rtl/hit_fifo.vhd
+add_fileset_file coalescing_queue.vhd VHDL PATH rtl/coalescing_queue.vhd
+add_fileset_file rr_arbiter.vhd VHDL PATH rtl/rr_arbiter.vhd
+add_fileset_file bin_divider.vhd VHDL PATH rtl/bin_divider.vhd
+add_fileset_file true_dual_port_ram_single_clock.vhd VHDL PATH rtl/true_dual_port_ram_single_clock.vhd
+add_fileset_file pingpong_sram.vhd VHDL PATH rtl/pingpong_sram.vhd
 
 # --- parameters -------------------------------------------------------------------
 
