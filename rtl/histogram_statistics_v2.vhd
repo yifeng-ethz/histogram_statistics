@@ -382,6 +382,9 @@ architecture rtl of histogram_statistics_v2 is
     constant HIST_SOURCE_TYPE0_CONST      : unsigned(1 downto 0) := "00";
     constant HIST_SOURCE_TYPE1_UP_CONST   : unsigned(1 downto 0) := "01";
     constant HIST_SOURCE_TYPE1_DOWN_CONST : unsigned(1 downto 0) := "10";
+    constant IN_PORT_FILL_CONST           : unsigned(1 downto 0) := "00";
+    constant IN_PORT_EXT0_CONST           : unsigned(1 downto 0) := "01";
+    constant IN_PORT_EXT1_CONST           : unsigned(1 downto 0) := "10";
     constant FIFO_WORD_WIDTH_CONST        : natural := SAR_TICK_WIDTH + 1;
     constant FIFO_BANK_BIT_CONST          : natural := SAR_TICK_WIDTH;
     constant PENDING_DELTA_WIDTH_CONST    : natural := max_nat(clog2(MAX_PORTS_CONST + 1), KICK_WIDTH_CONST) + 1;
@@ -2048,9 +2051,10 @@ begin
                                         csr_error      <= '1';
                                         csr_error_info <= x"2";
                                     end if;
-	                                if commit_ok_v then
-	                                    cfg_apply_request <= '1';
-	                                end if;
+                                end if;
+                                if commit_ok_v then
+                                    cfg_apply_request <= '1';
+                                end if;
                             end if;
                         when 3 =>   -- LEFT_BOUND
                             csr_left_bound <= resize(signed(avs_csr_writedata), SAR_TICK_WIDTH);
