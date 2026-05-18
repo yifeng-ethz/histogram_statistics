@@ -2,10 +2,10 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  3
-set VERSION_PATCH_DEFAULT_CONST  0
-set BUILD_DEFAULT_CONST          515
-set VERSION_DATE_DEFAULT_CONST   20260515
-set VERSION_GIT_DEFAULT_CONST    375124078
+set VERSION_PATCH_DEFAULT_CONST  4
+set BUILD_DEFAULT_CONST          517
+set VERSION_DATE_DEFAULT_CONST   20260517
+set VERSION_GIT_DEFAULT_CONST    0
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
     $VERSION_MINOR_DEFAULT_CONST \
@@ -70,6 +70,9 @@ set CSR_ADDR_W_CONST        5
 set RUN_CONTROL_WIDTH_CONST 9
 set IP_UID_DEFAULT_CONST    1212765012
 set INSTANCE_ID_DEFAULT_CONST 0
+set AVST_DATA_WIDTH_DEFAULT_CONST  45
+set TYPE0_DATA_WIDTH_DEFAULT_CONST 45
+set TYPE1_DATA_WIDTH_DEFAULT_CONST 39
 
 # --- CSR register map (documentation) ---------------------------------------------
 
@@ -77,7 +80,7 @@ set CSR_TABLE_HTML {<html><table border="1" cellpadding="3" width="100%">
 <tr><th>Word</th><th>Byte</th><th>Name</th><th>Access</th><th>Description</th></tr>
 <tr><td>0x00</td><td>0x000</td><td>UID</td><td>RO</td><td>Software-visible IP identifier. Default ASCII <b>HIST</b> (0x48495354).</td></tr>
 <tr><td>0x01</td><td>0x004</td><td>META</td><td>RW/RO</td><td>Read-multiplexed metadata word. Write <b>0</b>=VERSION, <b>1</b>=DATE, <b>2</b>=GIT, <b>3</b>=INSTANCE_ID.</td></tr>
-<tr><td>0x02</td><td>0x008</td><td>CONTROL</td><td>RW/RO</td><td>Bit 0 <b>apply</b>, bit 1 <b>apply_pending</b> (RO), bits [3:2] <b>in_port</b>, bits [7:4] <b>mode</b>, bit 8 <b>key_unsigned</b>, bit 12 <b>filter_enable</b>, bit 13 <b>filter_reject</b>, bit 24 <b>error</b> (RO), bits [31:28] <b>error_info</b> (RO).</td></tr>
+<tr><td>0x02</td><td>0x008</td><td>CONTROL</td><td>RW/RO</td><td>Bit 0 <b>apply</b>, bit 1 <b>apply_pending</b> (RO), bits [7:4] <b>mode</b>, bit 8 <b>key_unsigned</b>, bit 12 <b>filter_enable</b>, bit 13 <b>filter_reject</b>, bits [17:16] <b>source_select</b>, bit 24 <b>error</b> (RO), bits [31:28] <b>error_info</b> (RO).</td></tr>
 <tr><td>0x03</td><td>0x00C</td><td>LEFT_BOUND</td><td>RW</td><td>Signed left boundary of the histogram range.</td></tr>
 <tr><td>0x04</td><td>0x010</td><td>RIGHT_BOUND</td><td>RW</td><td>Signed right boundary of the histogram range. Recomputed at apply time when <b>BIN_WIDTH != 0</b>.</td></tr>
 <tr><td>0x05</td><td>0x014</td><td>BIN_WIDTH</td><td>RW</td><td>Bin width in key-space units, stored in bits [15:0]. Set to 0 to keep explicit left/right bounds.</td></tr>
@@ -88,12 +91,12 @@ set CSR_TABLE_HTML {<html><table border="1" cellpadding="3" width="100%">
 <tr><td>0x0A</td><td>0x028</td><td>INTERVAL_CFG</td><td>RW</td><td>Ping-pong interval timer configuration in clock cycles.</td></tr>
 <tr><td>0x0B</td><td>0x02C</td><td>BANK_STATUS</td><td>RO</td><td>Ping-pong bank-selection and flush-progress status.</td></tr>
 <tr><td>0x0C</td><td>0x030</td><td>PORT_STATUS</td><td>RO</td><td>Ingress FIFO empty-mask and maximum observed fill level.</td></tr>
-<tr><td>0x0D</td><td>0x034</td><td>TOTAL_HITS</td><td>RO</td><td>Live accepted hit count in the current interval. Resets at manual clear and at every interval pulse.</td></tr>
-<tr><td>0x0E</td><td>0x038</td><td>DROPPED_HITS</td><td>RO</td><td>Live dropped-hit count caused by FIFO or queue overflow in the current interval. Resets at manual clear and at every interval pulse.</td></tr>
+<tr><td>0x0D</td><td>0x034</td><td>TOTAL_HITS</td><td>RO</td><td>Live accepted hit count in the current interval. Resets at manual clear, at the run-control RUNNING transition, and at every interval pulse.</td></tr>
+<tr><td>0x0E</td><td>0x038</td><td>DROPPED_HITS</td><td>RO</td><td>Live dropped-hit count caused by FIFO or queue overflow in the current interval. Resets at manual clear, at the run-control RUNNING transition, and at every interval pulse.</td></tr>
 <tr><td>0x0F</td><td>0x03C</td><td>COAL_STATUS</td><td>RO</td><td>Coalescing-queue occupancy, occupancy max, and overflow count.</td></tr>
 <tr><td>0x10</td><td>0x040</td><td>SCRATCH</td><td>RW</td><td>General-purpose scratch register for integration testing.</td></tr>
-<tr><td>0x11</td><td>0x044</td><td>LAST_INTERVAL_TOTAL_HITS</td><td>RO</td><td>Accepted-hit count latched at the most recent interval pulse before the live counter reset.</td></tr>
-<tr><td>0x12</td><td>0x048</td><td>LAST_INTERVAL_DROPPED_HITS</td><td>RO</td><td>Dropped-hit count latched at the most recent interval pulse before the live counter reset.</td></tr>
+<tr><td>0x11</td><td>0x044</td><td>LAST_INTERVAL_TOTAL_HITS</td><td>RO</td><td>Accepted-hit count latched at the most recent regular or termination-forced interval pulse before the live counter reset.</td></tr>
+<tr><td>0x12</td><td>0x048</td><td>LAST_INTERVAL_DROPPED_HITS</td><td>RO</td><td>Dropped-hit count latched at the most recent regular or termination-forced interval pulse before the live counter reset.</td></tr>
 </table></html>}
 
 set META_FIELDS_HTML [format {<html><table border="1" cellpadding="3" width="100%%">
@@ -118,16 +121,18 @@ set CONTROL_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
 <tr><th>Bit</th><th>Name</th><th>Access</th><th>Reset</th><th>Description</th></tr>
 <tr><td>0</td><td>apply</td><td>RW</td><td>0</td><td>Write 1 to request that the staged configuration becomes active after the ingress path drains.</td></tr>
 <tr><td>1</td><td>apply_pending</td><td>RO</td><td>0</td><td>1 while a committed configuration is waiting to settle into the live datapath.</td></tr>
-<tr><td>3:2</td><td>in_port</td><td>RW</td><td>0</td><td>Histogram ingress source. 0 selects the normal hist_fill_in/fill_in_1..7 merge, 1 selects hit_type1_extended_0, and 2 selects hit_type1_extended_1. Value 3 is rejected on apply.</td></tr>
-<tr><td>7:4</td><td>mode</td><td>RW</td><td>0</td><td>Mode selector. Mode 0 bins the selected stream key directly. Mode 1 is stream-delay mode: for in_port 1 or 2, data[86:39] from the selected extended source is the 48-bit true hit timestamp; for in_port 0, the selected update-key slice is used as before. Negative 4-bit signed values route debug inputs into the histogram path. Modes -1..-6 select debug_1..debug_6 individually; mode -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes, the CSR filter compares against a synthetic debug word documented under Debug Inputs.</td></tr>
+<tr><td>3:2</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+<tr><td>7:4</td><td>mode</td><td>RW</td><td>0</td><td>Mode selector. Mode 0 bins the selected stream key directly. Mode 1 is stream-delay mode for Type1 sources: the RTL subtracts the selected Type1 <b>ts[47:0]</b> sideband from the internal run-control GTS counter and trims the positive delay result to the configured histogram tick width. Negative 4-bit signed values route debug inputs into the histogram path. Modes -1..-6 select debug_1..debug_6 individually; mode -7 samples signed MTS-delay streams on debug_1 and debug_2 together. In debug modes, the CSR filter compares against a synthetic debug word documented under Debug Inputs.</td></tr>
 <tr><td>8</td><td>key_unsigned</td><td>RW</td><td>1</td><td>1 selects unsigned update-key interpretation, 0 selects signed extraction.</td></tr>
 <tr><td>11:9</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
 <tr><td>12</td><td>filter_enable</td><td>RW</td><td>0</td><td>Enables the runtime filter-key comparison.</td></tr>
 <tr><td>13</td><td>filter_reject</td><td>RW</td><td>0</td><td>0 accepts matching events, 1 rejects matching events.</td></tr>
-<tr><td>23:14</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+<tr><td>15:14</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
+<tr><td>17:16</td><td>source_select</td><td>RW</td><td>0</td><td><b>0</b>=Type0 all 8 lanes, <b>1</b>=Type1 up bank, <b>2</b>=Type1 down bank. Value 3 is rejected at apply. Type0 with mode 1 is rejected at apply.</td></tr>
+<tr><td>23:18</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
 <tr><td>24</td><td>error</td><td>RO</td><td>0</td><td>Set when the last apply request failed CSR validation.</td></tr>
 <tr><td>27:25</td><td>reserved</td><td>RO</td><td>0</td><td>Reserved, read as zero.</td></tr>
-<tr><td>31:28</td><td>error_info</td><td>RO</td><td>0</td><td>Validation error code. <b>0x1</b> indicates invalid bounds in auto-right-bound mode; <b>0x2</b> indicates invalid in_port.</td></tr>
+<tr><td>31:28</td><td>error_info</td><td>RO</td><td>0</td><td>Validation error code. <b>0x1</b> invalid bounds in auto-right-bound mode, <b>0x2</b> invalid source_select, <b>0x3</b> Type0 selected with delay mode, <b>0x4</b> legacy debug mode disabled, <b>0x5</b> non-power-of-two bin width when the V3 power-of-two divider is enabled.</td></tr>
 </table></html>}
 
 set KEY_LOC_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%">
@@ -169,14 +174,16 @@ set COAL_STATUS_FIELDS_HTML {<html><table border="1" cellpadding="3" width="100%
 </table></html>}
 
 set HIST_FILL_FMT_HTML {<html>
-<b>hist_fill_in / fill_in_1..7</b> — configurable-width Avalon-ST sink<br/>
-Sidebands: <b>channel[AVST_CHANNEL_WIDTH-1:0]</b>, <b>startofpacket</b>, <b>endofpacket</b><br/>
+<b>type0_lane0..7 / type1_up / type1_down</b> — direct FEB V3 Avalon-ST sinks<br/>
+Sidebands: <b>channel[AVST_CHANNEL_WIDTH-1:0]</b>, <b>startofpacket</b>, <b>endofpacket</b>; Type1 also has a separate <b>ts[47:0]</b> conduit<br/>
 <table border="1" cellpadding="3" width="100%">
 <tr><th>Bits</th><th>Field</th><th>Description</th></tr>
-<tr><td>38:35</td><td>filter key slice (default)</td><td>Default filter-key location. Runtime-programmable through <b>KEY_LOC</b>.</td></tr>
-<tr><td>34:30</td><td>payload / unused by default</td><td>Forwarded or ignored by the histogram core unless selected by a custom key map.</td></tr>
-<tr><td>29:17</td><td>update key slice (default)</td><td>Default update-key location used for binning. Runtime-programmable through <b>KEY_LOC</b>.</td></tr>
-<tr><td>16:0</td><td>payload / unused by default</td><td>Remaining data payload. Preserved on the snoop passthrough path.</td></tr>
+<tr><td>Type0 44:41</td><td>asic</td><td>Typical Type0 ASIC field. Runtime filter can select this or any other normal-data slice.</td></tr>
+<tr><td>Type0 40:36</td><td>channel</td><td>Typical Type0 channel field.</td></tr>
+<tr><td>Type0 35:21</td><td>TCC</td><td>Typical Type0 rate key field.</td></tr>
+<tr><td>Type1 38:35</td><td>asic</td><td>Default Type1 filter slice.</td></tr>
+<tr><td>Type1 29:17</td><td>TCC_8n</td><td>Default Type1 rate key slice.</td></tr>
+<tr><td>Type1 ts[47:0]</td><td>true timestamp sideband</td><td>Used only in mode 1 delay histograms. Filtering still compares the normal Type1 payload, never the timestamp sideband.</td></tr>
 </table></html>}
 
 set EXTENDED_FMT_HTML {<html>
@@ -216,7 +223,6 @@ When <b>CONTROL.filter_enable</b> is set in a negative debug mode, the filter co
 proc compute_derived_values {} {
     set n_bins         [get_parameter_value N_BINS]
     set max_count_bits [get_parameter_value MAX_COUNT_BITS]
-    set coal_depth     [get_parameter_value COAL_QUEUE_DEPTH]
     set enable_pp      [get_parameter_value ENABLE_PINGPONG]
     set n_ports        [get_parameter_value N_PORTS]
     set fifo_addr_w    [get_parameter_value FIFO_ADDR_WIDTH]
@@ -227,21 +233,22 @@ proc compute_derived_values {} {
         set min_hist_addr_w [ceil_log2 $n_bins]
     }
 
-    # M10K for bins: each true-dpram pair hosts up to 512 x 20 bits
-    set m10k_pairs_bins   [expr {int(ceil(double($n_bins) / 512.0))}]
-    set m10k_width_factor [expr {int(ceil(double($max_count_bits) / 20.0))}]
-    set m10k_bins_base    [expr {$m10k_pairs_bins * $m10k_width_factor * 2}]
+    # M10K for bins: one bank fits roughly 10240 stored bits.
+    set m10k_bins_base [expr {int(ceil(double($n_bins * $max_count_bits) / 10240.0))}]
+    if {$m10k_bins_base < 1} {
+        set m10k_bins_base 1
+    }
     if {[string equal -nocase $enable_pp "true"]} {
         set m10k_bins [expr {$m10k_bins_base * 2}]
     } else {
         set m10k_bins $m10k_bins_base
     }
 
-    # M10K for coalescing queue
-    set m10k_coal [expr {int(ceil(double($coal_depth) / 512.0)) * 2}]
+    # The V3 live-cell coalescer is implemented in ALMs/FFs, not M10K.
+    set m10k_coal 0
 
     set m10k_total  [expr {$m10k_bins + $m10k_coal}]
-    set est_alm     [expr {350 + $n_ports * 45}]
+    set est_alm     [expr {950 + $n_ports * 70 + $fifo_depth * 8}]
     set flush_cycles $n_bins
 
     set_parameter_value M10K_BINS_DERIVED      $m10k_bins
@@ -279,11 +286,15 @@ proc validate {} {
     set flt_lo         [get_parameter_value FILTER_KEY_BIT_LO]
     set sar_tick       [get_parameter_value SAR_TICK_WIDTH]
     set sar_key        [get_parameter_value SAR_KEY_WIDTH]
+    set power2_only    [get_parameter_value POWER2_BIN_WIDTH_ONLY]
     set n_ports        [get_parameter_value N_PORTS]
     set fifo_addr_w    [get_parameter_value FIFO_ADDR_WIDTH]
     set channels_per_port [get_parameter_value CHANNELS_PER_PORT]
     set coal_depth     [get_parameter_value COAL_QUEUE_DEPTH]
     set avst_w         [get_parameter_value AVST_DATA_WIDTH]
+    set type0_w        [get_parameter_value TYPE0_DATA_WIDTH]
+    set type1_w        [get_parameter_value TYPE1_DATA_WIDTH]
+    set kick_w         [get_parameter_value KICK_COUNT_WIDTH]
     set avst_ch_w      [get_parameter_value AVST_CHANNEL_WIDTH]
     set def_interval   [get_parameter_value DEF_INTERVAL_CLOCKS]
     set avs_addr_w     [get_parameter_value AVS_ADDR_WIDTH]
@@ -339,17 +350,26 @@ proc validate {} {
     if {$n_ports != 1 && $n_ports != 2 && $n_ports != 4 && $n_ports != 8} {
         send_message error "N_PORTS must stay in the set {1 2 4 8}."
     }
-    if {$fifo_addr_w < 4 || $fifo_addr_w > 12} {
-        send_message error "FIFO_ADDR_WIDTH must stay in the range 4..12."
+    if {$fifo_addr_w < 1 || $fifo_addr_w > 12} {
+        send_message error "FIFO_ADDR_WIDTH must stay in the range 1..12."
     }
     if {$channels_per_port < 1 || $channels_per_port > 256} {
         send_message error "CHANNELS_PER_PORT must stay in the range 1..256."
     }
-    if {$coal_depth != 16 && $coal_depth != 32 && $coal_depth != 64 && $coal_depth != 128 && $coal_depth != 160 && $coal_depth != 192 && $coal_depth != 256 && $coal_depth != 512} {
-        send_message error "COAL_QUEUE_DEPTH must stay in the set {16 32 64 128 160 192 256 512}."
+    if {$coal_depth != 4 && $coal_depth != 8 && $coal_depth != 16 && $coal_depth != 32 && $coal_depth != 64 && $coal_depth != 128 && $coal_depth != 160 && $coal_depth != 192 && $coal_depth != 256 && $coal_depth != 512} {
+        send_message error "COAL_QUEUE_DEPTH must stay in the set {4 8 16 32 64 128 160 192 256 512}."
+    }
+    if {$kick_w < 1 || $kick_w > 8} {
+        send_message error "KICK_COUNT_WIDTH must stay in the range 1..8."
     }
     if {$avst_w < 1 || $avst_w > 512} {
         send_message error "AVST_DATA_WIDTH must stay in the range 1..512."
+    }
+    if {$type0_w < 1 || $type0_w > 512} {
+        send_message error "TYPE0_DATA_WIDTH must stay in the range 1..512."
+    }
+    if {$type1_w < 1 || $type1_w > 512} {
+        send_message error "TYPE1_DATA_WIDTH must stay in the range 1..512."
     }
     if {$avst_ch_w < 1 || $avst_ch_w > 8} {
         send_message error "AVST_CHANNEL_WIDTH must stay in the range 1..8."
@@ -374,6 +394,9 @@ proc validate {} {
     }
     if {$sar_tick < $sar_key} {
         send_message error "SAR_TICK_WIDTH must be >= SAR_KEY_WIDTH."
+    }
+    if {[string equal -nocase $power2_only "true"] && ($def_bin_width & ($def_bin_width - 1)) != 0} {
+        send_message error "DEF_BIN_WIDTH must be a power of two when POWER2_BIN_WIDTH_ONLY is true."
     }
     if {$key_hi >= $avst_w} {
         send_message error "UPDATE_KEY_BIT_HI must be < AVST_DATA_WIDTH."
@@ -414,6 +437,8 @@ proc elaborate {} {
     compute_derived_values
 
     set data_w  [get_parameter_value AVST_DATA_WIDTH]
+    set type0_w [get_parameter_value TYPE0_DATA_WIDTH]
+    set type1_w [get_parameter_value TYPE1_DATA_WIDTH]
     set chan_w  [get_parameter_value AVST_CHANNEL_WIDTH]
     set n_bins  [get_parameter_value N_BINS]
     set n_ports [get_parameter_value N_PORTS]
@@ -442,11 +467,12 @@ proc elaborate {} {
         set_parameter_property VERSION_GIT ENABLED false
     }
 
-    set_optional_stream hist_fill_in 1 $data_w $chan_w
-    for {set idx 1} {$idx <= 7} {incr idx} {
-        set_optional_stream fill_in_$idx [expr {$n_ports > $idx}] $data_w $chan_w
+    for {set idx 0} {$idx <= 7} {incr idx} {
+        set_optional_stream type0_lane${idx} [expr {$n_ports > $idx}] $type0_w $chan_w
     }
-    set_optional_stream fill_out $snoop_en $data_w $chan_w
+    set_optional_stream type1_up 1 $type1_w $chan_w
+    set_optional_stream type1_down 1 $type1_w $chan_w
+    set_optional_stream fill_out 1 $data_w $chan_w
 
     for {set idx 1} {$idx <= 6} {incr idx} {
         set_interface_property debug_$idx ENABLED [expr {$n_debug >= $idx ? "true" : "false"}]
@@ -479,12 +505,12 @@ set_parameter_property N_BINS ALLOWED_RANGES 1:2048
 set_parameter_property N_BINS HDL_PARAMETER true
 set_parameter_property N_BINS DESCRIPTION "Number of bins in the histogram. More bins require more M10K and more cycles to flush. Two M10K (one true dual-port RAM) host up to 512 bins."
 
-add_parameter MAX_COUNT_BITS NATURAL 32
+add_parameter MAX_COUNT_BITS NATURAL 20
 set_parameter_property MAX_COUNT_BITS DISPLAY_NAME "Bin Counter Width"
 set_parameter_property MAX_COUNT_BITS UNITS Bits
 set_parameter_property MAX_COUNT_BITS ALLOWED_RANGES 1:72
 set_parameter_property MAX_COUNT_BITS HDL_PARAMETER true
-set_parameter_property MAX_COUNT_BITS DESCRIPTION "Width of each bin counter. Two M10K support up to 40 bits; four M10K support up to 72 bits. Overflow protection triggers when the counter saturates."
+set_parameter_property MAX_COUNT_BITS DESCRIPTION "Width of each bin counter. FEB V3 defaults to 20 bits, enough for a 1 ms ping-pong interval at 125 MHz while keeping the SRAM update datapath narrow. Overflow protection triggers when the counter saturates."
 
 add_parameter DEF_LEFT_BOUND INTEGER -1000
 set_parameter_property DEF_LEFT_BOUND DISPLAY_NAME "Default Left Bound"
@@ -499,6 +525,12 @@ set_parameter_property DEF_BIN_WIDTH UNITS None
 set_parameter_property DEF_BIN_WIDTH ALLOWED_RANGES 1:65535
 set_parameter_property DEF_BIN_WIDTH HDL_PARAMETER true
 set_parameter_property DEF_BIN_WIDTH DESCRIPTION "Power-on default bin width in key-space units. Overridable at runtime through CSR word 5."
+
+add_parameter POWER2_BIN_WIDTH_ONLY BOOLEAN true
+set_parameter_property POWER2_BIN_WIDTH_ONLY DISPLAY_NAME "Power-of-Two Bins Only"
+set_parameter_property POWER2_BIN_WIDTH_ONLY UNITS None
+set_parameter_property POWER2_BIN_WIDTH_ONLY HDL_PARAMETER true
+set_parameter_property POWER2_BIN_WIDTH_ONLY DESCRIPTION "When enabled, the V3 datapath uses a shift-based bin mapper and CONTROL.apply rejects non-power-of-two BIN_WIDTH values with error_info=5. Disable only for legacy arbitrary-width divider experiments."
 
 # -- Key extraction --
 
@@ -523,11 +555,11 @@ set_parameter_property UPDATE_KEY_REPRESENTATION ALLOWED_RANGES {"UNSIGNED" "SIG
 set_parameter_property UPDATE_KEY_REPRESENTATION HDL_PARAMETER true
 set_parameter_property UPDATE_KEY_REPRESENTATION DESCRIPTION "Data type of the update key. SIGNED uses two's complement."
 
-add_parameter LOCK_KEY_RANGES BOOLEAN false
+add_parameter LOCK_KEY_RANGES BOOLEAN true
 set_parameter_property LOCK_KEY_RANGES DISPLAY_NAME "Lock Key Ranges"
 set_parameter_property LOCK_KEY_RANGES UNITS None
 set_parameter_property LOCK_KEY_RANGES HDL_PARAMETER true
-set_parameter_property LOCK_KEY_RANGES DESCRIPTION "When enabled, the datapath uses the generic UPDATE_KEY_BIT_* and FILTER_KEY_BIT_* ranges instead of the runtime CSR-programmable range registers. This removes the programmable bit-range extractor from the hot ingress timing path for fixed-format integrations."
+set_parameter_property LOCK_KEY_RANGES DESCRIPTION "When enabled, the datapath uses fixed FEB V3 source-aware Type0/Type1 update and filter slices instead of the runtime CSR-programmable range registers. This removes the programmable bit-range extractor from the hot ingress path while CONTROL mode/source/filter key value remain runtime-controlled."
 
 add_parameter FILTER_KEY_BIT_HI NATURAL 38
 set_parameter_property FILTER_KEY_BIT_HI DISPLAY_NAME "Filter Key MSB"
@@ -543,12 +575,12 @@ set_parameter_property FILTER_KEY_BIT_LO ALLOWED_RANGES 0:255
 set_parameter_property FILTER_KEY_BIT_LO HDL_PARAMETER true
 set_parameter_property FILTER_KEY_BIT_LO DESCRIPTION "Bit position of the LSB of the filter key in the snooped data stream."
 
-add_parameter SAR_TICK_WIDTH NATURAL 32
+add_parameter SAR_TICK_WIDTH NATURAL 21
 set_parameter_property SAR_TICK_WIDTH DISPLAY_NAME "Boundary Resolution"
 set_parameter_property SAR_TICK_WIDTH UNITS Bits
 set_parameter_property SAR_TICK_WIDTH ALLOWED_RANGES 1:127
 set_parameter_property SAR_TICK_WIDTH HDL_PARAMETER true
-set_parameter_property SAR_TICK_WIDTH DESCRIPTION "SAR quantizer tick width controlling bin boundary resolution. Must be >= SAR_KEY_WIDTH."
+set_parameter_property SAR_TICK_WIDTH DESCRIPTION "SAR quantizer tick width controlling bin boundary resolution. FEB V3 defaults to 21 bits, enough for a signed 5 ms window at 8 ns ticks while avoiding a 32-bit key path through every pipeline stage."
 
 add_parameter SAR_KEY_WIDTH NATURAL 16
 set_parameter_property SAR_KEY_WIDTH DISPLAY_NAME "Max Key Width"
@@ -566,12 +598,12 @@ set_parameter_property N_PORTS ALLOWED_RANGES {1 2 4 8}
 set_parameter_property N_PORTS HDL_PARAMETER true
 set_parameter_property N_PORTS DESCRIPTION "Number of Avalon-ST ingress ports. Ports beyond N_PORTS are disabled by the elaboration callback."
 
-add_parameter FIFO_ADDR_WIDTH NATURAL 8
+add_parameter FIFO_ADDR_WIDTH NATURAL 2
 set_parameter_property FIFO_ADDR_WIDTH DISPLAY_NAME "Ingress FIFO Address Width"
 set_parameter_property FIFO_ADDR_WIDTH UNITS Bits
-set_parameter_property FIFO_ADDR_WIDTH ALLOWED_RANGES 4:12
+set_parameter_property FIFO_ADDR_WIDTH ALLOWED_RANGES 1:12
 set_parameter_property FIFO_ADDR_WIDTH HDL_PARAMETER true
-set_parameter_property FIFO_ADDR_WIDTH DESCRIPTION "Address width of each per-port ingress FIFO. Depth is 2^FIFO_ADDR_WIDTH entries. The Phase-5 default is 8 (256 entries), which absorbs the refreshed datapath integration burst while staying materially smaller than the old 1024-entry passive-tap setting."
+set_parameter_property FIFO_ADDR_WIDTH DESCRIPTION "Address width of each per-port ingress FIFO. Depth is 2^FIFO_ADDR_WIDTH entries. FEB V3 defaults to 2 (4 entries); FIFO overflow is exposed through DROPPED_HITS and PORT_STATUS."
 
 add_parameter CHANNELS_PER_PORT NATURAL 32
 set_parameter_property CHANNELS_PER_PORT DISPLAY_NAME "Channels per Port"
@@ -580,19 +612,40 @@ set_parameter_property CHANNELS_PER_PORT ALLOWED_RANGES 1:256
 set_parameter_property CHANNELS_PER_PORT HDL_PARAMETER true
 set_parameter_property CHANNELS_PER_PORT DESCRIPTION "Logical channel stride added per ingress port before binning."
 
-add_parameter COAL_QUEUE_DEPTH NATURAL 256
+add_parameter COAL_QUEUE_DEPTH NATURAL 4
 set_parameter_property COAL_QUEUE_DEPTH DISPLAY_NAME "Coalescing Queue Depth"
 set_parameter_property COAL_QUEUE_DEPTH UNITS None
-set_parameter_property COAL_QUEUE_DEPTH ALLOWED_RANGES {16 32 64 128 160 192 256 512}
+set_parameter_property COAL_QUEUE_DEPTH ALLOWED_RANGES {4 8 16 32 64 128 160 192 256 512}
 set_parameter_property COAL_QUEUE_DEPTH HDL_PARAMETER true
-set_parameter_property COAL_QUEUE_DEPTH DESCRIPTION "Shared coalescing FIFO depth. Concurrent bin updates from all ports are serialized through this queue before reaching the histogram SRAM."
+set_parameter_property COAL_QUEUE_DEPTH DESCRIPTION "Number of live cells in the V3 bunched coalescer. FEB V3 defaults to 4 cells; on a bin match the cell kick count is incremented, on a miss a new live cell is allocated, and when all cells are occupied by other bins the overflow counter exposes the drop."
 
-add_parameter AVST_DATA_WIDTH NATURAL 39
+add_parameter KICK_COUNT_WIDTH NATURAL 4
+set_parameter_property KICK_COUNT_WIDTH DISPLAY_NAME "Coalesced Kick Count Width"
+set_parameter_property KICK_COUNT_WIDTH UNITS Bits
+set_parameter_property KICK_COUNT_WIDTH ALLOWED_RANGES 1:8
+set_parameter_property KICK_COUNT_WIDTH HDL_PARAMETER true
+set_parameter_property KICK_COUNT_WIDTH DESCRIPTION "Width of each coalesced per-bin update count. FEB V3 uses 4 bits because the observed kick-count envelope stays below 15 while cutting kick RAM/add/compare width versus the legacy 8-bit setting."
+
+add_parameter AVST_DATA_WIDTH NATURAL 45
 set_parameter_property AVST_DATA_WIDTH DISPLAY_NAME "AVST Data Width"
 set_parameter_property AVST_DATA_WIDTH UNITS Bits
 set_parameter_property AVST_DATA_WIDTH ALLOWED_RANGES 1:512
 set_parameter_property AVST_DATA_WIDTH HDL_PARAMETER true
-set_parameter_property AVST_DATA_WIDTH DESCRIPTION "Bit width of the Avalon-ST data bus on ingress and passthrough interfaces."
+set_parameter_property AVST_DATA_WIDTH DESCRIPTION "Internal/snoop data width. FEB V3 defaults this to the Type0 width; Type1 data is carried on TYPE1_DATA_WIDTH with a separate 48-bit timestamp sideband."
+
+add_parameter TYPE0_DATA_WIDTH NATURAL 45
+set_parameter_property TYPE0_DATA_WIDTH DISPLAY_NAME "Type0 Data Width"
+set_parameter_property TYPE0_DATA_WIDTH UNITS Bits
+set_parameter_property TYPE0_DATA_WIDTH ALLOWED_RANGES 1:512
+set_parameter_property TYPE0_DATA_WIDTH HDL_PARAMETER true
+set_parameter_property TYPE0_DATA_WIDTH DESCRIPTION "Bit width of each direct FEB V3 Type0 lane input."
+
+add_parameter TYPE1_DATA_WIDTH NATURAL 39
+set_parameter_property TYPE1_DATA_WIDTH DISPLAY_NAME "Type1 Data Width"
+set_parameter_property TYPE1_DATA_WIDTH UNITS Bits
+set_parameter_property TYPE1_DATA_WIDTH ALLOWED_RANGES 1:512
+set_parameter_property TYPE1_DATA_WIDTH HDL_PARAMETER true
+set_parameter_property TYPE1_DATA_WIDTH DESCRIPTION "Bit width of each direct MTS Type1 bank input. The true hit timestamp is not packed into this payload; it is carried on the 48-bit ts sideband."
 
 add_parameter AVST_CHANNEL_WIDTH NATURAL 4
 set_parameter_property AVST_CHANNEL_WIDTH DISPLAY_NAME "AVST Channel Width"
@@ -618,13 +671,13 @@ set_parameter_property DEF_INTERVAL_CLOCKS DESCRIPTION "Power-on default ping-po
 
 # -- Pass-through / snooping --
 
-add_parameter SNOOP_EN BOOLEAN true
+add_parameter SNOOP_EN BOOLEAN false
 set_parameter_property SNOOP_EN DISPLAY_NAME "Enable Snooping"
 set_parameter_property SNOOP_EN UNITS None
 set_parameter_property SNOOP_EN HDL_PARAMETER true
-set_parameter_property SNOOP_EN DESCRIPTION "When enabled, the primary ingress stream is forwarded to the fill_out source with zero added latency."
+set_parameter_property SNOOP_EN DESCRIPTION "When enabled, Type0 lane0 is forwarded to the fill_out source with zero added latency. FEB V3 defaults this off because the hist IP is directly fed and must not depend on an ingress bridge/passthrough path."
 
-add_parameter ENABLE_PACKET BOOLEAN true
+add_parameter ENABLE_PACKET BOOLEAN false
 set_parameter_property ENABLE_PACKET DISPLAY_NAME "Packet Support"
 set_parameter_property ENABLE_PACKET UNITS None
 set_parameter_property ENABLE_PACKET HDL_PARAMETER true
@@ -641,12 +694,18 @@ set_parameter_property AVS_ADDR_WIDTH DESCRIPTION "Address width for the Avalon-
 
 # -- Debug --
 
-add_parameter N_DEBUG_INTERFACE NATURAL 6
+add_parameter N_DEBUG_INTERFACE NATURAL 0
 set_parameter_property N_DEBUG_INTERFACE DISPLAY_NAME "Debug Interfaces"
 set_parameter_property N_DEBUG_INTERFACE UNITS None
 set_parameter_property N_DEBUG_INTERFACE ALLOWED_RANGES 0:6
 set_parameter_property N_DEBUG_INTERFACE HDL_PARAMETER true
-set_parameter_property N_DEBUG_INTERFACE DESCRIPTION "Number of 16-bit debug Avalon-ST sinks enabled by the elaboration callback. The RTL supports up to 6."
+set_parameter_property N_DEBUG_INTERFACE DESCRIPTION "Number of 16-bit debug Avalon-ST sinks enabled by the elaboration callback. FEB V3 defaults to 0; set this with ENABLE_DEBUG_INPUTS for legacy negative-mode debug histograms."
+
+add_parameter ENABLE_DEBUG_INPUTS BOOLEAN false
+set_parameter_property ENABLE_DEBUG_INPUTS DISPLAY_NAME "Enable Legacy Debug Modes"
+set_parameter_property ENABLE_DEBUG_INPUTS UNITS None
+set_parameter_property ENABLE_DEBUG_INPUTS HDL_PARAMETER true
+set_parameter_property ENABLE_DEBUG_INPUTS DESCRIPTION "When enabled, negative CONTROL.mode values select debug_1..6 or dual-MTS debug streams. FEB V3 direct Type0/Type1 operation defaults this off; negative modes are rejected with CONTROL error_info=4."
 
 add_parameter DEBUG NATURAL 0
 set_parameter_property DEBUG DISPLAY_NAME "Debug Level"
@@ -757,6 +816,7 @@ add_display_item "Histogram Sizing" N_BINS parameter
 add_display_item "Histogram Sizing" MAX_COUNT_BITS parameter
 add_display_item "Histogram Sizing" DEF_LEFT_BOUND parameter
 add_display_item "Histogram Sizing" DEF_BIN_WIDTH parameter
+add_display_item "Histogram Sizing" POWER2_BIN_WIDTH_ONLY parameter
 add_html_text "Histogram Sizing" sizing_html "<html><b>Resource estimate</b><br/>Updated by the validation callback.</html>"
 
 add_display_item "Key Extraction" UPDATE_KEY_BIT_HI parameter
@@ -767,15 +827,18 @@ add_display_item "Key Extraction" FILTER_KEY_BIT_HI parameter
 add_display_item "Key Extraction" FILTER_KEY_BIT_LO parameter
 add_display_item "Key Extraction" SAR_TICK_WIDTH parameter
 add_display_item "Key Extraction" SAR_KEY_WIDTH parameter
-add_html_text "Key Extraction" key_html {<html><b>Default slices</b><br/>The delivered package bins the default update-key slice <b>data[29:17]</b> and compares the default filter-key slice <b>data[38:35]</b>. Both slices are runtime-programmable through <b>KEY_LOC</b> unless <b>LOCK_KEY_RANGES</b> is enabled.<br/><br/><b>Fixed-format timing mode</b><br/>Enable <b>LOCK_KEY_RANGES</b> when the normal fill-in stream format is fixed by Platform Designer and the hot ingress path should not time through CSR-programmable range selectors. Extended-source delay mode does not require <b>AVST_DATA_WIDTH=87</b>; it always takes the 48-bit timestamp from <b>hit_type1_extended_N.data[86:39]</b> when <b>CONTROL.in_port</b> is 1 or 2.<br/><br/><b>Signed / unsigned</b><br/><b>UPDATE_KEY_REPRESENTATION</b> controls the power-on interpretation of the update key. The live datapath can be switched at runtime through <b>CONTROL.key_unsigned</b>.</html>}
+add_html_text "Key Extraction" key_html {<html><b>FEB V3 fixed slices</b><br/>With <b>LOCK_KEY_RANGES</b> enabled, Type0 rate mode bins the Type0 TCC slice <b>data[35:21]</b> and filters on Type0 ASIC <b>data[44:41]</b>. Type1 rate mode bins the Type1 TCC8N slice <b>data[29:17]</b> and filters on Type1 ASIC <b>data[38:35]</b>. Type1 delay mode bins <b>GTS - ts_sideband[47:0]</b> and still filters on normal Type1 data <b>data[38:35]</b>, not on the timestamp sideband.<br/><br/><b>V3 binning</b><br/>With <b>POWER2_BIN_WIDTH_ONLY</b> enabled, bin mapping is a shift after the normal range check. <b>CONTROL.apply</b> rejects non-power-of-two <b>BIN_WIDTH</b> values with <b>error_info=5</b> so unsupported configurations are visible to firmware.<br/><br/><b>CSR-programmable legacy mode</b><br/>Disabling <b>LOCK_KEY_RANGES</b> restores the KEY_LOC-programmable update/filter ranges for legacy experiments, with a larger hot-path resource cost. CSR mode, source select, key representation, filter enable/reject, and filter key value remain runtime-controlled in both modes.</html>}
 
 add_display_item "Ingress" N_PORTS parameter
 add_display_item "Ingress" FIFO_ADDR_WIDTH parameter
 add_display_item "Ingress" CHANNELS_PER_PORT parameter
 add_display_item "Ingress" COAL_QUEUE_DEPTH parameter
+add_display_item "Ingress" KICK_COUNT_WIDTH parameter
 add_display_item "Ingress" AVST_DATA_WIDTH parameter
+add_display_item "Ingress" TYPE0_DATA_WIDTH parameter
+add_display_item "Ingress" TYPE1_DATA_WIDTH parameter
 add_display_item "Ingress" AVST_CHANNEL_WIDTH parameter
-add_html_text "Ingress" ingress_html {<html><b>Port scaling</b><br/>Each enabled ingress port owns an elastic FIFO before the shared round-robin arbiter. Ports above <b>N_PORTS</b> stay disabled in the Platform Designer interface contract.<br/><br/><b>FIFO depth</b><br/><b>FIFO_ADDR_WIDTH</b> sets the per-port FIFO depth as 2^width entries. Deepen this for passive post-stack taps that receive frame-bursty traffic and cannot backpressure the primary datapath.<br/><br/><b>Channel stride</b><br/><b>CHANNELS_PER_PORT</b> is added as a per-port offset before binning so multiple ingress links can be flattened into one histogram namespace.</html>}
+add_html_text "Ingress" ingress_html {<html><b>V3 direct inputs</b><br/>The public streaming contract is explicit: <b>type0_lane0..7</b>, <b>type1_up</b>, and <b>type1_down</b>. Type1 timestamp is a separate 48-bit conduit sideband. The histogram ingress bridge is not part of this contract.<br/><br/><b>Port scaling</b><br/>The internal eight-port FIFO/arbiter remains the update path. Type0 source-select enables all configured Type0 lanes; Type1 source-select maps the chosen bank to internal port 0 after filtering.<br/><br/><b>FIFO depth</b><br/><b>FIFO_ADDR_WIDTH</b> sets the per-port FIFO depth as 2^width entries.<br/><br/><b>Channel stride</b><br/><b>CHANNELS_PER_PORT</b> is added as a per-port offset before binning so multiple ingress links can be flattened into one histogram namespace.</html>}
 
 add_display_item "Ping-Pong / Interval" ENABLE_PINGPONG parameter
 add_display_item "Ping-Pong / Interval" DEF_INTERVAL_CLOCKS parameter
@@ -786,8 +849,9 @@ add_html_text "Ping-Pong / Interval" runtime_html "<html><b>Runtime behaviour</b
 
 add_html_text "Resources" resources_html {<html><b>Integration notes</b><br/>1. The CSR aperture is <b>17</b> words (5-bit address). Words 0-1 are the standard identity header (UID + META). Words 2-16 hold control, histogram bounds, key configuration, status counters, and scratch.<br/>2. The <b>hist_bin</b> Avalon-MM slave provides burst-capable readout of the histogram SRAM with word-addressed access.<br/>3. The coalescing queue serializes concurrent bin updates from all ingress sources before they reach the histogram SRAM, preventing read-modify-write hazards.</html>}
 
-add_html_text "Debug Inputs" debug_cfg_html {<html><b>Stream delay mode</b><br/>Set <b>CONTROL.mode=1</b> to histogram <b>internal_gts - selected_timestamp</b>. With <b>CONTROL.in_port=1</b> or <b>2</b>, the selected timestamp is fixed to <b>hit_type1_extended_N.data[86:39]</b>. With <b>CONTROL.in_port=0</b>, the selected update-key slice is used as before. The 48-bit subtraction result is trimmed to <b>SAR_TICK_WIDTH</b> before it enters the same fill/bin path used by mode 0. Keep <b>SAR_TICK_WIDTH</b> at the desired histogram fill resolution, normally 16 or 32 bits.<br/><br/><b>Debug control</b><br/>The RTL exports up to 6 optional 16-bit Avalon-ST debug sinks. Negative signed values in <b>CONTROL.mode</b> select <b>debug_1..6</b> as the histogram source instead of the normal ingress ports. Mode <b>-7</b> is the Phase-5 combined MTS-delay mode: it samples signed <b>debug_1</b> and <b>debug_2</b> into separate FIFOs, then merges them through the normal arbiter without per-port channel offsets.<br/><br/><b>Debug filtering</b><br/>The runtime filter also works in negative modes. Use <b>KEY_LOC.filter_key_low=16</b> and <b>KEY_LOC.filter_key_high=23</b> to select a debug source index from the synthetic filter word; use <b>filter_key=0</b> for debug_1, <b>1</b> for debug_2, and so on.</html>}
+add_html_text "Debug Inputs" debug_cfg_html {<html><b>Stream delay mode</b><br/>Set <b>CONTROL.mode=1</b> and <b>CONTROL.source_select=1</b> or <b>2</b> to histogram <b>internal_gts - type1_ts[47:0]</b> from the selected Type1 bank. The 48-bit subtraction result is trimmed to <b>SAR_TICK_WIDTH</b> before it enters the same fill/bin path used by mode 0. Type0 with mode 1 is rejected at apply time. Filtering in delay mode compares normal Type1 data fields, not the timestamp sideband.<br/><br/><b>Legacy debug control</b><br/>Set <b>ENABLE_DEBUG_INPUTS=true</b> and enable one or more <b>N_DEBUG_INTERFACE</b> ports before using negative signed <b>CONTROL.mode</b> values. With the FEB V3 default <b>ENABLE_DEBUG_INPUTS=false</b>, negative modes are rejected with <b>CONTROL.error_info=4</b>. Mode <b>-7</b> is the Phase-5 combined MTS-delay mode: it samples signed <b>debug_1</b> and <b>debug_2</b> into independent ingress FIFOs, then merges them through the normal arbiter without per-port channel offsets.<br/><br/><b>Debug filtering</b><br/>The runtime filter also works in enabled negative modes. Use <b>KEY_LOC.filter_key_low=16</b> and <b>KEY_LOC.filter_key_high=23</b> to select a debug source index from the synthetic filter word; use <b>filter_key=0</b> for debug_1, <b>1</b> for debug_2, and so on.</html>}
 add_display_item "Debug Inputs" N_DEBUG_INTERFACE parameter
+add_display_item "Debug Inputs" ENABLE_DEBUG_INPUTS parameter
 add_display_item "Debug Inputs" DEBUG parameter
 
 add_display_item "" $TAB_IDENTITY GROUP tab
@@ -813,7 +877,7 @@ add_display_item $TAB_INTERFACES "Control Path" GROUP
 add_display_item $TAB_INTERFACES "Monitoring" GROUP
 
 add_html_text "Clock / Reset" clock_html {<html><b>clock</b> and <b>reset</b><br/>Single synchronous clock/reset domain for the full histogram datapath and CSR logic.<br/><br/><b>interval_reset</b><br/>Optional reset sink that triggers a manual clear / interval event independently of the periodic timer.</html>}
-add_html_text "Data Path" datapath_html {<html><b>hist_fill_in</b><br/>Primary Avalon-ST sink for the normal fill-in merge path selected by <b>CONTROL.in_port=0</b>.<br/><br/><b>fill_in_1..7</b><br/>Additional Avalon-ST sinks enabled when <b>N_PORTS &gt; 1</b>. Each port has an independent hit FIFO feeding the round-robin arbiter.<br/><br/><b>hit_type1_extended_0/1</b><br/>Readyless streaming-debug-plane sinks selected by <b>CONTROL.in_port=1/2</b>. They feed FIFO 0 and do not backpressure the producer.<br/><br/><b>fill_out</b><br/>Passthrough Avalon-ST source that forwards the primary ingress stream when snooping is enabled.</html>}
+add_html_text "Data Path" datapath_html {<html><b>type0_lane0..7</b><br/>Direct 45-bit Type0 hit lanes for rate/key histograms. Source-select 0 enables the Type0 lane set.<br/><br/><b>type1_up / type1_down</b><br/>Direct 39-bit Type1 MTS bank streams. The associated <b>type1_*_ts</b> conduit carries the true 48-bit hit timestamp for delay mode. Source-select 1 chooses up; source-select 2 chooses down.<br/><br/><b>fill_out</b><br/>Optional passthrough source that forwards Type0 lane0 only when Type0 is selected and snooping is enabled.</html>}
 add_html_text "Data Path" hist_fill_fmt_html $HIST_FILL_FMT_HTML
 add_html_text "Data Path" extended_fmt_html $EXTENDED_FMT_HTML
 add_html_text "Data Path" fill_out_fmt_html $FILL_OUT_FMT_HTML
@@ -934,61 +998,59 @@ set_interface_property ctrl ENABLED true
 add_interface_port ctrl asi_ctrl_data data Input $RUN_CONTROL_WIDTH_CONST
 add_interface_port ctrl asi_ctrl_valid valid Input 1
 
-add_interface hist_fill_in avalon_streaming end
-set_interface_property hist_fill_in associatedClock clock
-set_interface_property hist_fill_in associatedReset reset
-set_interface_property hist_fill_in dataBitsPerSymbol AVST_DATA_WIDTH
-set_interface_property hist_fill_in maxChannel 15
-set_interface_property hist_fill_in readyLatency 0
-set_interface_property hist_fill_in ENABLED true
-add_interface_port hist_fill_in asi_hist_fill_in_valid valid Input 1
-add_interface_port hist_fill_in asi_hist_fill_in_ready ready Output 1
-add_interface_port hist_fill_in asi_hist_fill_in_data data Input AVST_DATA_WIDTH
-add_interface_port hist_fill_in asi_hist_fill_in_startofpacket startofpacket Input 1
-add_interface_port hist_fill_in asi_hist_fill_in_endofpacket endofpacket Input 1
-add_interface_port hist_fill_in asi_hist_fill_in_channel channel Input AVST_CHANNEL_WIDTH
-
-for {set idx 1} {$idx <= 7} {incr idx} {
-    set ifname "fill_in_${idx}"
+for {set idx 0} {$idx <= 7} {incr idx} {
+    set ifname "type0_lane${idx}"
     add_interface $ifname avalon_streaming end
     set_interface_property $ifname associatedClock clock
     set_interface_property $ifname associatedReset reset
-    set_interface_property $ifname dataBitsPerSymbol AVST_DATA_WIDTH
+    set_interface_property $ifname dataBitsPerSymbol $TYPE0_DATA_WIDTH_DEFAULT_CONST
     set_interface_property $ifname maxChannel 15
     set_interface_property $ifname readyLatency 0
+    set_interface_property $ifname errorDescriptor "hiterr frameerr overflow"
+    set_interface_property $ifname ENABLED true
+    add_interface_port $ifname "asi_type0_lane${idx}_valid" valid Input 1
+    add_interface_port $ifname "asi_type0_lane${idx}_data" data Input TYPE0_DATA_WIDTH
+    add_interface_port $ifname "asi_type0_lane${idx}_startofpacket" startofpacket Input 1
+    add_interface_port $ifname "asi_type0_lane${idx}_endofpacket" endofpacket Input 1
+    add_interface_port $ifname "asi_type0_lane${idx}_channel" channel Input AVST_CHANNEL_WIDTH
+    add_interface_port $ifname "asi_type0_lane${idx}_error" error Input 3
+    add_interface_port $ifname "asi_type0_lane${idx}_endofrun" endofrun Input 1
+}
+
+foreach ifname {type1_up type1_down} {
+    add_interface $ifname avalon_streaming end
+    set_interface_property $ifname associatedClock clock
+    set_interface_property $ifname associatedReset reset
+    set_interface_property $ifname dataBitsPerSymbol $TYPE1_DATA_WIDTH_DEFAULT_CONST
+    set_interface_property $ifname maxChannel 15
+    set_interface_property $ifname readyLatency 0
+    set_interface_property $ifname errorDescriptor "stream_error"
     set_interface_property $ifname ENABLED true
     add_interface_port $ifname "asi_${ifname}_valid" valid Input 1
-    add_interface_port $ifname "asi_${ifname}_ready" ready Output 1
-    add_interface_port $ifname "asi_${ifname}_data" data Input AVST_DATA_WIDTH
+    add_interface_port $ifname "asi_${ifname}_data" data Input TYPE1_DATA_WIDTH
     add_interface_port $ifname "asi_${ifname}_startofpacket" startofpacket Input 1
     add_interface_port $ifname "asi_${ifname}_endofpacket" endofpacket Input 1
     add_interface_port $ifname "asi_${ifname}_channel" channel Input AVST_CHANNEL_WIDTH
+    add_interface_port $ifname "asi_${ifname}_empty" empty Input 1
+    add_interface_port $ifname "asi_${ifname}_error" error Input 1
 }
 
-add_interface hit_type1_extended_0 avalon_streaming end
-set_interface_property hit_type1_extended_0 associatedClock clock
-set_interface_property hit_type1_extended_0 associatedReset reset
-set_interface_property hit_type1_extended_0 dataBitsPerSymbol 87
-set_interface_property hit_type1_extended_0 readyLatency 0
-set_interface_property hit_type1_extended_0 firstSymbolInHighOrderBits true
-set_interface_property hit_type1_extended_0 ENABLED true
-add_interface_port hit_type1_extended_0 asi_hit_type1_extended_0_valid valid Input 1
-add_interface_port hit_type1_extended_0 asi_hit_type1_extended_0_data  data  Input 87
+add_interface type1_up_ts conduit end
+set_interface_property type1_up_ts associatedClock clock
+set_interface_property type1_up_ts associatedReset reset
+set_interface_property type1_up_ts ENABLED true
+add_interface_port type1_up_ts asi_type1_up_ts export Input 48
 
-add_interface hit_type1_extended_1 avalon_streaming end
-set_interface_property hit_type1_extended_1 associatedClock clock
-set_interface_property hit_type1_extended_1 associatedReset reset
-set_interface_property hit_type1_extended_1 dataBitsPerSymbol 87
-set_interface_property hit_type1_extended_1 readyLatency 0
-set_interface_property hit_type1_extended_1 firstSymbolInHighOrderBits true
-set_interface_property hit_type1_extended_1 ENABLED true
-add_interface_port hit_type1_extended_1 asi_hit_type1_extended_1_valid valid Input 1
-add_interface_port hit_type1_extended_1 asi_hit_type1_extended_1_data  data  Input 87
+add_interface type1_down_ts conduit end
+set_interface_property type1_down_ts associatedClock clock
+set_interface_property type1_down_ts associatedReset reset
+set_interface_property type1_down_ts ENABLED true
+add_interface_port type1_down_ts asi_type1_down_ts export Input 48
 
 add_interface fill_out avalon_streaming start
 set_interface_property fill_out associatedClock clock
 set_interface_property fill_out associatedReset reset
-set_interface_property fill_out dataBitsPerSymbol AVST_DATA_WIDTH
+set_interface_property fill_out dataBitsPerSymbol $AVST_DATA_WIDTH_DEFAULT_CONST
 set_interface_property fill_out maxChannel 15
 set_interface_property fill_out readyLatency 0
 set_interface_property fill_out ENABLED true

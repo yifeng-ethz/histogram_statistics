@@ -12,7 +12,7 @@ module hist_pipeline_sva (
       post_clear_drain <= 0;
     end else if (probe_if.measure_clear_pulse) begin
       // The scoreboard suppresses stale divider/queue observations for the
-      // 3-stage pre-divider pipe + 8-stage divider + 1 registered queue-hit hop.
+      // pre-divider pipe plus the selected divider implementation.
       post_clear_drain <= POST_CLEAR_DRAIN_CYCLES;
     end else if (post_clear_drain != 0) begin
       post_clear_drain <= post_clear_drain - 1;

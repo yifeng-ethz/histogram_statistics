@@ -168,8 +168,15 @@ class hist_scoreboard extends uvm_scoreboard;
         shadow_cfg.key_unsigned  = txn.writedata[8];
         shadow_cfg.filter_enable = txn.writedata[12];
         shadow_cfg.filter_reject = txn.writedata[13];
+        shadow_cfg.source_select = txn.writedata[17:16];
         if (txn.writedata[0]) begin
           commit_ok_v = 1'b1;
+          if (shadow_cfg.source_select == 2'd3) begin
+            commit_ok_v = 1'b0;
+          end
+          if ((shadow_cfg.source_select == HS_SOURCE_TYPE0) && (hist_mode_to_int(shadow_cfg.mode) == 1)) begin
+            commit_ok_v = 1'b0;
+          end
           if (shadow_cfg.bin_width == 16'd0) begin
             if (shadow_cfg.right_bound <= shadow_cfg.left_bound) begin
               commit_ok_v = 1'b0;
@@ -226,6 +233,7 @@ class hist_scoreboard extends uvm_scoreboard;
   function void write_fill(hist_fill_txn txn);
     int signed mode_v;
     int signed key_v;
+    longint unsigned delay_v;
 
     mode_v = active_cfg.mode_int();
     if (mode_v < 0) begin
@@ -233,7 +241,12 @@ class hist_scoreboard extends uvm_scoreboard;
     end
 
     ref_total_hits = hist_sat_add_u32(ref_total_hits, 1);
-    key_v          = build_fill_key(txn.data);
+    if (mode_v == 1) begin
+      delay_v = longint'(txn.gts) - longint'(txn.ts);
+      key_v   = int'(delay_v[31:0]);
+    end else begin
+      key_v = build_fill_key(txn.data);
+    end
     queue_fill_item(
       txn.port_index,
       txn.data,

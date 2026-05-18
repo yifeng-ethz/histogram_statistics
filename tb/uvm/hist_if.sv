@@ -54,26 +54,29 @@ interface hist_bin_if #(int ADDR_W = 8) (input logic clk);
   endtask
 endinterface
 
-interface hist_fill_if #(int DATA_W = 39, int CH_W = 4) (input logic clk);
+interface hist_fill_if #(int DATA_W = 45, int CH_W = 4) (input logic clk);
   logic                 ready;
   logic                 valid;
   logic [DATA_W-1:0]    data;
+  logic [47:0]          ts;
+  logic [47:0]          gts;
   logic                 sop;
   logic                 eop;
   logic [CH_W-1:0]      channel;
 
   clocking drv_cb @(posedge clk);
-    output valid, data, sop, eop, channel;
+    output valid, data, ts, sop, eop, channel;
     input  ready;
   endclocking
 
   clocking mon_cb @(posedge clk);
-    input ready, valid, data, sop, eop, channel;
+    input ready, valid, data, ts, gts, sop, eop, channel;
   endclocking
 
   task automatic init_source();
     valid   = 1'b0;
     data    = '0;
+    ts      = '0;
     sop     = 1'b0;
     eop     = 1'b0;
     channel = '0;
@@ -83,15 +86,13 @@ endinterface
 interface hist_ctrl_if (input logic clk);
   logic [8:0] data;
   logic       valid;
-  logic       ready;
 
   clocking drv_cb @(posedge clk);
     output data, valid;
-    input  ready;
   endclocking
 
   clocking mon_cb @(posedge clk);
-    input data, valid, ready;
+    input data, valid;
   endclocking
 
   task automatic init_source();
@@ -118,7 +119,7 @@ interface hist_debug_if #(int DATA_W = 16) (input logic clk);
   endtask
 endinterface
 
-interface hist_snoop_if #(int DATA_W = 39, int CH_W = 4) (input logic clk);
+interface hist_snoop_if #(int DATA_W = 45, int CH_W = 4) (input logic clk);
   logic                 ready;   // testbench drives
   logic                 valid;   // DUT drives (do NOT add drv_cb output)
   logic [DATA_W-1:0]    data;
@@ -135,8 +136,8 @@ interface hist_probe_if #(
   int N_PORTS   = 8,
   int PORT_W    = 3,
   int BIN_W     = 8,
-  int KICK_W    = 8,
-  int QUEUE_W   = 9
+  int KICK_W    = 4,
+  int QUEUE_W   = 3
 ) (input logic clk);
   logic                  rst;
   logic                  interval_reset;
@@ -168,6 +169,7 @@ interface hist_probe_if #(
   logic [15:0]           queue_overflow_count;
   logic                  burst_active;
   logic                  read_bank_latched;
+  logic [47:0]           gts;
 
   clocking mon_cb @(posedge clk);
     input rst, interval_reset, measure_clear_pulse, interval_pulse;
@@ -179,5 +181,6 @@ interface hist_probe_if #(
     input queue_drain_valid, queue_drain_ready, queue_drain_bin, queue_drain_count;
     input queue_occupancy, queue_occupancy_max, queue_overflow_count;
     input burst_active, read_bank_latched;
+    input gts;
   endclocking
 endinterface

@@ -9,7 +9,7 @@ module hist_avst_sva #(
   property p_valid_holds_until_ready;
     @(posedge clk) disable iff (rst)
       stream_if.valid && !stream_if.ready
-      |=> stream_if.valid && $stable({stream_if.data, stream_if.channel, stream_if.sop, stream_if.eop});
+      |=> stream_if.valid && $stable({stream_if.data, stream_if.ts, stream_if.channel, stream_if.sop, stream_if.eop});
   endproperty
 
   assert property (p_valid_holds_until_ready)

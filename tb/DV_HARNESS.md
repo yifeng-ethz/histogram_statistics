@@ -1,8 +1,8 @@
 # DV Harness: histogram_statistics_v2 UVM Environment
 
 **Parent:** [DV_PLAN.md](DV_PLAN.md)
-**Date:** 2026-04-09
-**Status:** Planning
+**Date:** 2026-05-16
+**Status:** V3 direct-input harness smoke closed; full strict doc/coverage closure remains tracked separately.
 
 ---
 
@@ -13,8 +13,8 @@
 │                        hist_env (uvm_env)                           │
 │                                                                     │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
-│  │ hist_csr_agt │  │ hist_bin_agt │  │ hist_fill_agt (×8 ports) │  │
-│  │  (AVMM CSR)  │  │ (AVMM burst) │  │   (AVST fill_in)         │  │
+│  │ hist_csr_agt │  │ hist_bin_agt │  │ hist_fill_agt (Type0 ×8)│  │
+│  │  (AVMM CSR)  │  │ (AVMM burst) │  │   (direct Type0 lanes)   │  │
 │  │ drv|mon|sqr  │  │ drv|mon|sqr  │  │   drv|mon|sqr per port   │  │
 │  └──────┬───────┘  └──────┬───────┘  └────────────┬─────────────┘  │
 │         │                 │                        │                │
@@ -31,6 +31,11 @@
 │  │ (AVST ctrl)  │  │ (×6 debug)   │  │ (AVST fill_out passive)  │  │
 │  │ drv|sqr      │  │ drv|sqr      │  │ mon only                 │  │
 │  └──────────────┘  └──────────────┘  └──────────────────────────┘  │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ hist_fill_agt (Type1 up + Type1 down)                       │    │
+│  │ - direct 39-bit Type1 data                                  │    │
+│  │ - 48-bit ts sideband sampled with each accepted transfer    │    │
+│  └─────────────────────────────────────────────────────────────┘    │
 │                                                                     │
 │  ┌─────────────────────────────────────────────────────────────┐    │
 │  │                 hist_coverage (uvm_subscriber)               │    │
@@ -78,12 +83,13 @@ class hist_bin_txn extends uvm_sequence_item;
 endclass
 ```
 
-### 2.3 `hist_fill_txn` (AVST fill_in transaction)
+### 2.3 `hist_fill_txn` (direct hit transaction)
 
 ```systemverilog
 class hist_fill_txn extends uvm_sequence_item;
-    rand bit [2:0]  port_index;   // 0..7
-    rand bit [38:0] data;         // AVST_DATA_WIDTH=39
+    rand int unsigned port_index; // Type0: 0..7, Type1: internal mapped port 0
+    rand bit [44:0] data;         // Type0 is 45 bits; Type1 data is zero-extended from 39 bits
+    rand bit [47:0] ts;           // Type1 true-hit timestamp sideband, ignored for Type0
     rand bit [3:0]  channel;
     rand bit        sop;
     rand bit        eop;
@@ -91,6 +97,7 @@ class hist_fill_txn extends uvm_sequence_item;
     int             expected_key;
     int             expected_bin;
     bit             expected_filtered;
+    bit [1:0]       source_select;
 endclass
 ```
 
@@ -108,6 +115,7 @@ endclass
 class hist_config_txn extends uvm_sequence_item;
     // Shadow of all RW CSR fields — used by scoreboard to track config state
     bit [3:0]  mode;
+    bit [1:0]  source_select;     // 0=Type0, 1=Type1 up, 2=Type1 down
     bit        key_unsigned;
     bit        filter_enable, filter_reject;
     int        left_bound;
@@ -144,17 +152,23 @@ endclass
 
 **Key detail:** Burst reads may be deferred if the update pipeline is active (non-pingpong mode). The driver must not assume immediate start.
 
-### 3.3 AVST Fill Agent (`hist_fill_agent`)
+### 3.3 AVST Fill Agents (`hist_fill_agent`)
 
-One agent instance per port (8 total), or a single agent with port selection.
+The harness uses the same transaction/driver class for all direct hit inputs:
+eight Type0 lane agents plus one Type1 up agent and one Type1 down agent. The
+Type1 agents drive 39-bit normal data and a separate 48-bit timestamp sideband;
+the scoreboard uses the sideband only in delay mode.
 
 | Component | Role |
 |-----------|------|
-| `hist_fill_driver` | Drives `asi_fill_in_N_valid`, `_data`, `_channel`, `_sop`, `_eop`. Respects `_ready` handshake. |
+| `hist_fill_driver` | Drives selected `asi_type0_laneN_*`, `asi_type1_up_*`, or `asi_type1_down_*`. Respects `_ready` handshake and keeps `ts` stable under backpressure. |
 | `hist_fill_monitor` | Samples accepted transfers (valid & ready). Publishes `hist_fill_txn`. |
 | `hist_fill_sequencer` | Standard UVM sequencer. |
 
-**Key detail:** Port 0 with SNOOP_EN: ready comes from `aso_hist_fill_out_ready`, not from the DUT's internal logic. The driver must handle backpressure from the snoop consumer.
+**Key detail:** only the source selected by CONTROL[17:16] should see ready. Type0
+select enables all eight Type0 lane agents. Type1 up/down select maps the chosen
+bank into internal port 0 after filtering. Filter checks always use normal data,
+never the `ts` sideband.
 
 ### 3.4 AVST Ctrl Agent (`hist_ctrl_agent`)
 
@@ -166,7 +180,8 @@ Driver-only (no monitor needed for stimulus-only interface).
 
 ### 3.6 Snoop Monitor (`hist_snoop_mon`)
 
-Passive monitor on `aso_hist_fill_out`. Verifies passthrough matches port 0 input when SNOOP_EN.
+Passive monitor on `aso_hist_fill_out`. Verifies passthrough matches Type0 lane0
+only when SNOOP_EN is true and source-select is Type0.
 
 ---
 
@@ -182,7 +197,7 @@ class hist_scoreboard extends uvm_scoreboard;
     hist_config_txn active_cfg;
     bit             apply_pending;
 
-    // Per-bin counters (256 bins, 32-bit)
+    // Per-bin counters (256 bins, 20-bit DUT readback zero-extended to 32-bit CSR words)
     int unsigned    ref_bins[256];
 
     // Stats counters
@@ -194,9 +209,9 @@ class hist_scoreboard extends uvm_scoreboard;
     // Methods
     function void process_fill(hist_fill_txn txn);
         // 1. Check filter: match_filter() equivalent
-        // 2. Extract key: build_key() equivalent
+        // 2. Extract key: build_key() equivalent; Type1 delay uses gts - txn.ts
         // 3. Add port offset: key += port_index * CHANNELS_PER_PORT
-        // 4. Compute bin: restoring division (key - left_bound) / bin_width
+        // 4. Compute bin: shift mapper when bin_width is a power of two
         // 5. Check bounds: underflow if key < left_bound, overflow if key >= right_bound
         // 6. Update ref_bins[bin_index]
     endfunction
@@ -226,6 +241,8 @@ endclass
 3. **Coalescing**: Multiple hits to the same bin within a short window are coalesced. The scoreboard doesn't need to model coalescing — it just increments `ref_bins` per accepted hit. The coalescing is transparent (same final count).
 4. **FIFO drop**: When `fifo_full` and a new hit arrives, `drop_pulse` fires. The scoreboard must track this per-port and NOT increment `ref_bins` for dropped hits.
 5. **Signed vs unsigned key**: `build_key()` has two paths. The scoreboard must replicate the sign-extension logic exactly.
+6. **V3 source select**: Type0 source-select enables all eight Type0 lanes; Type1 up/down source-select maps one selected bank to internal port 0 and uses `ts` only in delay mode.
+7. **V3 resource profile**: The maintained standalone V3 `tb_top` uses `FIFO_ADDR_WIDTH=2`, `COAL_QUEUE_DEPTH=4`, `MAX_COUNT_BITS=20`, `KICK_COUNT_WIDTH=4`, and `POWER2_BIN_WIDTH_ONLY=1`.
 
 ---
 

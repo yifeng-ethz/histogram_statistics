@@ -112,6 +112,8 @@ class hist_base_test extends uvm_test;
   task automatic program_histogram(
     input int signed   left_bound   = 0,
     input int unsigned bin_width    = 16,
+    input bit [3:0]    mode         = 4'h0,
+    input bit [1:0]    source_select = HS_SOURCE_TYPE0,
     input bit          key_unsigned = 1'b1,
     input bit          filter_enable = 1'b0,
     input bit          filter_reject = 1'b0,
@@ -123,9 +125,11 @@ class hist_base_test extends uvm_test;
     csr_write(5'd5, bin_width[31:0]);
     csr_write(5'd10, interval_cfg[31:0]);
     control_word       = 32'h0000_0001;
+    control_word[7:4]  = mode;
     control_word[8]    = key_unsigned;
     control_word[12]   = filter_enable;
     control_word[13]   = filter_reject;
+    control_word[17:16] = source_select;
     csr_write(5'd2, control_word);
     repeat (8) @(cfg.probe_vif.mon_cb);
   endtask
@@ -152,7 +156,8 @@ class hist_base_test extends uvm_test;
     input logic [HS_AVST_DATA_W-1:0]  data_word,
     input bit [HS_AVST_CH_W-1:0]      channel = '0,
     input bit                         sop = 1'b0,
-    input bit                         eop = 1'b0
+    input bit                         eop = 1'b0,
+    input logic [HS_TS_W-1:0]         ts = '0
   );
     hist_fill_seq seq;
     if (port_index >= HS_N_PORTS) begin
@@ -162,6 +167,7 @@ class hist_base_test extends uvm_test;
     seq.port_index       = port_index;
     seq.use_raw_words    = 1'b1;
     seq.raw_words.push_back(data_word);
+    seq.timestamps.push_back(ts);
     seq.channels.push_back(channel);
     seq.sops.push_back(sop);
     seq.eops.push_back(eop);
@@ -171,9 +177,10 @@ class hist_base_test extends uvm_test;
   task automatic send_fill_word(
     input int unsigned                port_index,
     input logic [HS_AVST_DATA_W-1:0]  data_word,
-    input bit [HS_AVST_CH_W-1:0]      channel = '0
+    input bit [HS_AVST_CH_W-1:0]      channel = '0,
+    input logic [HS_TS_W-1:0]         ts = '0
   );
-    send_fill_word_ex(port_index, data_word, channel, 1'b0, 1'b0);
+    send_fill_word_ex(port_index, data_word, channel, 1'b0, 1'b0, ts);
   endtask
 
   function logic [HS_AVST_DATA_W-1:0] make_fill_word(
@@ -198,19 +205,44 @@ class hist_base_test extends uvm_test;
     return hist_build_type1_word(asic_id, channel_id, tcc_8n, tcc_1n6, tfine, et_1n6);
   endfunction
 
+  function logic [HS_AVST_DATA_W-1:0] make_type0_fill_word(
+    input int unsigned asic_id,
+    input int unsigned channel_id,
+    input int unsigned tcc,
+    input int unsigned tfine = 0,
+    input int unsigned ecc   = 0,
+    input bit          eflag = 1'b0
+  );
+    return hist_build_type0_word(asic_id, channel_id, tcc, tfine, ecc, eflag);
+  endfunction
+
   task automatic send_type1_hit(
-    input int unsigned port_index,
+    input int unsigned bank_select,
     input int unsigned asic_id,
     input int unsigned channel_id,
     input int unsigned tcc_8n,
+    input logic [HS_TS_W-1:0] true_ts = '0,
     input int unsigned tcc_1n6 = 0,
     input int unsigned tfine   = 0,
     input int unsigned et_1n6  = 0
   );
-    send_fill_word(
-      port_index,
-      make_type1_fill_word(asic_id, channel_id, tcc_8n, tcc_1n6, tfine, et_1n6),
-      asic_id[HS_AVST_CH_W-1:0]
-    );
+    hist_fill_seq seq;
+    seq = hist_fill_seq::type_id::create($sformatf("type1_bank_%0d_hit", bank_select));
+    seq.port_index    = 0;
+    seq.use_raw_words = 1'b1;
+    seq.raw_words.push_back(make_type1_fill_word(asic_id, channel_id, tcc_8n, tcc_1n6, tfine, et_1n6));
+    seq.timestamps.push_back(true_ts);
+    seq.channels.push_back(asic_id[HS_AVST_CH_W-1:0]);
+    case (bank_select)
+      HS_SOURCE_TYPE1_UP: begin
+        seq.start(env.type1_up_agent.seqr);
+      end
+      HS_SOURCE_TYPE1_DOWN: begin
+        seq.start(env.type1_down_agent.seqr);
+      end
+      default: begin
+        `uvm_fatal(get_type_name(), $sformatf("send_type1_hit bank_select %0d is not a Type1 bank", bank_select))
+      end
+    endcase
   endtask
 endclass

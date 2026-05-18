@@ -31,7 +31,9 @@ module tb_histogram_statistics_v2;
   localparam int unsigned CHANNELS_PER_PORT  = 32;
   localparam int unsigned COAL_QUEUE_DEPTH   = 256;
   localparam int unsigned DEF_INTERVAL_CLKS  = 125_000_000;
-  localparam int unsigned AVST_DATA_WIDTH    = 39;
+  localparam int unsigned AVST_DATA_WIDTH    = 87;
+  localparam int unsigned TYPE0_DATA_WIDTH   = 45;
+  localparam int unsigned TYPE1_DATA_WIDTH   = 39;
   localparam int unsigned AVST_CHAN_WIDTH    = 4;
   localparam int unsigned VERSION_MAJOR       = 26;
   localparam int unsigned VERSION_MINOR       = 3;
@@ -110,8 +112,20 @@ module tb_histogram_statistics_v2;
   logic [AVST_CHAN_WIDTH-1:0]  fill_chan  [8];
   logic                       fill_ready [8];
 
-  logic [86:0] hit_type1_extended_data  [2];
-  logic        hit_type1_extended_valid [2];
+  logic                       type1_up_ready;
+  logic                       type1_up_valid;
+  logic [TYPE1_DATA_WIDTH-1:0] type1_up_data;
+  logic [47:0]                type1_up_ts;
+  logic                       type1_up_sop;
+  logic                       type1_up_eop;
+  logic [AVST_CHAN_WIDTH-1:0] type1_up_chan;
+  logic                       type1_down_ready;
+  logic                       type1_down_valid;
+  logic [TYPE1_DATA_WIDTH-1:0] type1_down_data;
+  logic [47:0]                type1_down_ts;
+  logic                       type1_down_sop;
+  logic                       type1_down_eop;
+  logic [AVST_CHAN_WIDTH-1:0] type1_down_chan;
 
   // AVST fill_out (snoop)
   logic                       fill_out_ready;
@@ -150,9 +164,11 @@ module tb_histogram_statistics_v2;
     .CHANNELS_PER_PORT         (CHANNELS_PER_PORT),
     .COAL_QUEUE_DEPTH          (COAL_QUEUE_DEPTH),
     .ENABLE_PINGPONG           (1'b1),
-    .DEF_INTERVAL_CLOCKS       (DEF_INTERVAL_CLKS),
-    .AVST_DATA_WIDTH           (AVST_DATA_WIDTH),
-    .AVST_CHANNEL_WIDTH        (AVST_CHAN_WIDTH),
+	    .DEF_INTERVAL_CLOCKS       (DEF_INTERVAL_CLKS),
+	    .AVST_DATA_WIDTH           (AVST_DATA_WIDTH),
+	    .TYPE0_DATA_WIDTH          (TYPE0_DATA_WIDTH),
+	    .TYPE1_DATA_WIDTH          (TYPE1_DATA_WIDTH),
+	    .AVST_CHANNEL_WIDTH        (AVST_CHAN_WIDTH),
     .N_DEBUG_INTERFACE         (6),
     .VERSION_MAJOR             (VERSION_MAJOR),
     .VERSION_MINOR             (VERSION_MINOR),
@@ -181,61 +197,97 @@ module tb_histogram_statistics_v2;
     .avs_csr_write                   (csr_write),
     .avs_csr_writedata               (csr_writedata),
 
-    .asi_hist_fill_in_ready          (fill_ready[0]),
-    .asi_hist_fill_in_valid          (fill_valid[0]),
-    .asi_hist_fill_in_data           (fill_data[0]),
-    .asi_hist_fill_in_startofpacket  (fill_sop[0]),
-    .asi_hist_fill_in_endofpacket    (fill_eop[0]),
-    .asi_hist_fill_in_channel        (fill_chan[0]),
+	    .asi_type0_lane0_ready           (fill_ready[0]),
+	    .asi_type0_lane0_valid           (fill_valid[0]),
+	    .asi_type0_lane0_data            (fill_data[0][TYPE0_DATA_WIDTH-1:0]),
+	    .asi_type0_lane0_startofpacket   (fill_sop[0]),
+	    .asi_type0_lane0_endofpacket     (fill_eop[0]),
+	    .asi_type0_lane0_channel         (fill_chan[0]),
+	    .asi_type0_lane0_error           (3'b000),
+	    .asi_type0_lane0_endofrun        (1'b0),
 
-    .asi_fill_in_1_ready             (fill_ready[1]),
-    .asi_fill_in_1_valid             (fill_valid[1]),
-    .asi_fill_in_1_data              (fill_data[1]),
-    .asi_fill_in_1_startofpacket     (fill_sop[1]),
-    .asi_fill_in_1_endofpacket       (fill_eop[1]),
-    .asi_fill_in_1_channel           (fill_chan[1]),
+	    .asi_type0_lane1_ready           (fill_ready[1]),
+	    .asi_type0_lane1_valid           (fill_valid[1]),
+	    .asi_type0_lane1_data            (fill_data[1][TYPE0_DATA_WIDTH-1:0]),
+	    .asi_type0_lane1_startofpacket   (fill_sop[1]),
+	    .asi_type0_lane1_endofpacket     (fill_eop[1]),
+	    .asi_type0_lane1_channel         (fill_chan[1]),
+	    .asi_type0_lane1_error           (3'b000),
+	    .asi_type0_lane1_endofrun        (1'b0),
 
-    .asi_fill_in_2_ready             (fill_ready[2]),
-    .asi_fill_in_2_valid             (fill_valid[2]),
-    .asi_fill_in_2_data              (fill_data[2]),
-    .asi_fill_in_2_startofpacket     (fill_sop[2]),
-    .asi_fill_in_2_endofpacket       (fill_eop[2]),
-    .asi_fill_in_2_channel           (fill_chan[2]),
+	    .asi_type0_lane2_ready           (fill_ready[2]),
+	    .asi_type0_lane2_valid           (fill_valid[2]),
+	    .asi_type0_lane2_data            (fill_data[2][TYPE0_DATA_WIDTH-1:0]),
+	    .asi_type0_lane2_startofpacket   (fill_sop[2]),
+	    .asi_type0_lane2_endofpacket     (fill_eop[2]),
+	    .asi_type0_lane2_channel         (fill_chan[2]),
+	    .asi_type0_lane2_error           (3'b000),
+	    .asi_type0_lane2_endofrun        (1'b0),
 
-    .asi_fill_in_3_ready             (fill_ready[3]),
-    .asi_fill_in_3_valid             (fill_valid[3]),
-    .asi_fill_in_3_data              (fill_data[3]),
-    .asi_fill_in_3_startofpacket     (fill_sop[3]),
-    .asi_fill_in_3_endofpacket       (fill_eop[3]),
-    .asi_fill_in_3_channel           (fill_chan[3]),
+	    .asi_type0_lane3_ready           (fill_ready[3]),
+	    .asi_type0_lane3_valid           (fill_valid[3]),
+	    .asi_type0_lane3_data            (fill_data[3][TYPE0_DATA_WIDTH-1:0]),
+	    .asi_type0_lane3_startofpacket   (fill_sop[3]),
+	    .asi_type0_lane3_endofpacket     (fill_eop[3]),
+	    .asi_type0_lane3_channel         (fill_chan[3]),
+	    .asi_type0_lane3_error           (3'b000),
+	    .asi_type0_lane3_endofrun        (1'b0),
 
-    .asi_fill_in_4_ready             (fill_ready[4]),
-    .asi_fill_in_4_valid             (fill_valid[4]),
-    .asi_fill_in_4_data              (fill_data[4]),
-    .asi_fill_in_4_startofpacket     (fill_sop[4]),
-    .asi_fill_in_4_endofpacket       (fill_eop[4]),
-    .asi_fill_in_4_channel           (fill_chan[4]),
+	    .asi_type0_lane4_ready           (fill_ready[4]),
+	    .asi_type0_lane4_valid           (fill_valid[4]),
+	    .asi_type0_lane4_data            (fill_data[4][TYPE0_DATA_WIDTH-1:0]),
+	    .asi_type0_lane4_startofpacket   (fill_sop[4]),
+	    .asi_type0_lane4_endofpacket     (fill_eop[4]),
+	    .asi_type0_lane4_channel         (fill_chan[4]),
+	    .asi_type0_lane4_error           (3'b000),
+	    .asi_type0_lane4_endofrun        (1'b0),
 
-    .asi_fill_in_5_ready             (fill_ready[5]),
-    .asi_fill_in_5_valid             (fill_valid[5]),
-    .asi_fill_in_5_data              (fill_data[5]),
-    .asi_fill_in_5_startofpacket     (fill_sop[5]),
-    .asi_fill_in_5_endofpacket       (fill_eop[5]),
-    .asi_fill_in_5_channel           (fill_chan[5]),
+	    .asi_type0_lane5_ready           (fill_ready[5]),
+	    .asi_type0_lane5_valid           (fill_valid[5]),
+	    .asi_type0_lane5_data            (fill_data[5][TYPE0_DATA_WIDTH-1:0]),
+	    .asi_type0_lane5_startofpacket   (fill_sop[5]),
+	    .asi_type0_lane5_endofpacket     (fill_eop[5]),
+	    .asi_type0_lane5_channel         (fill_chan[5]),
+	    .asi_type0_lane5_error           (3'b000),
+	    .asi_type0_lane5_endofrun        (1'b0),
 
-    .asi_fill_in_6_ready             (fill_ready[6]),
-    .asi_fill_in_6_valid             (fill_valid[6]),
-    .asi_fill_in_6_data              (fill_data[6]),
-    .asi_fill_in_6_startofpacket     (fill_sop[6]),
-    .asi_fill_in_6_endofpacket       (fill_eop[6]),
-    .asi_fill_in_6_channel           (fill_chan[6]),
+	    .asi_type0_lane6_ready           (fill_ready[6]),
+	    .asi_type0_lane6_valid           (fill_valid[6]),
+	    .asi_type0_lane6_data            (fill_data[6][TYPE0_DATA_WIDTH-1:0]),
+	    .asi_type0_lane6_startofpacket   (fill_sop[6]),
+	    .asi_type0_lane6_endofpacket     (fill_eop[6]),
+	    .asi_type0_lane6_channel         (fill_chan[6]),
+	    .asi_type0_lane6_error           (3'b000),
+	    .asi_type0_lane6_endofrun        (1'b0),
 
-    .asi_fill_in_7_ready             (fill_ready[7]),
-    .asi_fill_in_7_valid             (fill_valid[7]),
-    .asi_fill_in_7_data              (fill_data[7]),
-    .asi_fill_in_7_startofpacket     (fill_sop[7]),
-    .asi_fill_in_7_endofpacket       (fill_eop[7]),
-    .asi_fill_in_7_channel           (fill_chan[7]),
+	    .asi_type0_lane7_ready           (fill_ready[7]),
+	    .asi_type0_lane7_valid           (fill_valid[7]),
+	    .asi_type0_lane7_data            (fill_data[7][TYPE0_DATA_WIDTH-1:0]),
+	    .asi_type0_lane7_startofpacket   (fill_sop[7]),
+	    .asi_type0_lane7_endofpacket     (fill_eop[7]),
+	    .asi_type0_lane7_channel         (fill_chan[7]),
+	    .asi_type0_lane7_error           (3'b000),
+	    .asi_type0_lane7_endofrun        (1'b0),
+
+	    .asi_type1_up_ready              (type1_up_ready),
+	    .asi_type1_up_valid              (type1_up_valid),
+	    .asi_type1_up_data               (type1_up_data),
+	    .asi_type1_up_ts                 (type1_up_ts),
+	    .asi_type1_up_startofpacket      (type1_up_sop),
+	    .asi_type1_up_endofpacket        (type1_up_eop),
+	    .asi_type1_up_channel            (type1_up_chan),
+	    .asi_type1_up_empty              (1'b0),
+	    .asi_type1_up_error              (1'b0),
+
+	    .asi_type1_down_ready            (type1_down_ready),
+	    .asi_type1_down_valid            (type1_down_valid),
+	    .asi_type1_down_data             (type1_down_data),
+	    .asi_type1_down_ts               (type1_down_ts),
+	    .asi_type1_down_startofpacket    (type1_down_sop),
+	    .asi_type1_down_endofpacket      (type1_down_eop),
+	    .asi_type1_down_channel          (type1_down_chan),
+	    .asi_type1_down_empty            (1'b0),
+	    .asi_type1_down_error            (1'b0),
 
     .asi_hit_type1_extended_0_valid   (hit_type1_extended_valid[0]),
     .asi_hit_type1_extended_0_data    (hit_type1_extended_data[0]),
@@ -687,6 +739,7 @@ module tb_histogram_statistics_v2;
     ctrl_word[3:2]   = in_port[1:0];
     ctrl_word[7:4]   = 4'h1;           // positive delay mode
     ctrl_word[8]     = 1'b1;
+    ctrl_word[17:16] = 2'b01;          // Type1 up source for 48-bit ts sideband
     csr_write32(CSR_CONTROL, ctrl_word);
     repeat (10) @(posedge i_clk);
   endtask
@@ -710,14 +763,39 @@ module tb_histogram_statistics_v2;
              gts_sample, delay_ticks);
     end
     hit_ts   = gts_sample - delay_vec;
-    hit_data = make_delay_hit_data(hit_ts, lower_mode_key);
+    hit_data = make_hit_data(lower_mode_key);
 
-    hit_type1_extended_data[ext_idx]  <= hit_data;
-    hit_type1_extended_valid[ext_idx] <= 1'b1;
+    if (port_idx == 0) begin
+      type1_up_data  <= hit_data[TYPE1_DATA_WIDTH-1:0];
+      type1_up_ts    <= hit_ts;
+      type1_up_valid <= 1'b1;
+      type1_up_sop   <= 1'b0;
+      type1_up_eop   <= 1'b0;
+      type1_up_chan  <= '0;
+    end else begin
+      type1_down_data  <= hit_data[TYPE1_DATA_WIDTH-1:0];
+      type1_down_ts    <= hit_ts;
+      type1_down_valid <= 1'b1;
+      type1_down_sop   <= 1'b0;
+      type1_down_eop   <= 1'b0;
+      type1_down_chan  <= '0;
+    end
 
     @(posedge i_clk);
-    hit_type1_extended_valid[ext_idx] <= 1'b0;
-    hit_type1_extended_data[ext_idx]  <= '0;
+    if ((port_idx == 0) && (type1_up_ready !== 1'b1)) begin
+      $fatal(1, "inject_delay_hit_exact: type1_up ready was not high");
+    end
+    if ((port_idx != 0) && (type1_down_ready !== 1'b1)) begin
+      $fatal(1, "inject_delay_hit_exact: type1_down ready was not high");
+    end
+    type1_up_valid   <= 1'b0;
+    type1_up_data    <= '0;
+    type1_up_ts      <= '0;
+    type1_up_chan    <= '0;
+    type1_down_valid <= 1'b0;
+    type1_down_data  <= '0;
+    type1_down_ts    <= '0;
+    type1_down_chan  <= '0;
   endtask
 
   // ════════════════════════════════════════════════════════════════
@@ -1566,18 +1644,26 @@ module tb_histogram_statistics_v2;
     bin_address    <= '0;
     bin_writedata  <= '0;
     bin_burstcount <= {{AVS_ADDR_WIDTH{1'b0}}, 1'b1};
-    for (int i = 0; i < 8; i++) begin
-      fill_valid[i] <= 1'b0;
-      fill_data[i]  <= '0;
-      fill_sop[i]   <= 1'b0;
-      fill_eop[i]   <= 1'b0;
-      fill_chan[i]   <= '0;
-    end
-    for (int i = 0; i < 2; i++) begin
-      hit_type1_extended_valid[i] <= 1'b0;
-      hit_type1_extended_data[i]  <= '0;
-    end
-    fill_out_ready <= 1'b1;
+	    for (int i = 0; i < 8; i++) begin
+	      fill_valid[i] <= 1'b0;
+	      fill_data[i]  <= '0;
+	      fill_sop[i]   <= 1'b0;
+	      fill_eop[i]   <= 1'b0;
+	      fill_chan[i]   <= '0;
+	    end
+	    type1_up_valid   <= 1'b0;
+	    type1_up_data    <= '0;
+	    type1_up_ts      <= '0;
+	    type1_up_sop     <= 1'b0;
+	    type1_up_eop     <= 1'b0;
+	    type1_up_chan    <= '0;
+	    type1_down_valid <= 1'b0;
+	    type1_down_data  <= '0;
+	    type1_down_ts    <= '0;
+	    type1_down_sop   <= 1'b0;
+	    type1_down_eop   <= 1'b0;
+	    type1_down_chan  <= '0;
+	    fill_out_ready <= 1'b1;
     ctrl_data      <= 9'h000;
     ctrl_valid     <= 1'b0;
     for (int i = 0; i < 6; i++) begin
