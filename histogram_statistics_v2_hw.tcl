@@ -437,29 +437,6 @@ proc validate {} {
 }
 
 proc elaborate {} {
-    # ====================================================================
-    # DEPRECATED IP — HARD BLOCK
-    # ====================================================================
-    # This IP (histogram_statistics_v2) is superseded by the v3 contract
-    # `histogram_statistics` (kind `histogram_statistics`, hw.tcl at
-    # `histogram_statistics/histogram_statistics_hw.tcl`). The v3 IP
-    # exposes explicit per-lane Type0 ingress (type0_lane0..7_in) plus
-    # Type1 up/down ingress with a separate 48-bit timestamp sideband for
-    # Type1 delay-mode histograms, per histogram_statistics/RTL_V3_NOTE.md.
-    # The v2 generic `hist_fill_in` ingress cannot wire Type0 fanout or
-    # Type1 latency mode cleanly and hides the kind of integration bug
-    # documented in RTL_V3_NOTE.md section 1.
-    #
-    # To regenerate against this old kind anyway (legacy build only), set
-    # the environment variable
-    # MU3E_ALLOW_DEPRECATED_HISTOGRAM_STATISTICS_V2=1 before invoking
-    # qsys-generate / qsys-edit.
-    # ====================================================================
-    if {![info exists ::env(MU3E_ALLOW_DEPRECATED_HISTOGRAM_STATISTICS_V2)] ||
-        $::env(MU3E_ALLOW_DEPRECATED_HISTOGRAM_STATISTICS_V2) != "1"} {
-        send_message error "DEPRECATED: histogram_statistics_v2 is deprecated. Migrate to `histogram_statistics` (v3 contract, hw.tcl: histogram_statistics/histogram_statistics_hw.tcl) which exposes explicit Type0 lane0..7_in plus Type1 up/down_in with 48-bit ts sideband per histogram_statistics/RTL_V3_NOTE.md. To override for legacy builds set MU3E_ALLOW_DEPRECATED_HISTOGRAM_STATISTICS_V2=1 in the qsys-generate environment."
-        return
-    }
     compute_derived_values
 
     set data_w  [get_parameter_value AVST_DATA_WIDTH]

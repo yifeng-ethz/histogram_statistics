@@ -500,6 +500,28 @@ add_interface_port ctrl asi_ctrl_ready ready Output 1
 
 
 proc my_elaborate {} {
+    # ====================================================================
+    # DEPRECATED IP — HARD BLOCK
+    # ====================================================================
+    # This IP (kind `histogram_statistics`) uses the OLD generic
+    # `hist_fill_in` / `hist_fill_out` Avalon-ST contract that hides the
+    # FEB v3 integration bug class documented in
+    # histogram_statistics/RTL_V3_NOTE.md section 1. The v3 contract is
+    # implemented in `histogram_statistics_v2` (kind: histogram_statistics_v2,
+    # hw.tcl: histogram_statistics/histogram_statistics_v2_hw.tcl) which
+    # exposes explicit per-lane Type0 ingress (type0_lane0..7) plus
+    # Type1 up/down ingress with a separate 48-bit timestamp sideband.
+    #
+    # To regenerate against this old kind anyway (legacy build only), set
+    # the environment variable
+    # MU3E_ALLOW_DEPRECATED_HISTOGRAM_STATISTICS=1 before invoking
+    # qsys-generate / qsys-edit.
+    # ====================================================================
+    if {![info exists ::env(MU3E_ALLOW_DEPRECATED_HISTOGRAM_STATISTICS)] ||
+        $::env(MU3E_ALLOW_DEPRECATED_HISTOGRAM_STATISTICS) != "1"} {
+        send_message error "DEPRECATED: kind `histogram_statistics` uses the legacy hist_fill_in/out interface. Migrate to `histogram_statistics_v2` (hw.tcl: histogram_statistics/histogram_statistics_v2_hw.tcl) which exposes explicit Type0 lane0..7 plus Type1 up/down with 48-bit ts sideband per RTL_V3_NOTE.md. To override for legacy builds set MU3E_ALLOW_DEPRECATED_HISTOGRAM_STATISTICS=1 in the qsys-generate environment."
+        return
+    }
     set nDebug [get_parameter_value N_DEBUG_INTERFACE]
     for {set i 1} {[expr $i < $nDebug+1]} {incr i} {
         set interfaceName "debug_${i}"
