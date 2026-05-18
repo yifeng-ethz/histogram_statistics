@@ -1,3 +1,4 @@
+-- altera vhdl_input_version vhdl_2008
 -- File name: coalescing_queue.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
 -- =======================================

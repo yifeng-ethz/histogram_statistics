@@ -1,3 +1,4 @@
+-- altera vhdl_input_version vhdl_2008
 -- File name: hit_fifo.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
 -- =======================================

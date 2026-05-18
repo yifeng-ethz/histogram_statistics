@@ -1,3 +1,4 @@
+-- altera vhdl_input_version vhdl_2008
 -- File name: rr_arbiter.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
 -- =======================================

@@ -1,3 +1,4 @@
+-- altera vhdl_input_version vhdl_2008
 -- File name: histogram_statistics_v2_pkg.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
 -- =======================================

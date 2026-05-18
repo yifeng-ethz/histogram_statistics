@@ -1,3 +1,4 @@
+-- altera vhdl_input_version vhdl_2008
 -- File name: bin_divider.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
 -- =======================================

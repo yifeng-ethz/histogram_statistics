@@ -1,4 +1,5 @@
--- File name: shift_reg_with_dsp.vhd 
+-- altera vhdl_input_version vhdl_2008
+-- File name: shift_reg_with_dsp.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
 -- =======================================
 -- Revision: 1.0 (file created)
