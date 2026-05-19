@@ -19,10 +19,27 @@ package hist_env_pkg;
   localparam int HS_DEF_LEFT_BOUND  = -1000;
   localparam int HS_DEF_BIN_WIDTH   = 16;
   localparam int HS_DEF_RIGHT_BOUND = HS_DEF_LEFT_BOUND + (HS_DEF_BIN_WIDTH * HS_N_BINS);
-  localparam int HS_DEF_UPDATE_LO   = 17;
-  localparam int HS_DEF_UPDATE_HI   = 29;
-  localparam int HS_DEF_FILTER_LO   = 35;
-  localparam int HS_DEF_FILTER_HI   = 38;
+  // FEB V3/V4 fixed Type0 ingress layout (TCC at data[35:21], ASIC at data[44:41]).
+  // The RTL build_fixed_key path (LOCK_KEY_RANGES=1, source_select=Type0) extracts
+  // the update key from these bits regardless of the CSR update_key_low/high
+  // registers; UVM fill-word construction and scoreboard prediction must mirror
+  // the same fixed slices when LOCK_KEY_RANGES is enabled.
+  localparam int HS_DEF_UPDATE_LO   = 21;
+  localparam int HS_DEF_UPDATE_HI   = 35;
+  localparam int HS_DEF_FILTER_LO   = 41;
+  localparam int HS_DEF_FILTER_HI   = 44;
+  // Type0 / Type1 fixed slice constants used by build_fixed_key in the RTL.
+  // Kept here so the scoreboard and fill-word builder can switch on
+  // active_cfg.source_select instead of relying on the legacy update_key_low/high.
+  localparam int HS_TYPE0_UPDATE_LO = 21;
+  localparam int HS_TYPE0_UPDATE_HI = 35;
+  localparam int HS_TYPE0_FILTER_LO = 41;
+  localparam int HS_TYPE0_FILTER_HI = 44;
+  localparam int HS_TYPE1_UPDATE_LO = 17;
+  localparam int HS_TYPE1_UPDATE_HI = 29;
+  localparam int HS_TYPE1_FILTER_LO = 35;
+  localparam int HS_TYPE1_FILTER_HI = 38;
+  localparam bit HS_LOCK_KEY_RANGES = 1'b1;
   localparam int HS_DEF_INTERVAL    = 125_000_000;
   localparam int HS_CHANNELS_PER_PORT = 32;
   localparam int HS_FIFO_DEPTH      = 4;

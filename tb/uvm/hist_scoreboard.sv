@@ -66,19 +66,53 @@ class hist_scoreboard extends uvm_scoreboard;
     end
   endfunction
 
+  // When the RTL is built with LOCK_KEY_RANGES=1 (the FEB V3/V4 default), the
+  // ingress key/filter extraction uses source-aware fixed slices instead of
+  // the CSR-programmable update_key_low/high. Mirror that here so the
+  // scoreboard prediction matches the DUT regardless of CSR-programmed
+  // KEY_LOC values.
+  function void resolved_update_bits(output int unsigned bit_hi, output int unsigned bit_lo);
+    if (HS_LOCK_KEY_RANGES) begin
+      if (active_cfg.source_select == HS_SOURCE_TYPE0) begin
+        bit_hi = HS_TYPE0_UPDATE_HI;
+        bit_lo = HS_TYPE0_UPDATE_LO;
+      end else begin
+        bit_hi = HS_TYPE1_UPDATE_HI;
+        bit_lo = HS_TYPE1_UPDATE_LO;
+      end
+    end else begin
+      bit_hi = int'(active_cfg.update_key_high);
+      bit_lo = int'(active_cfg.update_key_low);
+    end
+  endfunction
+
+  function void resolved_filter_bits(output int unsigned bit_hi, output int unsigned bit_lo);
+    if (HS_LOCK_KEY_RANGES) begin
+      if (active_cfg.source_select == HS_SOURCE_TYPE0) begin
+        bit_hi = HS_TYPE0_FILTER_HI;
+        bit_lo = HS_TYPE0_FILTER_LO;
+      end else begin
+        bit_hi = HS_TYPE1_FILTER_HI;
+        bit_lo = HS_TYPE1_FILTER_LO;
+      end
+    end else begin
+      bit_hi = int'(active_cfg.filter_key_high);
+      bit_lo = int'(active_cfg.filter_key_low);
+    end
+  endfunction
+
   function bit filter_match(logic [HS_AVST_DATA_W-1:0] data_word);
     int unsigned field_v;
+    int unsigned bit_hi_v;
+    int unsigned bit_lo_v;
     bit          match_v;
 
     if (!active_cfg.filter_enable) begin
       return 1'b1;
     end
 
-    field_v = hist_extract_unsigned(
-      data_word,
-      active_cfg.filter_key_high,
-      active_cfg.filter_key_low
-    );
+    resolved_filter_bits(bit_hi_v, bit_lo_v);
+    field_v = hist_extract_unsigned(data_word, bit_hi_v, bit_lo_v);
     match_v = (field_v[15:0] == active_cfg.filter_key);
     if (active_cfg.filter_reject) begin
       return !match_v;
@@ -87,19 +121,14 @@ class hist_scoreboard extends uvm_scoreboard;
   endfunction
 
   function int signed build_fill_key(logic [HS_AVST_DATA_W-1:0] data_word);
-    if (active_cfg.key_unsigned) begin
-      return int'(hist_extract_unsigned(
-        data_word,
-        active_cfg.update_key_high,
-        active_cfg.update_key_low
-      ));
-    end
+    int unsigned bit_hi_v;
+    int unsigned bit_lo_v;
 
-    return hist_extract_signed(
-      data_word,
-      active_cfg.update_key_high,
-      active_cfg.update_key_low
-    );
+    resolved_update_bits(bit_hi_v, bit_lo_v);
+    if (active_cfg.key_unsigned) begin
+      return int'(hist_extract_unsigned(data_word, bit_hi_v, bit_lo_v));
+    end
+    return hist_extract_signed(data_word, bit_hi_v, bit_lo_v);
   endfunction
 
   function int signed build_debug_key(int signed mode_value, bit [15:0] debug_data);

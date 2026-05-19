@@ -120,8 +120,14 @@ class hist_base_test extends uvm_test;
     input int unsigned interval_cfg = 64
   );
     bit [31:0] control_word;
+    int signed derived_right_bound;
 
     csr_write(5'd3, $unsigned(left_bound));
+    // The RTL keeps csr_right_bound independent of left_bound/bin_width;
+    // the scoreboard auto-derives left_bound + bin_width * N_BINS on apply,
+    // so mirror that derivation here to keep DUT and scoreboard aligned.
+    derived_right_bound = left_bound + int'(bin_width) * HS_N_BINS;
+    csr_write(5'd4, $unsigned(derived_right_bound));
     csr_write(5'd5, bin_width[31:0]);
     csr_write(5'd10, interval_cfg[31:0]);
     control_word       = 32'h0000_0001;
