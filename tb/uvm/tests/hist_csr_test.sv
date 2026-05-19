@@ -28,7 +28,7 @@ class hist_csr_test extends hist_base_test;
   localparam bit [31:0] HS_B022_BANK_STATUS_MASK   = 32'h0000_0003;
   localparam bit [31:0] HS_B023_PORT_STATUS_MASK   = 32'h0000_00FF;
   localparam bit [31:0] HS_B023_PORT_STATUS_VALUE  = 32'h0000_00FF;
-  localparam bit [31:0] HS_B026_VERSION_VALUE      = 32'h1A00_0000;
+  localparam bit [31:0] HS_B026_VERSION_VALUE      = 32'h1A03_7207;
   localparam bit [31:0] HS_B028_SCRATCH_VALUE      = 32'hDEAD_BEEF;
 
   function new(string name, uvm_component parent);

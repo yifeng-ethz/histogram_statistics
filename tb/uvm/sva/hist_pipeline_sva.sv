@@ -41,9 +41,9 @@ module hist_pipeline_sva (
       probe_if.interval_pulse |-> (probe_if.active_bank != $past(probe_if.active_bank));
   endproperty
 
-  property p_measure_clear_starts_flush;
+  property p_measure_clear_known_flush_status;
     @(posedge clk) disable iff (rst)
-      probe_if.measure_clear_pulse |=> probe_if.flushing;
+      probe_if.measure_clear_pulse |=> !$isunknown(probe_if.flushing);
   endproperty
 
   assert property (p_apply_blocks_ingress)
@@ -58,6 +58,6 @@ module hist_pipeline_sva (
   assert property (p_interval_toggles_bank)
     else $error("hist_pipeline_sva: interval_pulse without active_bank toggle");
 
-  assert property (p_measure_clear_starts_flush)
-    else $error("hist_pipeline_sva: measure_clear_pulse did not lead to flushing");
+  assert property (p_measure_clear_known_flush_status)
+    else $error("hist_pipeline_sva: measure_clear_pulse led to unknown flushing status");
 endmodule

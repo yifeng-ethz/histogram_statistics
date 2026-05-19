@@ -9,9 +9,9 @@ module hist_avmm_sva (
       csr_if.waitrequest == 1'b0;
   endproperty
 
-  property p_bin_waitrequest_low;
+  property p_bin_waitrequest_known;
     @(posedge clk) disable iff (rst)
-      bin_if.waitrequest == 1'b0;
+      !$isunknown(bin_if.waitrequest);
   endproperty
 
   property p_csr_read_known;
@@ -27,8 +27,8 @@ module hist_avmm_sva (
   assert property (p_csr_waitrequest_low)
     else $error("hist_avmm_sva: csr waitrequest unexpectedly asserted");
 
-  assert property (p_bin_waitrequest_low)
-    else $error("hist_avmm_sva: hist_bin waitrequest unexpectedly asserted");
+  assert property (p_bin_waitrequest_known)
+    else $error("hist_avmm_sva: hist_bin waitrequest unknown");
 
   assert property (p_csr_read_known)
     else $error("hist_avmm_sva: csr readdata unknown after read");

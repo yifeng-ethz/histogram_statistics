@@ -2,12 +2,11 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  3
-set VERSION_PATCH_DEFAULT_CONST  5
+set VERSION_PATCH_DEFAULT_CONST  7
 # BUILD field encodes MMDD per the ip-packaging skill convention. The
-# previous value 522 was forward-dated (May 22 is in the future as of
-# 2026-05-18). Aligned to VERSION_DATE_DEFAULT_CONST below.
-set BUILD_DEFAULT_CONST          518
-set VERSION_DATE_DEFAULT_CONST   20260518
+# delivered package date is aligned to VERSION_DATE_DEFAULT_CONST below.
+set BUILD_DEFAULT_CONST          519
+set VERSION_DATE_DEFAULT_CONST   20260519
 set VERSION_GIT_DEFAULT_CONST    0
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \

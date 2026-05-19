@@ -120,9 +120,10 @@ module tb_top;
     .N_DEBUG_INTERFACE         (N_DEBUG_INTERFACE),
     .ENABLE_DEBUG_INPUTS       (ENABLE_DEBUG_INPUTS),
     .VERSION_MAJOR             (26),
-    .VERSION_MINOR             (0),
-    .VERSION_PATCH             (0),
-    .BUILD                     (0),
+    .VERSION_MINOR             (3),
+    .VERSION_PATCH             (7),
+    .BUILD                     (519),
+    .VERSION_DATE              (20260519),
     .SNOOP_EN                  (1'b0),
     .ENABLE_PACKET             (1'b0),
     .DEBUG                     (0)

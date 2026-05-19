@@ -96,13 +96,13 @@ class hist_edge_csr_test extends hist_base_test;
   endtask
 
   // E114: CSR read to META page 0 (version register)
-  // DUT instantiated with VERSION_MAJOR=26, VERSION_MINOR=0, VERSION_PATCH=0, BUILD=0
+  // DUT instantiated with VERSION_MAJOR=26, VERSION_MINOR=3, VERSION_PATCH=7, BUILD=519.
   local task automatic task_e114();
     bit [31:0] val;
     bit [31:0] expected;
     `uvm_info(get_type_name(), "E114: version register read", UVM_LOW)
-    // version_v[31:24]=26, [23:16]=0, [15:12]=0, [11:0]=0
-    expected = 32'h1A00_0000;
+    // version_v[31:24]=26, [23:16]=3, [15:12]=7, [11:0]=519
+    expected = 32'h1A03_7207;
     csr_read(CSR_VERSION, val);
     if (val !== expected)
       `uvm_error("E114", $sformatf("version expected 0x%08h got 0x%08h", expected, val))

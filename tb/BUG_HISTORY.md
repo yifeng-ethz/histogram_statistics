@@ -46,6 +46,63 @@ Historical formal note:
 | [BUG-008-H](#bug-008-h-three-instance-signaltap-debug-file-trips-quartus-181-sld-hub-generation) | H | non-datapath-refactor | `directed-only (board debug STP compile)` | partial | FEB V3 direct-hist debug compile 2026-05-17 | `pending` | A three-clock SignalTap file triggers Quartus 18.1 SLD hub generation failure; single-domain STP generation is available but multi-instance STP remains open. |
 | [BUG-009-H](#bug-009-h-uvm-make-run-returned-success-despite-questa-sva-errors) | H | non-datapath-refactor | `common (SVA-enabled standalone DV run)` | fixed | focused V3 direct-input rerun 2026-05-17 | `5c94fad` | `make run` returned success even when the Questa transcript reported nonzero SVA errors. |
 | [BUG-010-H](#bug-010-h-v3-direct-input-test-trips-measure_clear_pulse-flushing-sva) | H | soft error | `common (V3 source-switch clear between cases)` | open | focused V3 direct-input rerun 2026-05-17 | `pending` | `hist_v3_direct_input_test` triggers four `measure_clear_pulse did not lead to flushing` SVA errors; standalone DV is not closed until this is explained. |
+| [BUG-011-R](#bug-011-r-gts_reset_reg-latch-violated-the-resetting-self-exit-contract) | R | non-datapath-refactor | `directed-only (CONTRACT.md audit + bench STP)` | fixed (gts_counter_clear is now combinational, preserves SYNC-entry pulse) | CONTRACT.md audit on `2026-05-19` | this commit | The latched `gts_reset_reg` process held the GTS counter cleared without a self-exit path, violating the new RESETTING-State Self-Exit Contract in `firmware_builds/doc/CONTRACT.md`. Refactored to combinational `gts_counter_clear <= i_rst or runctl_reset_hold or runctl_sync_start or runctl_run_start`. |
+
+## 2026-05-19
+
+### BUG-011-R: gts_reset_reg latch violated the RESETTING self-exit contract
+
+- First seen in:
+  - CONTRACT.md audit on `2026-05-19` after the new
+    `firmware_builds/doc/CONTRACT.md` "RESETTING-State Self-Exit Contract"
+    section was added in the parent-repo commit
+  - bench STP capture against FEB SciFi v4 (commit `0f929e58`) showed
+    `histogram_statistics_0|gts_reset_reg~0 = 1` while
+    `rst_controller_001.reset_out = 0` (the reset to the IP was already
+    deasserted), confusing bench debug
+- Symptom:
+  - STP-time reading of `gts_reset_reg` did not match the reset-control
+    trace; the latch held its asserted value past reset-deassertion
+  - Per the contract, any RESETTING-equivalent signal must self-exit when
+    hardware reset / runctl `RESET` deasserts
+- Root cause:
+  - `gts_reset_reg` process latched `gts_counter_rst <= 1` on
+    `i_rst='1' OR run_state_cmd = SYNC`, then reset it to 0 the next
+    cycle (one-cycle pulse on SYNC entry). The latch register itself was
+    a "RESETTING-equivalent" hold whose exit condition depended on the
+    process running, not on hardware reset
+- Fix status:
+  - state: fixed
+  - mechanism:
+    - Removed the `gts_reset_reg` process and the `gts_counter_rst` signal
+    - Added a combinational `gts_counter_clear` driven by
+      `i_rst or runctl_reset_hold or runctl_sync_start or runctl_run_start`
+      (the SYNC-entry pulse semantics of the original latch are preserved
+      via the new `runctl_sync_start` edge detector)
+    - The only `run_state_cmd <= RESET` assignment remains under
+      `RUNCTL_RESET_CMD_CONST`; when ctrl valid deasserts, `RESET`
+      self-exits to `IDLE` per the contract
+    - Bumped VERSION_PATCH 26.3.5.0518 -> 26.3.7.0519 (two bumps because
+      a first attempt at the refactor (26.3.6) collapsed SYNC-entry into
+      RUNNING-entry semantics and was caught by the test sequence below
+      before being committed)
+  - after_fix_outcome:
+    - Contract audit sequence (`rg "RESETTING|gts_reset_reg|gts_counter_rst"
+      rtl`) returns no matches: the contract audit pass is clean
+    - Questa static screen sequence (lint+cdc+rdc): Lint Errors 0,
+      CDC Violations 0, RDC Violations 0
+    - Standalone Quartus signoff sequence: full compile +
+      `quartus_sta` PASS, worst slow-corner setup slack +0.544 ns at 1.1x
+    - UVM smoke sequence (`hist_csr_test`): PASS, UVM_ERROR 0, UVM_FATAL 0
+  - potential_hazard:
+    - The Type0-key-layout regression (`divider bin mismatch dut=0 ref=N`
+      in `hist_bank_test`, `hist_bin_test`, `hist_burst_test`, `hist_cfg_test`,
+      `hist_coalesce_test`, `hist_debug_test`) is NOT addressed by this
+      refactor and is a separate pre-existing TB-side bug (UVM fill-word
+      builds the update key at bits 17:29 while the RTL Type0 extraction
+      constants select bits 21:35). Tracked separately, not closed here
+- Commit:
+  - this commit
 
 ## 2026-05-17
 

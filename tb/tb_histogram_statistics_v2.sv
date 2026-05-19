@@ -37,9 +37,9 @@ module tb_histogram_statistics_v2;
   localparam int unsigned AVST_CHAN_WIDTH    = 4;
   localparam int unsigned VERSION_MAJOR       = 26;
   localparam int unsigned VERSION_MINOR       = 3;
-  localparam int unsigned VERSION_PATCH       = 0;
-  localparam int unsigned VERSION_BUILD       = 515;
-  localparam int unsigned VERSION_DATE        = 20260515;
+  localparam int unsigned VERSION_PATCH       = 7;
+  localparam int unsigned VERSION_BUILD       = 519;
+  localparam int unsigned VERSION_DATE        = 20260519;
   localparam int unsigned DELAY_TS_BIT_LO     = 39;
   localparam int unsigned DELAY_TS_BIT_HI     = 86;
 
@@ -126,6 +126,8 @@ module tb_histogram_statistics_v2;
   logic                       type1_down_sop;
   logic                       type1_down_eop;
   logic [AVST_CHAN_WIDTH-1:0] type1_down_chan;
+  logic [86:0]                hit_type1_extended_data [2];
+  logic                       hit_type1_extended_valid [2];
 
   // AVST fill_out (snoop)
   logic                       fill_out_ready;
@@ -765,7 +767,7 @@ module tb_histogram_statistics_v2;
     hit_ts   = gts_sample - delay_vec;
     hit_data = make_hit_data(lower_mode_key);
 
-    if (port_idx == 0) begin
+    if (ext_idx == 0) begin
       type1_up_data  <= hit_data[TYPE1_DATA_WIDTH-1:0];
       type1_up_ts    <= hit_ts;
       type1_up_valid <= 1'b1;
@@ -782,10 +784,10 @@ module tb_histogram_statistics_v2;
     end
 
     @(posedge i_clk);
-    if ((port_idx == 0) && (type1_up_ready !== 1'b1)) begin
+    if ((ext_idx == 0) && (type1_up_ready !== 1'b1)) begin
       $fatal(1, "inject_delay_hit_exact: type1_up ready was not high");
     end
-    if ((port_idx != 0) && (type1_down_ready !== 1'b1)) begin
+    if ((ext_idx != 0) && (type1_down_ready !== 1'b1)) begin
       $fatal(1, "inject_delay_hit_exact: type1_down ready was not high");
     end
     type1_up_valid   <= 1'b0;

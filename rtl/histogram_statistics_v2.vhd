@@ -1,7 +1,20 @@
 -- altera vhdl_input_version vhdl_2008
 -- File name: histogram_statistics_v2.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
+-- Version : 26.3.7
+-- Date    : 20260519
+-- Change  : Restore SYNC-entry GTS clear while preserving RESET self-exit.
 -- =======================================
+-- Revision: 1.27
+--      Date: May 19, 2026
+--      Change: Restore the SYNC-entry GTS counter clear pulse used to delimit
+--              measurement windows without reintroducing the latched
+--              gts_reset_reg reset-equivalent state.
+-- Revision: 1.26
+--      Date: May 19, 2026
+--      Change: Make the run-control RESET command self-exit to IDLE when
+--              the readyless ctrl word is no longer active, and replace the
+--              latched GTS reset register with a direct active-command clear.
 -- Revision: 1.4
 --		Date: Apr 27, 2026
 --		Change: Replicate configurable filter fields per ingress port
@@ -197,10 +210,10 @@ entity histogram_statistics_v2 is
         ENABLE_DEBUG_INPUTS      : boolean := false;
         VERSION_MAJOR            : natural := 26;
         VERSION_MINOR            : natural := 3;
-        VERSION_PATCH            : natural := 0;
-        BUILD                    : natural := 515;
+        VERSION_PATCH            : natural := 7;
+        BUILD                    : natural := 519;
         IP_UID                   : natural := 1212765012;  -- ASCII "HIST" = 0x48495354
-        VERSION_DATE             : natural := 20260515;
+        VERSION_DATE             : natural := 20260519;
         VERSION_GIT              : natural := 375124078;
         INSTANCE_ID              : natural := 0;
         SNOOP_EN                 : boolean := false;
@@ -400,6 +413,15 @@ architecture rtl of histogram_statistics_v2 is
     constant TYPE1_UPDATE_KEY_HIGH_CONST : natural := 29;
     constant TYPE1_FILTER_KEY_LOW_CONST  : natural := 35;
     constant TYPE1_FILTER_KEY_HIGH_CONST : natural := 38;
+    constant RUNCTL_IDLE_CMD_CONST        : std_logic_vector(8 downto 0) := "000000001";
+    constant RUNCTL_PREPARE_CMD_CONST     : std_logic_vector(8 downto 0) := "000000010";
+    constant RUNCTL_SYNC_CMD_CONST        : std_logic_vector(8 downto 0) := "000000100";
+    constant RUNCTL_RUNNING_CMD_CONST     : std_logic_vector(8 downto 0) := "000001000";
+    constant RUNCTL_TERMINATING_CMD_CONST : std_logic_vector(8 downto 0) := "000010000";
+    constant RUNCTL_LINK_TEST_CMD_CONST   : std_logic_vector(8 downto 0) := "000100000";
+    constant RUNCTL_SYNC_TEST_CMD_CONST   : std_logic_vector(8 downto 0) := "001000000";
+    constant RUNCTL_RESET_CMD_CONST       : std_logic_vector(8 downto 0) := "010000000";
+    constant RUNCTL_OUT_OF_DAQ_CMD_CONST  : std_logic_vector(8 downto 0) := "100000000";
 
     subtype tick_t      is signed(SAR_TICK_WIDTH - 1 downto 0);
     subtype tick_slv_t  is std_logic_vector(SAR_TICK_WIDTH - 1 downto 0);
@@ -553,7 +575,10 @@ architecture rtl of histogram_statistics_v2 is
     signal csr_readdata_mux     : std_logic_vector(31 downto 0) := (others => '0');
     signal csr_readdata_reg     : std_logic_vector(31 downto 0) := (others => '0');
     signal run_state_cmd        : run_state_t := IDLE;
-    signal gts_counter_rst      : std_logic := '1';
+    signal runctl_reset_hold    : std_logic := '0';
+    signal runctl_sync_start    : std_logic := '0';
+    signal runctl_run_start     : std_logic := '0';
+    signal gts_counter_clear    : std_logic := '1';
     signal gts_8n               : unsigned(47 downto 0) := (others => '0');
     signal cfg_apply_request    : std_logic := '0';
     signal cfg_apply_pending    : std_logic := '0';
@@ -997,6 +1022,10 @@ begin
 
     clear_pulse        <= bool_to_sl((avs_hist_bin_write = '1') and (hist_waitrequest = '0') and (avs_hist_bin_writedata = x"00000000"));
     measure_clear_comb <= clear_pulse or i_interval_reset or run_start_clear_pulse;
+    runctl_reset_hold  <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_RESET_CMD_CONST));
+    runctl_sync_start  <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_SYNC_CMD_CONST) and (run_state_cmd /= SYNC));
+    runctl_run_start   <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_RUNNING_CMD_CONST) and (run_state_cmd /= RUNNING));
+    gts_counter_clear  <= i_rst or runctl_reset_hold or runctl_sync_start or runctl_run_start;
 
     -- register measure_clear to break timing from AVMM interconnect address decode
     measure_clear_reg : process (i_clk)
@@ -1026,32 +1055,35 @@ begin
             elsif asi_ctrl_valid = '1' then
                 run_start_clear_pulse <= '0';
                 case asi_ctrl_data is
-                    when "000000001" =>
+                    when RUNCTL_IDLE_CMD_CONST =>
                         run_state_cmd <= IDLE;
-                    when "000000010" =>
+                    when RUNCTL_PREPARE_CMD_CONST =>
                         run_state_cmd <= RUN_PREPARE;
-                    when "000000100" =>
+                    when RUNCTL_SYNC_CMD_CONST =>
                         run_state_cmd <= SYNC;
-                    when "000001000" =>
+                    when RUNCTL_RUNNING_CMD_CONST =>
                         if run_state_cmd /= RUNNING then
                             run_start_clear_pulse <= '1';
                         end if;
                         run_state_cmd <= RUNNING;
-                    when "000010000" =>
+                    when RUNCTL_TERMINATING_CMD_CONST =>
                         run_state_cmd <= TERMINATING;
-                    when "000100000" =>
+                    when RUNCTL_LINK_TEST_CMD_CONST =>
                         run_state_cmd <= LINK_TEST;
-                    when "001000000" =>
+                    when RUNCTL_SYNC_TEST_CMD_CONST =>
                         run_state_cmd <= SYNC_TEST;
-                    when "010000000" =>
+                    when RUNCTL_RESET_CMD_CONST =>
                         run_state_cmd <= RESET;
-                    when "100000000" =>
+                    when RUNCTL_OUT_OF_DAQ_CMD_CONST =>
                         run_state_cmd <= OUT_OF_DAQ;
                     when others =>
                         run_state_cmd <= ERROR;
                 end case;
             else
                 run_start_clear_pulse <= '0';
+                if run_state_cmd = RESET then
+                    run_state_cmd <= IDLE;
+                end if;
             end if;
         end if;
     end process run_management_reg;
@@ -1121,21 +1153,10 @@ begin
         end if;
     end process termination_flush_reg;
 
-    gts_reset_reg : process (i_clk)
-    begin
-        if rising_edge(i_clk) then
-            if i_rst = '1' or run_state_cmd = SYNC then
-                gts_counter_rst <= '1';
-            else
-                gts_counter_rst <= '0';
-            end if;
-        end if;
-    end process gts_reset_reg;
-
     gts_counter_reg : process (i_clk)
     begin
         if rising_edge(i_clk) then
-            if i_rst = '1' or gts_counter_rst = '1' then
+            if i_rst = '1' or gts_counter_clear = '1' then
                 gts_8n <= (others => '0');
             else
                 gts_8n <= gts_8n + 1;
