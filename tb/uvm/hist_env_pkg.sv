@@ -19,24 +19,26 @@ package hist_env_pkg;
   localparam int HS_DEF_LEFT_BOUND  = -1000;
   localparam int HS_DEF_BIN_WIDTH   = 16;
   localparam int HS_DEF_RIGHT_BOUND = HS_DEF_LEFT_BOUND + (HS_DEF_BIN_WIDTH * HS_N_BINS);
-  // FEB V3/V4 fixed Type0 ingress layout (TCC at data[35:21], ASIC at data[44:41]).
-  // The RTL build_fixed_key path (LOCK_KEY_RANGES=1, source_select=Type0) extracts
-  // the update key from these bits regardless of the CSR update_key_low/high
-  // registers; UVM fill-word construction and scoreboard prediction must mirror
-  // the same fixed slices when LOCK_KEY_RANGES is enabled.
-  localparam int HS_DEF_UPDATE_LO   = 21;
-  localparam int HS_DEF_UPDATE_HI   = 35;
+  // FEB V4 fixed Type0 ingress layout (26.3.8.0519 default): the
+  // LOCK_KEY_RANGES=1 update key is the 8-bit {ASIC[2:0], CH[4:0]} field, i.e.
+  // Type0 bits[43:36] / Type1 bits[37:30]. This gives 256 unique
+  // (asic, channel) combos for 8 ASICs * 32 channels and maps 1:1 onto
+  // N_BINS=256 with BIN_WIDTH=1 so an N-channel rate plot has exactly N
+  // non-zero bins. Filter slices remain the ASIC field
+  // (Type0 bits[44:41], Type1 bits[38:35]).
+  localparam int HS_DEF_UPDATE_LO   = 36;
+  localparam int HS_DEF_UPDATE_HI   = 43;
   localparam int HS_DEF_FILTER_LO   = 41;
   localparam int HS_DEF_FILTER_HI   = 44;
   // Type0 / Type1 fixed slice constants used by build_fixed_key in the RTL.
   // Kept here so the scoreboard and fill-word builder can switch on
   // active_cfg.source_select instead of relying on the legacy update_key_low/high.
-  localparam int HS_TYPE0_UPDATE_LO = 21;
-  localparam int HS_TYPE0_UPDATE_HI = 35;
+  localparam int HS_TYPE0_UPDATE_LO = 36;
+  localparam int HS_TYPE0_UPDATE_HI = 43;
   localparam int HS_TYPE0_FILTER_LO = 41;
   localparam int HS_TYPE0_FILTER_HI = 44;
-  localparam int HS_TYPE1_UPDATE_LO = 17;
-  localparam int HS_TYPE1_UPDATE_HI = 29;
+  localparam int HS_TYPE1_UPDATE_LO = 30;
+  localparam int HS_TYPE1_UPDATE_HI = 37;
   localparam int HS_TYPE1_FILTER_LO = 35;
   localparam int HS_TYPE1_FILTER_HI = 38;
   localparam bit HS_LOCK_KEY_RANGES = 1'b1;

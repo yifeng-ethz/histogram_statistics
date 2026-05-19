@@ -2,7 +2,7 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  3
-set VERSION_PATCH_DEFAULT_CONST  7
+set VERSION_PATCH_DEFAULT_CONST  9
 # BUILD field encodes MMDD per the ip-packaging skill convention. The
 # delivered package date is aligned to VERSION_DATE_DEFAULT_CONST below.
 set BUILD_DEFAULT_CONST          519
@@ -863,7 +863,7 @@ add_display_item "Key Extraction" FILTER_KEY_BIT_HI parameter
 add_display_item "Key Extraction" FILTER_KEY_BIT_LO parameter
 add_display_item "Key Extraction" SAR_TICK_WIDTH parameter
 add_display_item "Key Extraction" SAR_KEY_WIDTH parameter
-add_html_text "Key Extraction" key_html {<html><b>FEB V3 fixed slices</b><br/>With <b>LOCK_KEY_RANGES</b> enabled, Type0 rate mode bins the Type0 TCC slice <b>data[35:21]</b> and filters on Type0 ASIC <b>data[44:41]</b>. Type1 rate mode bins the Type1 TCC8N slice <b>data[29:17]</b> and filters on Type1 ASIC <b>data[38:35]</b>. Type1 delay mode bins <b>GTS - ts_sideband[47:0]</b> and still filters on normal Type1 data <b>data[38:35]</b>, not on the timestamp sideband.<br/><br/><b>V3 binning</b><br/>With <b>POWER2_BIN_WIDTH_ONLY</b> enabled, bin mapping is a shift after the normal range check. <b>CONTROL.apply</b> rejects non-power-of-two <b>BIN_WIDTH</b> values with <b>error_info=5</b> so unsupported configurations are visible to firmware.<br/><br/><b>CSR-programmable legacy mode</b><br/>Disabling <b>LOCK_KEY_RANGES</b> restores the KEY_LOC-programmable update/filter ranges for legacy experiments, with a larger hot-path resource cost. CSR mode, source select, key representation, filter enable/reject, and filter key value remain runtime-controlled in both modes.</html>}
+add_html_text "Key Extraction" key_html {<html><b>FEB V4 fixed slices (default 26.3.8.0519)</b><br/>With <b>LOCK_KEY_RANGES</b> enabled, Type0 rate mode bins the Type0 ASIC+CH slice <b>data[43:36]</b> = {ASIC[2:0], CH[4:0]} (8-bit global channel index, 256 unique values for 8 ASICs * 32 channels) and filters on Type0 ASIC <b>data[44:41]</b>. Type1 rate mode bins the Type1 ASIC+CH slice <b>data[37:30]</b> = {ASIC[2:0], CH[4:0]} and filters on Type1 ASIC <b>data[38:35]</b>. Type1 delay mode bins <b>GTS - ts_sideband[47:0]</b> and still filters on normal Type1 data <b>data[38:35]</b>, not on the timestamp sideband.<br/><br/>The 26.3.7 and earlier defaults keyed on the TCC slice (Type0 <b>data[35:21]</b>, Type1 TCC8N <b>data[29:17]</b>) which gave a uniform distribution across all 256 TCC bins under a constant-rate emulator; the 26.3.8 default produces one non-zero bin per (asic, channel) so an N-channel-enabled rate plot has exactly N non-zero bins each carrying the configured per-channel hit count.<br/><br/><b>V3 binning</b><br/>With <b>POWER2_BIN_WIDTH_ONLY</b> enabled, bin mapping is a shift after the normal range check. <b>CONTROL.apply</b> rejects non-power-of-two <b>BIN_WIDTH</b> values with <b>error_info=5</b> so unsupported configurations are visible to firmware.<br/><br/><b>CSR-programmable legacy mode</b><br/>Disabling <b>LOCK_KEY_RANGES</b> restores the KEY_LOC-programmable update/filter ranges for legacy experiments, with a larger hot-path resource cost. CSR mode, source select, key representation, filter enable/reject, and filter key value remain runtime-controlled in both modes.</html>}
 
 add_display_item "Ingress" N_PORTS parameter
 add_display_item "Ingress" FIFO_ADDR_WIDTH parameter
@@ -1064,6 +1064,14 @@ foreach ifname {type1_up type1_down} {
     set_interface_property $ifname ENABLED true
     add_interface_port $ifname "asi_${ifname}_valid" valid Input 1
     add_interface_port $ifname "asi_${ifname}_data" data Input TYPE1_DATA_WIDTH
+    # asi_*_ready was previously missing from this interface declaration. The
+    # RTL drives asi_type1_up_ready / asi_type1_down_ready as outputs (line
+    # 1012-1013 of rtl/histogram_statistics_v2.vhd) but qsys-generate dropped
+    # them from the wrapper because the hw.tcl never advertised them. Auto-
+    # inserted Avalon-ST timing_adapters on the upstream tap path then saw
+    # `out_0_ready` unconnected and silently dropped Type1 hits on board.
+    # Closes BUG-026-I (Type1 hist path stuck).
+    add_interface_port $ifname "asi_${ifname}_ready" ready Output 1
     add_interface_port $ifname "asi_${ifname}_startofpacket" startofpacket Input 1
     add_interface_port $ifname "asi_${ifname}_endofpacket" endofpacket Input 1
     add_interface_port $ifname "asi_${ifname}_channel" channel Input AVST_CHANNEL_WIDTH

@@ -405,12 +405,19 @@ architecture rtl of histogram_statistics_v2 is
     constant UPDATE_KEY_HIGH_CONST       : unsigned(7 downto 0) := to_unsigned(UPDATE_KEY_BIT_HI, 8);
     constant FILTER_KEY_LOW_CONST        : unsigned(7 downto 0) := to_unsigned(FILTER_KEY_BIT_LO, 8);
     constant FILTER_KEY_HIGH_CONST       : unsigned(7 downto 0) := to_unsigned(FILTER_KEY_BIT_HI, 8);
-    constant TYPE0_UPDATE_KEY_LOW_CONST  : natural := 21;
-    constant TYPE0_UPDATE_KEY_HIGH_CONST : natural := 35;
+    -- LOCK_KEY_RANGES update-key slices: ASIC[2:0] concatenated with CH[4:0],
+    -- 8-bit field, gives 256 unique (asic, channel) combos for 8 ASICs * 32 CH
+    -- which maps 1:1 onto N_BINS=256 with BIN_WIDTH=1. Type0 layout puts ASIC
+    -- at bits[44:41] and CH at bits[40:36] (env_pkg HS_TYPE0_ASIC/CH); we drop
+    -- the unused ASIC[3] MSB and key on bits[43:36]. Type1 layout is the same
+    -- shape but shifted: ASIC at bits[38:35], CH at bits[34:30] (env_pkg
+    -- HS_TYPE1_ASIC/CH); we key on bits[37:30].
+    constant TYPE0_UPDATE_KEY_LOW_CONST  : natural := 36;
+    constant TYPE0_UPDATE_KEY_HIGH_CONST : natural := 43;
     constant TYPE0_FILTER_KEY_LOW_CONST  : natural := 41;
     constant TYPE0_FILTER_KEY_HIGH_CONST : natural := 44;
-    constant TYPE1_UPDATE_KEY_LOW_CONST  : natural := 17;
-    constant TYPE1_UPDATE_KEY_HIGH_CONST : natural := 29;
+    constant TYPE1_UPDATE_KEY_LOW_CONST  : natural := 30;
+    constant TYPE1_UPDATE_KEY_HIGH_CONST : natural := 37;
     constant TYPE1_FILTER_KEY_LOW_CONST  : natural := 35;
     constant TYPE1_FILTER_KEY_HIGH_CONST : natural := 38;
     constant RUNCTL_IDLE_CMD_CONST        : std_logic_vector(8 downto 0) := "000000001";
