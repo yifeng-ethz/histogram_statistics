@@ -32,6 +32,21 @@
 --      Change: Accept a same-cycle old-bank update at a ping-pong interval
 --              switch so the one-cycle-ahead update-ready prediction cannot
 --              drain and drop the final coalescer update of a window.
+-- Revision: 1.7
+--      Date: May 20, 2026
+--      Change: Seamless bank-follow host read. A host burst that straddles an
+--              interval bank swap no longer parks in hist_read_pending and
+--              holds waitrequest (sc_hub watchdog -> 0xEEEEEEEE padding).
+--              The host-read source bank now follows hist_wait_bank
+--              dynamically through the burst, so when active_bank flips
+--              mid-burst the read continues from the just-frozen bank
+--              (interval N+1) instead of the bank being cleared. The
+--              hist_wait_bank_busy / hist_read_pending contribution to
+--              waitrequest is removed; only the short per-beat burst pacing
+--              remains. An in-flight beat issued to the pre-swap bank is
+--              reissued to the new frozen bank so every burstcount beat
+--              returns valid OKAY data with no missing/duplicated beat. The
+--              update/accumulation engine is unchanged.
 -- =========
 -- Description:	[Dual-bank histogram storage with interval freeze/readout]
 --
@@ -152,7 +167,6 @@ architecture rtl of pingpong_sram is
     signal burst_active       : std_logic := '0';
     signal burst_addr         : addr_t := (others => '0');
     signal burst_remaining    : unsigned(ADDR_WIDTH_CONST downto 0) := (others => '0');
-    signal read_bank_latched  : std_logic := '0';
     signal hist_issue_valid   : std_logic := '0';
     signal hist_issue_bank    : std_logic := '0';
     signal hist_issue_addr    : addr_t := (others => '0');
@@ -160,15 +174,9 @@ architecture rtl of pingpong_sram is
     signal hist_read_valid    : std_logic := '0';
     signal hist_read_bank     : std_logic := '0';
     signal hist_read_bin_valid : std_logic := '0';
-    signal hist_read_pending  : std_logic := '0';
-    signal hist_pending_bank  : std_logic := '0';
-    signal hist_pending_addr  : addr_t := (others => '0');
-    signal hist_pending_count : unsigned(ADDR_WIDTH_CONST downto 0) := (others => '0');
     signal hist_readdata      : std_logic_vector(31 downto 0) := (others => '0');
     signal hist_readdatavalid : std_logic := '0';
     signal hist_waitrequest   : std_logic := '0';
-    signal hist_wait_bank     : std_logic := '0';
-    signal hist_wait_bank_busy : std_logic := '0';
     signal update_busy        : std_logic := '0';
 
 begin
@@ -194,20 +202,17 @@ begin
     bank_a_data_a <= (others => '0');
     bank_b_data_a <= (others => '0');
 
-    hist_wait_bank <= (not active_bank) when i_enable_pingpong = '1' else active_bank;
-    hist_wait_bank_busy <= '1' when
-        ((hist_wait_bank = '0') and (i_bank_pending(0) = '1')) or
-        ((hist_wait_bank = '1') and (i_bank_pending(1) = '1')) or
-        ((upd_issue_valid = '1') and (upd_issue_bank = hist_wait_bank)) or
-        ((upd_read_valid = '1') and (upd_read_bank = hist_wait_bank)) or
-        ((upd_add_valid = '1') and (upd_add_bank = hist_wait_bank)) or
-        ((upd_sum_valid = '1') and (upd_sum_bank = hist_wait_bank)) or
-        ((upd_write_valid = '1') and (upd_write_bank = hist_wait_bank)) or
-        ((i_upd_valid = '1') and (i_upd_bank = hist_wait_bank))
-        else '0';
-    hist_waitrequest <= '1' when (burst_active = '1') or
-                                  (hist_read_pending = '1') or
-                                  (hist_wait_bank_busy = '1')
+    -- Frozen readout bank. Under ping-pong this is the bank NOT being written;
+    -- it flips the same cycle active_bank flips at an interval swap. The host
+    -- read follows this dynamically (see ram_ctrl) so a burst straddling a swap
+    -- continues from the just-frozen interval rather than the bank being
+    -- cleared.
+    -- The seamless bank-follow read never stalls on a bank swap or a transient
+    -- update touch of the readout bank: it follows to the frozen bank instead
+    -- (frozen bank = not active_bank under ping-pong, tracked cycle-by-cycle in
+    -- ram_ctrl). Only the short per-beat burst pacing (burst_active) gates new
+    -- commands, which the sc_hub watchdog tolerates.
+    hist_waitrequest <= '1' when (burst_active = '1')
                         else '0';
     update_busy <= i_upd_valid or
                    upd_issue_valid or
@@ -291,7 +296,6 @@ begin
         variable ram_v_accept_update : boolean;
         variable ram_v_upd_forward   : count_t;
         variable ram_v_update_old_valid : std_logic;
-        variable ram_v_read_bank_busy : boolean;
         variable ram_v_read_target_bank : std_logic;
         variable ram_v_next_clear_active : std_logic;
         variable ram_v_next_burst_active : std_logic;
@@ -300,6 +304,8 @@ begin
         variable ram_v_next_ready : std_logic;
         variable ram_v_force_fire : boolean;
         variable ram_v_read_busy_any : boolean;
+        variable ram_v_read_stale : boolean;
+        variable ram_v_read_inflight : boolean;
     begin
         if rising_edge(i_clk) then
             hist_readdatavalid <= '0';
@@ -343,7 +349,6 @@ begin
                 burst_active      <= '0';
                 burst_addr        <= (others => '0');
                 burst_remaining   <= (others => '0');
-                read_bank_latched <= '0';
                 hist_issue_valid  <= '0';
                 hist_issue_bank   <= '0';
                 hist_issue_addr   <= (others => '0');
@@ -351,10 +356,6 @@ begin
                 hist_read_valid   <= '0';
                 hist_read_bank    <= '0';
                 hist_read_bin_valid <= '0';
-                hist_read_pending <= '0';
-                hist_pending_bank <= '0';
-                hist_pending_addr <= (others => '0');
-                hist_pending_count<= (others => '0');
                 hist_readdata     <= (others => '0');
             elsif i_clear = '1' then
                 upd_ready_int     <= '0';
@@ -394,7 +395,6 @@ begin
                 burst_active      <= '0';
                 burst_addr        <= (others => '0');
                 burst_remaining   <= (others => '0');
-                read_bank_latched <= '0';
                 hist_issue_valid  <= '0';
                 hist_issue_bank   <= '0';
                 hist_issue_addr   <= (others => '0');
@@ -402,27 +402,21 @@ begin
                 hist_read_valid   <= '0';
                 hist_read_bank    <= '0';
                 hist_read_bin_valid <= '0';
-                hist_read_pending <= '0';
-                hist_pending_bank <= '0';
-                hist_pending_addr <= (others => '0');
-                hist_pending_count<= (others => '0');
                 hist_readdata     <= (others => '0');
             else
                 ram_v_next_bank     := active_bank;
                 ram_v_switch_fire   := false;
                 ram_v_hist_issue    := '0';
-                ram_v_hist_bank     := read_bank_latched;
+                ram_v_hist_bank     := active_bank;
                 ram_v_hist_addr     := (others => '0');
                 ram_v_hist_bin_valid := '0';
                 ram_v_accept_update := false;
                 ram_v_update_old_valid := '0';
-                ram_v_read_bank_busy := false;
-                ram_v_read_target_bank := read_bank_latched;
+                ram_v_read_target_bank := active_bank;
                 ram_v_next_clear_active := clear_active;
                 ram_v_next_burst_active := burst_active;
                 ram_v_next_timer_count := timer_count;
                 ram_v_read_busy_any := (burst_active = '1') or
-                                       (hist_read_pending = '1') or
                                        (hist_issue_valid = '1') or
                                        (hist_read_valid = '1') or
                                        (i_hist_read = '1');
@@ -432,7 +426,24 @@ begin
                 ram_v_force_fire := (force_interval_pending = '1') and
                                     (not ram_v_read_busy_any);
 
-                if hist_read_valid = '1' then
+                -- Read (q-valid) stage with seamless bank-follow staleness check.
+                -- The host read keeps a SINGLE beat outstanding (issue -> q-valid
+                -- -> emit) so beat accounting stays exact across a swap. A beat
+                -- is stale when, under ping-pong, an interval swap landed in the
+                -- one-cycle RAM read latency: the bank this beat read is now the
+                -- active (being-cleared) bank, not the frozen readout bank.
+                -- active_bank here is the registered value in effect this cycle
+                -- (the swap assignment for this cycle happens later in the
+                -- process), so hist_read_bank = active_bank precisely flags a
+                -- beat that targeted the bank now being flushed. A stale beat is
+                -- NOT emitted and the burst address is NOT advanced: the same
+                -- address is reissued next cycle against the new frozen bank, so
+                -- every burstcount beat returns valid OKAY data with no missing
+                -- or duplicated beat. A fresh beat is emitted and advances the
+                -- burst.
+                ram_v_read_stale := (hist_read_valid = '1') and (i_enable_pingpong = '1') and
+                                    (hist_read_bank = active_bank);
+                if (hist_read_valid = '1') and (not ram_v_read_stale) then
                     if hist_read_bank = '0' then
                         ram_v_read_data := unsigned(bank_a_q_a);
                     else
@@ -485,68 +496,43 @@ begin
                 clear_addr   <= (others => '0');
                 ram_v_next_clear_active := '0';
 
+                -- Current frozen readout bank. Under ping-pong this is the bank
+                -- NOT being written and tracks active_bank cycle-by-cycle, so a
+                -- burst in progress automatically follows to the just-frozen
+                -- bank (interval N+1) when active_bank flips mid-burst. In
+                -- non-ping-pong mode the single bank is read directly.
+                if i_enable_pingpong = '1' then
+                    ram_v_read_target_bank := not active_bank;
+                else
+                    ram_v_read_target_bank := active_bank;
+                end if;
+
+                -- A host read beat is outstanding while it occupies the issue or
+                -- the q-valid stage. The single-outstanding rule keeps beat
+                -- accounting exact across a swap.
+                ram_v_read_inflight := (hist_issue_valid = '1') or (hist_read_valid = '1');
+
+                -- Command acceptance never stalls on a bank swap or a transient
+                -- update touch of the readout bank: accept whenever no burst is
+                -- in progress. The seamless bank-follow issue logic below sources
+                -- the live frozen bank, so there is no need to park in a pending
+                -- slot. Only burst_active (per-beat pacing) gates new commands.
                 if (i_hist_read = '1') and (hist_waitrequest = '0') and (burst_active = '0') then
                     ram_v_burst_count := resize(i_hist_burstcount, burst_remaining'length);
                     if ram_v_burst_count = 0 then
                         ram_v_burst_count := to_unsigned(1, ram_v_burst_count'length);
                     end if;
+                    burst_active    <= '1';
+                    burst_addr      <= i_hist_address;
+                    burst_remaining <= ram_v_burst_count;
+                    ram_v_next_burst_active := '1';
+                end if;
 
-                    if i_enable_pingpong = '1' then
-                        ram_v_read_target_bank := not ram_v_next_bank;
-                    else
-                        ram_v_read_target_bank := ram_v_next_bank;
-                    end if;
-                    ram_v_read_bank_busy :=
-                        ((ram_v_read_target_bank = '0') and (i_bank_pending(0) = '1')) or
-                        ((ram_v_read_target_bank = '1') and (i_bank_pending(1) = '1')) or
-                        ((upd_issue_valid = '1') and (upd_issue_bank = ram_v_read_target_bank)) or
-                        ((upd_read_valid = '1') and (upd_read_bank = ram_v_read_target_bank)) or
-                        ((upd_add_valid = '1') and (upd_add_bank = ram_v_read_target_bank)) or
-                        ((upd_sum_valid = '1') and (upd_sum_bank = ram_v_read_target_bank)) or
-                        ((upd_write_valid = '1') and (upd_write_bank = ram_v_read_target_bank)) or
-                        ((i_upd_valid = '1') and (i_upd_bank = ram_v_read_target_bank));
-
-                    if not ram_v_read_bank_busy then
-                        burst_active    <= '1';
-                        burst_addr      <= i_hist_address;
-                        burst_remaining <= ram_v_burst_count;
-                        read_bank_latched <= ram_v_read_target_bank;
-                        ram_v_next_burst_active := '1';
-                    else
-                        hist_read_pending <= '1';
-                        hist_pending_bank <= ram_v_read_target_bank;
-                        hist_pending_addr <= i_hist_address;
-                        hist_pending_count<= ram_v_burst_count;
-                    end if;
-                elsif (hist_read_pending = '1') and (burst_active = '0') then
-                    ram_v_read_target_bank := hist_pending_bank;
-                    ram_v_read_bank_busy :=
-                        ((ram_v_read_target_bank = '0') and (i_bank_pending(0) = '1')) or
-                        ((ram_v_read_target_bank = '1') and (i_bank_pending(1) = '1')) or
-                        ((upd_issue_valid = '1') and (upd_issue_bank = ram_v_read_target_bank)) or
-                        ((upd_read_valid = '1') and (upd_read_bank = ram_v_read_target_bank)) or
-                        ((upd_add_valid = '1') and (upd_add_bank = ram_v_read_target_bank)) or
-                        ((upd_sum_valid = '1') and (upd_sum_bank = ram_v_read_target_bank)) or
-                        ((upd_write_valid = '1') and (upd_write_bank = ram_v_read_target_bank)) or
-                        ((i_upd_valid = '1') and (i_upd_bank = ram_v_read_target_bank));
-                    if not ram_v_read_bank_busy then
-                        burst_active      <= '1';
-                        burst_addr        <= hist_pending_addr;
-                        burst_remaining   <= hist_pending_count;
-                        read_bank_latched <= ram_v_read_target_bank;
-                        hist_read_pending <= '0';
-                        ram_v_next_burst_active := '1';
-                    end if;
-                elsif burst_active = '1' then
-                    ram_v_hist_issue := '1';
-                    ram_v_hist_bank  := read_bank_latched;
-                    ram_v_hist_addr  := burst_addr;
-                    if read_bank_latched = '0' then
-                        ram_v_hist_bin_valid := bank_a_valid(to_integer(burst_addr));
-                    else
-                        ram_v_hist_bin_valid := bank_b_valid(to_integer(burst_addr));
-                    end if;
-
+                -- Advance / retire on the q-valid stage:
+                --   fresh beat -> advance the burst address (or finish);
+                --   stale beat -> hold the address for a reissue against the new
+                --   frozen bank (no advance, no emit).
+                if (hist_read_valid = '1') and (not ram_v_read_stale) then
                     if burst_remaining = 1 then
                         burst_active    <= '0';
                         burst_remaining <= (others => '0');
@@ -555,6 +541,23 @@ begin
                         burst_addr      <= burst_addr + 1;
                         burst_remaining <= burst_remaining - 1;
                         ram_v_next_burst_active := '1';
+                    end if;
+                end if;
+
+                -- Issue stage. Issue the current burst address whenever the burst
+                -- is active and no beat is already outstanding (single beat in
+                -- flight). The address is sourced from ram_v_read_target_bank,
+                -- the live frozen bank, so a swap mid-burst is followed
+                -- seamlessly; a stale beat simply reissues the same address next
+                -- cycle against the new frozen bank.
+                if (burst_active = '1') and (not ram_v_read_inflight) then
+                    ram_v_hist_issue := '1';
+                    ram_v_hist_bank  := ram_v_read_target_bank;
+                    ram_v_hist_addr  := burst_addr;
+                    if ram_v_read_target_bank = '0' then
+                        ram_v_hist_bin_valid := bank_a_valid(to_integer(burst_addr));
+                    else
+                        ram_v_hist_bin_valid := bank_b_valid(to_integer(burst_addr));
                     end if;
                 end if;
 

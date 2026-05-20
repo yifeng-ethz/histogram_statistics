@@ -1216,6 +1216,7 @@ package hist_env_pkg;
   `include "tests/hist_stats_test.sv"
   `include "tests/hist_burst_test.sv"
   `include "tests/hist_v3_direct_input_test.sv"
+  `include "tests/hist_t1_pingpong_1ms_test.sv"
 
   // DV_EDGE tests
   `include "tests/hist_edge_divider_test.sv"

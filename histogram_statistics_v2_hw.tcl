@@ -2,11 +2,11 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  3
-set VERSION_PATCH_DEFAULT_CONST  9
+set VERSION_PATCH_DEFAULT_CONST  15
 # BUILD field encodes MMDD per the ip-packaging skill convention. The
 # delivered package date is aligned to VERSION_DATE_DEFAULT_CONST below.
-set BUILD_DEFAULT_CONST          519
-set VERSION_DATE_DEFAULT_CONST   20260519
+set BUILD_DEFAULT_CONST          520
+set VERSION_DATE_DEFAULT_CONST   20260520
 set VERSION_GIT_DEFAULT_CONST    0
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
@@ -1077,6 +1077,22 @@ foreach ifname {type1_up type1_down} {
     add_interface_port $ifname "asi_${ifname}_channel" channel Input AVST_CHANNEL_WIDTH
     add_interface_port $ifname "asi_${ifname}_empty" empty Input 1
     add_interface_port $ifname "asi_${ifname}_error" error Input 1
+}
+
+# Extended debug-plane sinks: readyless 87-bit Avalon-ST. MTS upper bank
+# drives hit_type1_extended_0, lower bank drives hit_type1_extended_1.
+# data[86:39] = 48-bit true timestamp, data[38:0] = 39-bit Type1 payload.
+# Selected onto histogram port 0 when CONTROL.in_port = EXT0/EXT1.
+foreach ext_idx {0 1} {
+    set ext_if "hit_type1_extended_${ext_idx}"
+    add_interface $ext_if avalon_streaming end
+    set_interface_property $ext_if associatedClock clock
+    set_interface_property $ext_if associatedReset reset
+    set_interface_property $ext_if dataBitsPerSymbol 87
+    set_interface_property $ext_if readyLatency 0
+    set_interface_property $ext_if ENABLED true
+    add_interface_port $ext_if "asi_hit_type1_extended_${ext_idx}_valid" valid Input 1
+    add_interface_port $ext_if "asi_hit_type1_extended_${ext_idx}_data" data Input 87
 }
 
 add_interface type1_up_ts conduit end

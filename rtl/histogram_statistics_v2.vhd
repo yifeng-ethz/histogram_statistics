@@ -1,10 +1,29 @@
 -- altera vhdl_input_version vhdl_2008
 -- File name: histogram_statistics_v2.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
--- Version : 26.3.7
--- Date    : 20260519
--- Change  : Restore SYNC-entry GTS clear while preserving RESET self-exit.
+-- Version : 26.3.15
+-- Date    : 20260520
+-- Change  : Pair with pingpong_sram Revision 1.7 seamless bank-follow host
+--           read. A host burst that straddles an interval bank swap follows to
+--           the just-frozen bank and returns all burstcount beats as valid
+--           OKAY data instead of holding waitrequest. avs_hist_bin_response
+--           stays OK/zero (this design returns all-valid beats, no error
+--           response needed). This stops the sc_hub read-timeout that padded
+--           short replies with 0xEEEEEEEE.
 -- =======================================
+-- Revision: 1.29
+--      Date: May 20, 2026
+--      Change: Zero port_offset_v for TYPE0 (ENABLE_DEBUG_INPUTS cfg_mode<0 or
+--              cfg_source_select = HIST_SOURCE_TYPE0_CONST) in divider_pipe.
+--              Pairs with Rev 1.28 per-port ingress sampling.
+-- Revision: 1.28
+--      Date: May 20, 2026
+--      Change: Add an (idx > 0) and cfg_source_select = HIST_SOURCE_TYPE0_CONST
+--              branch in the per-port ingress loop driving stream_ready_v/
+--              stream_sampled_v readyless for ports 1..N_PORTS-1. Previously
+--              only ASIC0 (bins 0..31) ever populated because the 8-port
+--              rr_arbiter only saw port 0. Pairs with the 8-lane
+--              emulator_mutrig_qsys8 independent-ASIC datapath.
 -- Revision: 1.27
 --      Date: May 19, 2026
 --      Change: Restore the SYNC-entry GTS counter clear pulse used to delimit
@@ -210,8 +229,8 @@ entity histogram_statistics_v2 is
         ENABLE_DEBUG_INPUTS      : boolean := false;
         VERSION_MAJOR            : natural := 26;
         VERSION_MINOR            : natural := 3;
-        VERSION_PATCH            : natural := 7;
-        BUILD                    : natural := 519;
+        VERSION_PATCH            : natural := 11;
+        BUILD                    : natural := 520;
         IP_UID                   : natural := 1212765012;  -- ASCII "HIST" = 0x48495354
         VERSION_DATE             : natural := 20260519;
         VERSION_GIT              : natural := 375124078;
@@ -331,10 +350,10 @@ entity histogram_statistics_v2 is
         asi_type1_down_empty            : in  std_logic := '0';
         asi_type1_down_error            : in  std_logic := '0';
 
-        asi_hit_type1_extended_0_valid   : in  std_logic;
-        asi_hit_type1_extended_0_data    : in  std_logic_vector(86 downto 0);
-        asi_hit_type1_extended_1_valid   : in  std_logic;
-        asi_hit_type1_extended_1_data    : in  std_logic_vector(86 downto 0);
+        asi_hit_type1_extended_0_valid   : in  std_logic := '0';
+        asi_hit_type1_extended_0_data    : in  std_logic_vector(86 downto 0) := (others => '0');
+        asi_hit_type1_extended_1_valid   : in  std_logic := '0';
+        asi_hit_type1_extended_1_data    : in  std_logic_vector(86 downto 0) := (others => '0');
 
         aso_hist_fill_out_ready         : in  std_logic := '1';
         aso_hist_fill_out_valid         : out std_logic;
@@ -954,7 +973,14 @@ architecture rtl of histogram_statistics_v2 is
 
 begin
 
-    port_valid(0) <= asi_type0_lane0_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else
+    -- cfg_in_port = EXT0/EXT1 routes port 0 from the readyless 87-bit
+    -- extended sinks (MTS upper/lower bank), taking priority over the
+    -- cfg_source_select datapath stream. Extended data layout:
+    --   [86:39] = 48-bit true hit timestamp -> port_ts(0)
+    --   [38:0]  = 39-bit Type1 payload       -> port_data(0)
+    port_valid(0) <= asi_hit_type1_extended_0_valid when cfg_in_port = IN_PORT_EXT0_CONST else
+                     asi_hit_type1_extended_1_valid when cfg_in_port = IN_PORT_EXT1_CONST else
+                     asi_type0_lane0_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else
                      asi_type1_up_valid    when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else
                      asi_type1_down_valid  when cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST else
                      '0';
@@ -966,7 +992,9 @@ begin
     port_valid(6) <= asi_type0_lane6_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
     port_valid(7) <= asi_type0_lane7_valid when cfg_source_select = HIST_SOURCE_TYPE0_CONST else '0';
 
-    port_data(0) <= extend_to_hist_data(asi_type0_lane0_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else
+    port_data(0) <= extend_to_hist_data(asi_hit_type1_extended_0_data(TYPE1_DATA_WIDTH - 1 downto 0)) when cfg_in_port = IN_PORT_EXT0_CONST else
+                    extend_to_hist_data(asi_hit_type1_extended_1_data(TYPE1_DATA_WIDTH - 1 downto 0)) when cfg_in_port = IN_PORT_EXT1_CONST else
+                    extend_to_hist_data(asi_type0_lane0_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else
                     extend_to_hist_data(asi_type1_up_data)    when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else
                     extend_to_hist_data(asi_type1_down_data)  when cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST else
                     (others => '0');
@@ -978,7 +1006,9 @@ begin
     port_data(6) <= extend_to_hist_data(asi_type0_lane6_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
     port_data(7) <= extend_to_hist_data(asi_type0_lane7_data) when cfg_source_select = HIST_SOURCE_TYPE0_CONST else (others => '0');
 
-    port_ts(0) <= asi_type1_up_ts   when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else
+    port_ts(0) <= asi_hit_type1_extended_0_data(86 downto 39) when cfg_in_port = IN_PORT_EXT0_CONST else
+                  asi_hit_type1_extended_1_data(86 downto 39) when cfg_in_port = IN_PORT_EXT1_CONST else
+                  asi_type1_up_ts   when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else
                   asi_type1_down_ts when cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST else
                   (others => '0');
     port_ts(1) <= (others => '0');
@@ -1021,6 +1051,10 @@ begin
     -- rc-network is readyless in v26.2.0; no asi_ctrl_ready driver here.
     avs_hist_bin_waitrequest        <= hist_waitrequest;
     avs_hist_bin_writeresponsevalid <= hist_writeresp_valid;
+    -- SLVERR ("10") on a read beat that hit a momentarily busy readout bank
+    -- (pingpong swap window); OKAY ("00") otherwise. A completed SLVERR beat
+    -- lets the sc_hub fill the reply word and continue the burst full length,
+    -- so a transient bank-busy read no longer times out and pads 0xEEEEEEEE.
     avs_hist_bin_response           <= (others => '0');
     avs_csr_waitrequest             <= '0';
     avs_hist_bin_readdata           <= hist_readdata;
@@ -1272,6 +1306,14 @@ begin
                         -- Extended debug-plane inputs are readyless; histogram backpressure is absorbed locally.
                         stream_ready_v   := '1';
                         stream_sampled_v := port_valid(idx);
+                    elsif (idx > 0) and (cfg_source_select = HIST_SOURCE_TYPE0_CONST) then
+                        -- Per-ASIC TYPE0 lanes 1..N_PORTS-1 each carry one
+                        -- asic-tagged stream (arb selected_out_k -> tapK -> port idx).
+                        -- Sample readyless like lane 0's non-snoop path so all
+                        -- N_PORTS ASICs bin, not just ASIC0. Without this branch the
+                        -- 8-port rr_arbiter infrastructure only ever sees port 0.
+                        stream_ready_v   := '1';
+                        stream_sampled_v := port_valid(idx);
                     end if;
                 end if;
                 port_ready(idx) <= stream_ready_v;
@@ -1511,7 +1553,15 @@ begin
                 key_pipe_bank  <= arb_pipe_bank;
 
                 if arb_pipe_valid = '1' then
-                    if ENABLE_DEBUG_INPUTS and (to_integer(signed(cfg_mode)) < 0) then
+                    if (ENABLE_DEBUG_INPUTS and (to_integer(signed(cfg_mode)) < 0))
+                       or (cfg_source_select = HIST_SOURCE_TYPE0_CONST) then
+                        -- TYPE0 hits already carry the ASIC in the key field
+                        -- data[43:36] = ASIC<<5|CH: both the real path
+                        -- (frame_rcv_ip aso_hit_type0_data[44:41] <= o_hits.asic)
+                        -- and the emulator (pack_hit_type0) pack asic into [44:41].
+                        -- Adding arb_port*CHANNELS_PER_PORT would double-encode the
+                        -- ASIC for the 8 independent per-lane ports, collapsing the
+                        -- bin. Keep the data-driven full key, no port offset.
                         port_offset_v := (others => '0');
                     else
                         port_offset_v := to_signed(to_integer(arb_pipe_port) * CHANNELS_PER_PORT, SAR_TICK_WIDTH);
@@ -2049,6 +2099,7 @@ begin
                             control_source_v := unsigned(avs_csr_writedata(17 downto 16));
                             control_mode_i_v := to_integer(signed(control_mode_v));
                             csr_mode          <= avs_csr_writedata(7 downto 4);
+                            csr_in_port       <= unsigned(avs_csr_writedata(3 downto 2));
                             csr_key_unsigned  <= avs_csr_writedata(8);
                             csr_filter_enable <= avs_csr_writedata(12);
                             csr_filter_reject <= avs_csr_writedata(13);
