@@ -11,6 +11,28 @@
 --           response needed). This stops the sc_hub read-timeout that padded
 --           short replies with 0xEEEEEEEE.
 -- =======================================
+-- Revision: 1.30
+--      Date: May 26, 2026
+--      Change: Close the silicon-zero Type1 ingress hole at idx=0 and make
+--              CONTROL[3:2] = csr_in_port functional. (a) Add an elsif for
+--              cfg_source_select in {HIST_SOURCE_TYPE1_UP_CONST,
+--              HIST_SOURCE_TYPE1_DOWN_CONST} so port 0 samples readyless
+--              whenever Type1 up/down is selected. Before this branch the
+--              idx=0 chain only fired for TYPE0 or for cfg_in_port in
+--              {EXT0, EXT1}; on silicon cfg_in_port stayed at
+--              IN_PORT_FILL_CONST because the CSR write process never wrote
+--              csr_in_port, so every Type1 bin read zero for both rate
+--              (mode 0) and delay (mode 1) paths regardless of bank.
+--              (b) Wire csr_in_port <= unsigned(writedata(3:2)) in the CSR
+--              write process so a host write of CONTROL[3:2] flips
+--              cfg_in_port and the read-back field reflects the chosen
+--              ingress mode instead of always reporting FILL.
+--              Downstream key/filter dispatch
+--              (build_delay_key_from_ts for mode 1, build_fixed and
+--              build_key for rate mode) already operates on
+--              port_data(0)/port_ts(0), which are correctly muxed from
+--              asi_type1_up/down for both banks, so no further plumbing
+--              was needed inside the binning core.
 -- Revision: 1.29
 --      Date: May 20, 2026
 --      Change: Zero port_offset_v for TYPE0 (ENABLE_DEBUG_INPUTS cfg_mode<0 or
@@ -1302,6 +1324,19 @@ begin
                             stream_ready_v   := '1';
                             stream_sampled_v := port_valid(idx);
                         end if;
+                    elsif (idx = 0) and
+                          (cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST or
+                           cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST) then
+                        -- TYPE1 up/down ingress: 39-bit avalon_streaming tap from
+                        -- mts_preprocessor.hit_type1_out plus the 48-bit MTS
+                        -- hit_type1_ts conduit on port_ts(0). The tap is readyless
+                        -- (memory: histogram taps advertise readyless). cfg_in_port
+                        -- is wired read-only to IN_PORT_FILL_CONST on silicon, so
+                        -- the EXT0/EXT1 elsif below never fires for TYPE1 — without
+                        -- this branch nothing samples and silicon bins read zero
+                        -- for both rate and delay modes.
+                        stream_ready_v   := '1';
+                        stream_sampled_v := port_valid(idx);
                     elsif (idx = 0) and (cfg_in_port = IN_PORT_EXT0_CONST or cfg_in_port = IN_PORT_EXT1_CONST) then
                         -- Extended debug-plane inputs are readyless; histogram backpressure is absorbed locally.
                         stream_ready_v   := '1';

@@ -47,6 +47,85 @@ Historical formal note:
 | [BUG-009-H](#bug-009-h-uvm-make-run-returned-success-despite-questa-sva-errors) | H | non-datapath-refactor | `common (SVA-enabled standalone DV run)` | fixed | focused V3 direct-input rerun 2026-05-17 | `5c94fad` | `make run` returned success even when the Questa transcript reported nonzero SVA errors. |
 | [BUG-010-H](#bug-010-h-v3-direct-input-test-trips-measure_clear_pulse-flushing-sva) | H | soft error | `common (V3 source-switch clear between cases)` | open | focused V3 direct-input rerun 2026-05-17 | `pending` | `hist_v3_direct_input_test` triggers four `measure_clear_pulse did not lead to flushing` SVA errors; standalone DV is not closed until this is explained. |
 | [BUG-011-R](#bug-011-r-gts_reset_reg-latch-violated-the-resetting-self-exit-contract) | R | non-datapath-refactor | `directed-only (CONTRACT.md audit + bench STP)` | fixed (gts_counter_clear is now combinational, preserves SYNC-entry pulse) | CONTRACT.md audit on `2026-05-19` | this commit | The latched `gts_reset_reg` process held the GTS counter cleared without a self-exit path, violating the new RESETTING-State Self-Exit Contract in `firmware_builds/doc/CONTRACT.md`. Refactored to combinational `gts_counter_clear <= i_rst or runctl_reset_hold or runctl_sync_start or runctl_run_start`. |
+| [BUG-012-R](#bug-012-r-type1-ingress-hole-silenced-every-type1-bin-on-silicon) | R | hard stuck error | `common (FEB host selecting source_select=TYPE1_UP/DOWN)` | fixed | FEB silicon Type1 bin readback 2026-05-26 | this commit | The idx=0 sample chain had no branch for `cfg_source_select` in `{HIST_SOURCE_TYPE1_UP_CONST, HIST_SOURCE_TYPE1_DOWN_CONST}`, so on silicon (`cfg_in_port` locked at `IN_PORT_FILL_CONST` because the CSR write process never wrote `csr_in_port`) every Type1 bin stayed at zero for both rate and delay modes. |
+
+## 2026-05-26
+
+### BUG-012-R: Type1 ingress hole silenced every Type1 bin on silicon
+
+- First seen in:
+  - FEB SciFi silicon Type1 readback while debugging the v4 datapath; bins
+    populated by `cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST` (or
+    `HIST_SOURCE_TYPE1_DOWN_CONST`) returned zero for every key, including
+    saturating MTS traffic.
+- Symptom:
+  - Host reads of histogram bin counters at `cfg_source_select = TYPE1_UP`
+    or `TYPE1_DOWN` returned zero across the full bin range, irrespective
+    of mode (rate or delay) or bank (UP or DOWN). TYPE0 lane 0 was
+    unaffected; TYPE0 lanes 1..7 were addressed by a peer in-flight patch
+    in revisions 1.28 / 1.29.
+- Root cause: the idx=0 ingress sample chain in
+  `histogram_statistics_v2.vhd` had branches for
+  `cfg_source_select = HIST_SOURCE_TYPE0_CONST`,
+  `cfg_in_port in {IN_PORT_EXT0_CONST, IN_PORT_EXT1_CONST}`, and (from
+  revision 1.28) `idx > 0 and cfg_source_select = TYPE0`. There was no
+  branch for `cfg_source_select in {HIST_SOURCE_TYPE1_UP_CONST,
+  HIST_SOURCE_TYPE1_DOWN_CONST}`. The CSR write process additionally did
+  not write `csr_in_port`, so `cfg_in_port` was locked at
+  `IN_PORT_FILL_CONST` on silicon and the EXT branch never fired in the
+  host's typical configuration. Consequence: `stream_ready_v` and
+  `stream_sampled_v` stayed at `'0'` on every Type1 beat,
+  `ingress_write_req(0)` never asserted, no FIFO write occurred, and every
+  bin remained at zero. Downstream key/filter dispatch
+  (`build_delay_key_from_ts` for mode 1, `build_fixed`/`build_key` for
+  rate mode) was healthy and operated on `port_data(0)` / `port_ts(0)`,
+  which are correctly muxed from `asi_type1_up/down_*` for both banks.
+- Evidence:
+  - Standalone tb `B14_type1_silicon_repro` exercises four directed cells
+    `{UP, DOWN} x {rate, delay}` with `cfg_in_port = IN_PORT_FILL_CONST`
+    to mirror the host silicon configuration. Before the elsif fix every
+    cell would have produced zero bins; after the fix B14 reports
+    `8 PASS, 0 FAIL` (per-cell total + bin checks).
+  - `B12_delay_mode_48b_sideband` (legacy Type1 delay path that the
+    pre-fix code only sampled through the EXT branch) continues to pass.
+  - Static screen: `qverify` Lint Error 0, CDC Violation 0, RDC Violation
+    0 at `work/lint_type1_fix_20260526_v3/questa_static_screen.log`.
+- Fix status:
+  - state:
+    - fixed for standalone DV; silicon retest pending the next FEB
+      v4 compile that picks up `26.3.16.0526`.
+  - mechanism:
+    - (a) Add the missing readyless elsif in the idx=0 ingress sample
+      chain so port 0 samples whenever `cfg_source_select` is
+      `HIST_SOURCE_TYPE1_UP_CONST` or `HIST_SOURCE_TYPE1_DOWN_CONST`,
+      mirroring the TYPE0 lane-0 non-SNOOP branch and matching the
+      readyless contract advertised by the histogram tap.
+    - (b) Wire `csr_in_port <= unsigned(avs_csr_writedata(3 downto 2))`
+      in the CSR write process so CONTROL[3:2] is functional and the
+      read-back field accurately reflects the host's `cfg_in_port`
+      choice instead of always reporting FILL.
+  - before_fix_outcome:
+    - Silicon Type1 bins all read zero on FEB v4 builds that
+      selected `source_select = TYPE1_UP`/`TYPE1_DOWN` with the host's
+      default `cfg_in_port` value.
+  - after_fix_outcome:
+    - Standalone DV: `B14_type1_silicon_repro` reports `8 PASS, 0 FAIL`
+      across `B14a_up_delay`, `B14b_down_delay`, `B14c_up_rate`,
+      `B14d_down_rate`, each configured with
+      `cfg_in_port = IN_PORT_FILL_CONST`.
+    - `B12_delay_mode_48b_sideband` and the rest of the existing tb
+      sequence remain unchanged in behavior; the EXT0/EXT1 branch and
+      the TYPE0 branches are not touched.
+  - potential_hazard:
+    - The companion `csr_in_port` write also makes CONTROL[3:2] settable
+      from the host. Any external code that was relying on the field
+      being permanently `IN_PORT_FILL_CONST` would now observe the new
+      value; review host configure paths that touch CONTROL[3:2].
+  - Claude Opus 4.7 xhigh review decision:
+    - pending / not run in this turn
+- Reproduction sequence (standalone):
+  - `make -C histogram_statistics/tb run TEST=B14_type1_silicon_repro SEED=42`
+  - `make -C histogram_statistics/tb run TEST=B12_delay_mode_48b_sideband SEED=42`
 
 ## 2026-05-19
 

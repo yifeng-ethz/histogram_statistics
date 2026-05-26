@@ -717,7 +717,7 @@ module tb_histogram_statistics_v2;
     input int          left_bound,
     input int unsigned bin_width,
     input int unsigned interval = 2000,
-    input int unsigned in_port = 1
+    input int unsigned in_port = 0    // IN_PORT_FILL_CONST: silicon-default; inject_delay_hit_exact drives type1_up/down_*, not EXT sinks
   );
     logic [31:0] key_loc_word;
     logic [31:0] ctrl_word;
@@ -1358,6 +1358,169 @@ module tb_histogram_statistics_v2;
   endtask
 
   // ════════════════════════════════════════════════════════════════
+  // TEST: B14_type1_silicon_repro
+  //
+  // Directed silicon-reproduction for the Type1 ingress hole closed in
+  // histogram revision 1.27. The 4 cells cover {UP, DOWN} x {rate, delay}
+  // with cfg_in_port = IN_PORT_FILL_CONST (silicon default), the exact
+  // configuration the FEB host uses when reading Type1 hits. Before the
+  // fix, port_0 sampled nothing in any of the 4 cells and every bin read
+  // zero; after the fix, each cell drops one hit at a deterministic bin.
+  //
+  // Run-control sequence is the same as B12: SYNC pulse resets the internal
+  // gts counter, RUNNING pulse releases it so the delay-mode key matches
+  // gts - hit_ts. The internal cfg_in_port is driven directly via the new
+  // CSR write of CONTROL[3:2] = IN_PORT_FILL_CONST so the test no longer
+  // relies on the dead EXT0/EXT1 elsif branch.
+  // ════════════════════════════════════════════════════════════════
+  task automatic write_type1_control(
+    input logic [1:0] source_sel,   // 2'b01 = TYPE1_UP, 2'b10 = TYPE1_DOWN
+    input logic [3:0] mode_field    // 4'h0 = rate, 4'h1 = delay
+  );
+    logic [31:0] ctrl_word;
+    ctrl_word         = 32'h0000_0001;        // apply
+    ctrl_word[3:2]    = 2'b00;                // cfg_in_port = IN_PORT_FILL_CONST (silicon)
+    ctrl_word[7:4]    = mode_field;
+    ctrl_word[8]      = 1'b1;                 // key_unsigned
+    ctrl_word[17:16]  = source_sel;
+    csr_write32(CSR_CONTROL, ctrl_word);
+    repeat (10) @(posedge i_clk);
+  endtask
+
+  task automatic configure_type1_mode(
+    input int          left_bound,
+    input int unsigned bin_width,
+    input logic [1:0]  source_sel,
+    input logic [3:0]  mode_field,
+    input int unsigned interval = 2000
+  );
+    logic [31:0] key_loc_word;
+
+    cfg_left_bound = left_bound;
+    cfg_bin_width  = bin_width;
+    cfg_n_bins     = N_BINS;
+
+    wait_initial_clear();
+    key_loc_word         = '0;
+    key_loc_word[7:0]    = DELAY_TS_BIT_LO[7:0];
+    key_loc_word[15:8]   = DELAY_TS_BIT_HI[7:0];
+    key_loc_word[23:16]  = FILTER_KEY_BIT_LO[7:0];
+    key_loc_word[31:24]  = FILTER_KEY_BIT_HI[7:0];
+    csr_write32(CSR_KEY_FILTER, key_loc_word);
+    csr_write32(CSR_LEFT_BOUND, 32'($signed(left_bound)));
+    csr_write32(CSR_BIN_WIDTH,  bin_width);
+    csr_write32(CSR_INTERVAL,   interval);
+    write_type1_control(source_sel, mode_field);
+  endtask
+
+  task automatic inject_rate_hit_type1(
+    input bit          to_down_bank,
+    input int unsigned key_val
+  );
+    logic [86:0] hit_data;
+    @(posedge i_clk);
+    #1ps;
+    // LOCK_KEY_RANGES (default true) selects the fixed TYPE1 rate-mode key
+    // slice TYPE1_UPDATE_KEY_LOW_CONST..HIGH_CONST = bits[30:37] (ASIC[2:0]
+    // concatenated with CH[4:0]). Place the 8-bit key value there directly.
+    hit_data = '0;
+    hit_data[37:30] = key_val[7:0];
+    if (!to_down_bank) begin
+      type1_up_data  <= hit_data[TYPE1_DATA_WIDTH-1:0];
+      type1_up_ts    <= '0;            // ignored in rate mode
+      type1_up_valid <= 1'b1;
+      type1_up_sop   <= 1'b0;
+      type1_up_eop   <= 1'b0;
+      type1_up_chan  <= '0;
+    end else begin
+      type1_down_data  <= hit_data[TYPE1_DATA_WIDTH-1:0];
+      type1_down_ts    <= '0;
+      type1_down_valid <= 1'b1;
+      type1_down_sop   <= 1'b0;
+      type1_down_eop   <= 1'b0;
+      type1_down_chan  <= '0;
+    end
+    @(posedge i_clk);
+    if (!to_down_bank && (type1_up_ready !== 1'b1)) begin
+      $fatal(1, "inject_rate_hit_type1: type1_up ready was not high");
+    end
+    if (to_down_bank && (type1_down_ready !== 1'b1)) begin
+      $fatal(1, "inject_rate_hit_type1: type1_down ready was not high");
+    end
+    type1_up_valid   <= 1'b0;
+    type1_up_data    <= '0;
+    type1_down_valid <= 1'b0;
+    type1_down_data  <= '0;
+  endtask
+
+  task automatic test_B14_type1_silicon_repro();
+    int unsigned delay_ticks;
+    int unsigned rate_key;
+
+    $display("═══ B14_type1_silicon_repro (cfg_in_port=FILL) ═══");
+
+    // -------- Cell A: TYPE1_UP + delay mode --------
+    do_reset();
+    ref_reset();
+    configure_type1_mode(0, 16, 2'b01, 4'h1);
+    send_ctrl_word(9'b000000100);   // SYNC
+    send_ctrl_word(9'b000001000);   // RUNNING
+    repeat (96) @(posedge i_clk);
+    delay_ticks = 48;
+    inject_delay_hit_exact(0, delay_ticks, 1000);   // ext_idx=0 -> type1_up
+    ref_add_hit(delay_ticks);
+    wait_pipeline_drain();
+    check_csr("B14a_up_delay_total", CSR_TOTAL_HITS, ref_total_hits);
+    wait_bank_swap();
+    check_bins("B14a_up_delay");
+
+    // -------- Cell B: TYPE1_DOWN + delay mode --------
+    do_reset();
+    ref_reset();
+    configure_type1_mode(0, 16, 2'b10, 4'h1);
+    send_ctrl_word(9'b000000100);
+    send_ctrl_word(9'b000001000);
+    repeat (96) @(posedge i_clk);
+    delay_ticks = 80;
+    inject_delay_hit_exact(1, delay_ticks, 2000);   // ext_idx=1 -> type1_down
+    ref_add_hit(delay_ticks);
+    wait_pipeline_drain();
+    check_csr("B14b_down_delay_total", CSR_TOTAL_HITS, ref_total_hits);
+    wait_bank_swap();
+    check_bins("B14b_down_delay");
+
+    // -------- Cell C: TYPE1_UP + rate mode --------
+    do_reset();
+    ref_reset();
+    configure_type1_mode(0, 16, 2'b01, 4'h0);
+    send_ctrl_word(9'b000000100);
+    send_ctrl_word(9'b000001000);
+    repeat (32) @(posedge i_clk);
+    rate_key = 200;
+    inject_rate_hit_type1(1'b0, rate_key);
+    ref_add_hit(rate_key);
+    wait_pipeline_drain();
+    check_csr("B14c_up_rate_total", CSR_TOTAL_HITS, ref_total_hits);
+    wait_bank_swap();
+    check_bins("B14c_up_rate");
+
+    // -------- Cell D: TYPE1_DOWN + rate mode --------
+    do_reset();
+    ref_reset();
+    configure_type1_mode(0, 16, 2'b10, 4'h0);
+    send_ctrl_word(9'b000000100);
+    send_ctrl_word(9'b000001000);
+    repeat (32) @(posedge i_clk);
+    rate_key = 240;   // 8-bit fits the LOCK_KEY_RANGES TYPE1 update slice [37:30]
+    inject_rate_hit_type1(1'b1, rate_key);
+    ref_add_hit(rate_key);
+    wait_pipeline_drain();
+    check_csr("B14d_down_rate_total", CSR_TOTAL_HITS, ref_total_hits);
+    wait_bank_swap();
+    check_bins("B14d_down_rate");
+  endtask
+
+  // ════════════════════════════════════════════════════════════════
   // TEST: E01_underflow
   // ════════════════════════════════════════════════════════════════
   task automatic test_E01_underflow();
@@ -1716,6 +1879,7 @@ module tb_histogram_statistics_v2;
       "B11_debug_mts_filter_source": test_B11_debug_mts_filter_source();
       "B12_delay_mode_48b_sideband": test_B12_delay_mode_48b_sideband();
       "B13_live_probe_1ms_pingpong": test_B13_live_probe_1ms_pingpong();
+      "B14_type1_silicon_repro":     test_B14_type1_silicon_repro();
       "E01_underflow":   test_E01_underflow();
       "E02_overflow":    test_E02_overflow();
       "E06_invalid_bounds": test_E06_invalid_bounds();
@@ -1736,6 +1900,7 @@ module tb_histogram_statistics_v2;
         test_B10_debug_mts_both(); do_reset();
         test_B11_debug_mts_filter_source(); do_reset();
         test_B12_delay_mode_48b_sideband(); do_reset();
+        test_B14_type1_silicon_repro(); do_reset();
         test_E01_underflow();   do_reset();
         test_E02_overflow();    do_reset();
         test_E06_invalid_bounds(); do_reset();
