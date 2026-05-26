@@ -93,7 +93,10 @@ Historical formal note:
 - Fix status:
   - state:
     - fixed for standalone DV; silicon retest pending the next FEB
-      v4 compile that picks up `26.3.16.0526`.
+      v4 compile that picks up `26.4.0.0526`. VERSION_PATCH is a 4-bit field
+      (max 15); the BUG-012 follow-up bumps VERSION_MINOR from 3 to 4 and
+      resets VERSION_PATCH to 0, since the prior release line was already at
+      26.3.15 and PATCH=16 would overflow.
   - mechanism:
     - (a) Add the missing readyless elsif in the idx=0 ingress sample
       chain so port 0 samples whenever `cfg_source_select` is
