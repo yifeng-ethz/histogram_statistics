@@ -48,6 +48,75 @@ Historical formal note:
 | [BUG-010-H](#bug-010-h-v3-direct-input-test-trips-measure_clear_pulse-flushing-sva) | H | soft error | `common (V3 source-switch clear between cases)` | open | focused V3 direct-input rerun 2026-05-17 | `pending` | `hist_v3_direct_input_test` triggers four `measure_clear_pulse did not lead to flushing` SVA errors; standalone DV is not closed until this is explained. |
 | [BUG-011-R](#bug-011-r-gts_reset_reg-latch-violated-the-resetting-self-exit-contract) | R | non-datapath-refactor | `directed-only (CONTRACT.md audit + bench STP)` | fixed (gts_counter_clear is now combinational, preserves SYNC-entry pulse) | CONTRACT.md audit on `2026-05-19` | this commit | The latched `gts_reset_reg` process held the GTS counter cleared without a self-exit path, violating the new RESETTING-State Self-Exit Contract in `firmware_builds/doc/CONTRACT.md`. Refactored to combinational `gts_counter_clear <= i_rst or runctl_reset_hold or runctl_sync_start or runctl_run_start`. |
 | [BUG-012-R](#bug-012-r-type1-ingress-hole-silenced-every-type1-bin-on-silicon) | R | hard stuck error | `common (FEB host selecting source_select=TYPE1_UP/DOWN)` | fixed | FEB silicon Type1 bin readback 2026-05-26 | this commit | The idx=0 sample chain had no branch for `cfg_source_select` in `{HIST_SOURCE_TYPE1_UP_CONST, HIST_SOURCE_TYPE1_DOWN_CONST}`, so on silicon (`cfg_in_port` locked at `IN_PORT_FILL_CONST` because the CSR write process never wrote `csr_in_port`) every Type1 bin stayed at zero for both rate and delay modes. |
+| [BUG-013-R](#bug-013-r-gts_counter_clear-included-runctl_run_start-and-desynced-from-mts-counter_gts_8n) | R | hard stuck error | `common (FEB host running mode=1 delay on TYPE1)` | fixed | FEB silicon delay-mode underflow saturation 2026-05-27 | this commit | `gts_counter_clear` included `runctl_run_start`, re-zeroing the local `gts_8n` on the RUNNING command while `mts_processor.counter_gts_8n` only resets on SYNC; the host's SYNC->RUNNING dwell (~200 ms) became a permanent offset, so every delay-mode hit underflowed/overflowed and bins were empty. |
+
+## 2026-05-27
+
+### BUG-013-R: gts_counter_clear included runctl_run_start and desynced from MTS counter_gts_8n
+
+- First seen in:
+  - On-board delay-mode (CONTROL mode=1) readout against FEB SciFi silicon
+    image 26.4.0.0526. With background-emulator hits at all 8 lanes,
+    `histogram_statistics_0.UNDERFLOW_COUNT` and/or `OVERFLOW_COUNT`
+    saturated at 2^20-1 each interval while every bin remained at zero,
+    across all bin-width and left-bound configurations (1, 16, 128, 2048;
+    LEFT_BOUND=0 and LEFT_BOUND=-32768).
+- Symptom:
+  - `mode=1` delay readout shows zero bins regardless of `cfg_source_select`,
+    `cfg_in_port` (FILL vs EXT0 vs EXT1), or bin geometry. `TOTAL_HITS` saturates
+    while either UNDERFLOW or OVERFLOW saturates 1:1 with TOTAL_HITS.
+  - Run-to-run, sometimes UNDERFLOW saturates and sometimes OVERFLOW saturates,
+    consistent with `gts_8n - hit_ts` evaluating a constant offset modulo the
+    21-bit key wrap so the truncated key lands far outside [LEFT_BOUND,RIGHT_BOUND].
+- Root cause:
+  - `gts_counter_clear <= i_rst or runctl_reset_hold or runctl_sync_start or
+    runctl_run_start;` cleared `gts_8n` on BOTH SYNC and RUNNING pulses, but
+    `mts_processor.counter_gts_8n` only clears on the SYNC entry to
+    `processor_state = RESET, reset_flow = SYNC`. The standard host run
+    sequence is SYNC -> dwell ~200 ms -> RUNNING; during the dwell MTS's
+    counter increments freely (~25M cycles at 125 MHz) while the histogram
+    clears `gts_8n` again on the trailing RUNNING command. Result:
+    `gts_8n = small` and `hit_ts = large` at every hit, `delay = gts - hit_ts`
+    underflows into a near-2^48 wrap, and the truncated 21-bit key always
+    sits outside the configured bin window.
+- Evidence:
+  - On-board probe `feb_delay_diag.py` at FEB SciFi silicon:
+    `mode=1 left=0 bw=1`     -> nz_bins=0 over=1048575 under=0
+    `mode=1 left=0 bw=128`   -> nz_bins=0 over=1048575 under=0
+    `mode=1 left=-128 bw=1`  -> nz_bins=0 over=1048575 under=0
+  - Repeat run (after fresh `start_run`) sometimes shows `under=1048575
+    over=0` instead of `under=0 over=1048575`, depending on which side of
+    the 21-bit truncation the constant offset lands - confirms the offset
+    is a deterministic delta, not random per-hit noise.
+- Fix status:
+  - state:
+    - fixed for standalone DV; silicon retest pending the next FEB v4
+      compile that picks up `26.4.1.0527`.
+  - mechanism:
+    - Remove `runctl_run_start` from `gts_counter_clear` so `gts_8n`
+      mirrors `counter_gts_8n` (SYNC-only reset). `gts_counter_clear <=
+      i_rst or runctl_reset_hold or runctl_sync_start;`. The combinational
+      form and the prior BUG-011-R RESETTING self-exit contract are
+      preserved.
+  - before_fix_outcome:
+    - Every delay-mode interval saturates UNDERFLOW or OVERFLOW at
+      0xFFFFF (2^20-1) while bins read zero.
+  - after_fix_outcome:
+    - To be confirmed post-FEB-compile: delay-mode bins should populate
+      with the MTS pipeline-latency distribution (~25-50 ticks for a
+      directly-fed emulator background) and per-lane filter sweeps should
+      produce eight distinguishable distributions.
+  - potential_hazard:
+    - Designs that enter RUNNING without a prior SYNC will no longer have
+      `gts_8n` reset by the host. The expected entry path on FEB SciFi
+      v4 is RUN_PREPARE -> SYNC -> RUNNING (per the runctl FSM), so this
+      is not a regression for the integration use case. Standalone tb
+      sequences exercise SYNC -> RUNNING and remain valid.
+  - Claude Opus 4.7 xhigh review decision:
+    - pending / not run in this turn
+- Reproduction sequence (silicon):
+  - `python3 firmware_builds/systems/260526-feb-bug012/scripts/feb_type1_delay_per_lane.py --link 2 --noise-rate 0x30 --run-s 2.5`
+    expected (post-fix) to produce eight non-zero per-ASIC delay curves.
 
 ## 2026-05-26
 

@@ -11,6 +11,19 @@
 --           response needed). This stops the sc_hub read-timeout that padded
 --           short replies with 0xEEEEEEEE.
 -- =======================================
+-- Revision: 1.31
+--      Date: May 27, 2026
+--      Change: Drop runctl_run_start from gts_counter_clear so the local
+--              gts_8n only re-zeroes on SYNC, matching mts_processor's
+--              counter_gts_8n reset condition. Before this fix the RUNNING
+--              command re-cleared gts_8n while MTS counter_gts_8n kept
+--              counting from the prior SYNC, so delay = gts_8n - hit_ts
+--              wrapped to a huge unsigned value on every hit and both
+--              UNDERFLOW and OVERFLOW counters saturated in mode=1 (delay)
+--              on silicon. With this fix the histogram and MTS counters
+--              stay aligned across the standard RUN_PREPARE -> SYNC ->
+--              RUNNING sequence regardless of the host SYNC -> RUNNING
+--              dwell time. Packaged as 26.4.1.0527.
 -- Revision: 1.30
 --      Date: May 26, 2026
 --      Change: Close the silicon-zero Type1 ingress hole at idx=0 and make
@@ -1088,7 +1101,12 @@ begin
     runctl_reset_hold  <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_RESET_CMD_CONST));
     runctl_sync_start  <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_SYNC_CMD_CONST) and (run_state_cmd /= SYNC));
     runctl_run_start   <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_RUNNING_CMD_CONST) and (run_state_cmd /= RUNNING));
-    gts_counter_clear  <= i_rst or runctl_reset_hold or runctl_sync_start or runctl_run_start;
+    -- gts_counter_clear must mirror mts_processor.counter_gts_8n's reset
+    -- condition (SYNC entry only) so delay = gts_8n - hit_ts evaluates inside
+    -- a few-cycle MTS pipeline window. Including runctl_run_start desynced
+    -- gts_8n from MTS's counter_gts_8n by the SYNC->RUN dwell (~200 ms host
+    -- delay), making every delay-mode hit overflow/underflow on silicon.
+    gts_counter_clear  <= i_rst or runctl_reset_hold or runctl_sync_start;
 
     -- register measure_clear to break timing from AVMM interconnect address decode
     measure_clear_reg : process (i_clk)
