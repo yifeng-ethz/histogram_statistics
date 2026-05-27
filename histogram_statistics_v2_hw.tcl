@@ -2,7 +2,7 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  4
-set VERSION_PATCH_DEFAULT_CONST  1
+set VERSION_PATCH_DEFAULT_CONST  2
 # BUILD field encodes MMDD per the ip-packaging skill convention. The
 # delivered package date is aligned to VERSION_DATE_DEFAULT_CONST below.
 set BUILD_DEFAULT_CONST          527

@@ -11,6 +11,24 @@
 --           response needed). This stops the sc_hub read-timeout that padded
 --           short replies with 0xEEEEEEEE.
 -- =======================================
+-- Revision: 1.32
+--      Date: May 27, 2026
+--      Change: Hold gts_counter_clear LEVEL-asserted throughout the
+--              run_state_cmd = SYNC interval so the local gts_8n stays at
+--              zero for the entire SYNC->RUN host dwell, matching
+--              mts_processor.counter_gts_8n which holds at zero whenever
+--              (processor_state = RESET, reset_flow = SYNC). The 1.31 attempt
+--              dropped runctl_run_start but left only the runctl_sync_start
+--              pulse for SYNC entry; once the pulse cleared, gts_8n
+--              incremented freely during the dwell while MTS's counter
+--              stayed at zero, so the post-RUNNING delay-mode key always
+--              had a constant offset equal to the dwell length (UNDERFLOW
+--              saturation). Replacing the SYNC pulse with the
+--              bool_to_sl(run_state_cmd = SYNC) level term holds the local
+--              gts_8n for the same window as MTS, so the two counters
+--              start incrementing simultaneously on the RUNNING transition
+--              and delay = gts_8n - hit_ts collapses to the MTS pipeline
+--              latency (small positive). Packaged as 26.4.2.0527.
 -- Revision: 1.31
 --      Date: May 27, 2026
 --      Change: Drop runctl_run_start from gts_counter_clear so the local
@@ -1102,11 +1120,17 @@ begin
     runctl_sync_start  <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_SYNC_CMD_CONST) and (run_state_cmd /= SYNC));
     runctl_run_start   <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_RUNNING_CMD_CONST) and (run_state_cmd /= RUNNING));
     -- gts_counter_clear must mirror mts_processor.counter_gts_8n's reset
-    -- condition (SYNC entry only) so delay = gts_8n - hit_ts evaluates inside
-    -- a few-cycle MTS pipeline window. Including runctl_run_start desynced
-    -- gts_8n from MTS's counter_gts_8n by the SYNC->RUN dwell (~200 ms host
-    -- delay), making every delay-mode hit overflow/underflow on silicon.
-    gts_counter_clear  <= i_rst or runctl_reset_hold or runctl_sync_start;
+    -- condition: held at 0 throughout the (processor_state = RESET, reset_flow
+    -- = SYNC) interval, released only when the processor transitions to
+    -- RUNNING. Matching MTS exactly requires a LEVEL hold for the entire
+    -- SYNC->RUN host dwell, not a 1-cycle pulse on the SYNC edge. Including
+    -- runctl_run_start was wrong because MTS does not clear on the RUNNING
+    -- pulse; including only runctl_sync_start was also wrong because the
+    -- 1-cycle pulse lets gts_8n increment freely during the 200 ms host
+    -- dwell while MTS's counter is held at 0. The level term keeps the
+    -- counters aligned across any SYNC->RUN dwell.
+    gts_counter_clear  <= i_rst or runctl_reset_hold or
+                          bool_to_sl(run_state_cmd = SYNC);
 
     -- register measure_clear to break timing from AVMM interconnect address decode
     measure_clear_reg : process (i_clk)
