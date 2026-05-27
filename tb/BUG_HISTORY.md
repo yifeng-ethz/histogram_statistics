@@ -91,13 +91,21 @@ Historical formal note:
 - Fix status:
   - state:
     - fixed for standalone DV; silicon retest pending the next FEB v4
-      compile that picks up `26.4.1.0527`.
+      compile that picks up `26.4.2.0527`.
   - mechanism:
-    - Remove `runctl_run_start` from `gts_counter_clear` so `gts_8n`
-      mirrors `counter_gts_8n` (SYNC-only reset). `gts_counter_clear <=
-      i_rst or runctl_reset_hold or runctl_sync_start;`. The combinational
-      form and the prior BUG-011-R RESETTING self-exit contract are
-      preserved.
+    - Hold `gts_counter_clear` LEVEL-asserted while
+      `run_state_cmd = SYNC`. Final form:
+      `gts_counter_clear <= i_rst or runctl_reset_hold or bool_to_sl(run_state_cmd = SYNC);`.
+      An earlier 26.4.1.0527 attempt kept only the 1-cycle
+      `runctl_sync_start` pulse - this was wrong because the pulse let
+      `gts_8n` resume incrementing immediately after SYNC entry while
+      MTS held `counter_gts_8n` at zero for the entire ~200 ms host
+      SYNC->RUN dwell, so the post-RUNNING delay-mode key carried that
+      same 25M-tick offset and UNDERFLOW saturated. The level term
+      mirrors `mts_processor.counter_gts_8n`'s hold condition exactly
+      (counter clears whenever processor_state = RESET, reset_flow =
+      SYNC). The combinational form and the prior BUG-011-R RESETTING
+      self-exit contract are preserved.
   - before_fix_outcome:
     - Every delay-mode interval saturates UNDERFLOW or OVERFLOW at
       0xFFFFF (2^20-1) while bins read zero.
