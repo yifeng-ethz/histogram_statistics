@@ -1,6 +1,14 @@
 -- altera vhdl_input_version vhdl_2008
 -- File name: histogram_statistics_v2.vhd
 -- Author: Yifeng Wang (yifenwan@phys.ethz.ch)
+-- Version : 26.4.3
+-- Date    : 20260529
+-- Change  : gts-unify (BUG-012): delay-mode subtracts the MTS-exported arrival GTS
+--           (asi_type1_{up,down}_gts, co-sampled with the emission ts in one MTS
+--           epoch) instead of a local free-running gts_8n. Removes the random
+--           per-SYNC ~2^20 delay-peak offset. gts_8n / gts_counter_clear /
+--           runctl_reset_hold removed; added asi_type1_{up,down}_gts inputs. Use
+--           source=TYPE1_UP/DOWN for delay mode (EXT0/EXT1 carry no arrival).
 -- Version : 26.3.15
 -- Date    : 20260520
 -- Change  : Pair with pingpong_sram Revision 1.7 seamless bank-follow host
@@ -387,6 +395,9 @@ entity histogram_statistics_v2 is
         asi_type1_up_valid              : in  std_logic;
         asi_type1_up_data               : in  std_logic_vector(TYPE1_DATA_WIDTH - 1 downto 0);
         asi_type1_up_ts                 : in  std_logic_vector(47 downto 0);
+        -- arrival GTS co-sampled with asi_type1_up_ts (mts up-bank counter_gts_8n);
+        -- delay-mode key = up_gts - up_ts (one epoch). gts-unify, BUG-012.
+        asi_type1_up_gts                : in  std_logic_vector(47 downto 0) := (others => '0');
         asi_type1_up_startofpacket      : in  std_logic;
         asi_type1_up_endofpacket        : in  std_logic;
         asi_type1_up_channel            : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
@@ -397,6 +408,8 @@ entity histogram_statistics_v2 is
         asi_type1_down_valid            : in  std_logic;
         asi_type1_down_data             : in  std_logic_vector(TYPE1_DATA_WIDTH - 1 downto 0);
         asi_type1_down_ts               : in  std_logic_vector(47 downto 0);
+        -- arrival GTS co-sampled with asi_type1_down_ts (mts down-bank counter_gts_8n).
+        asi_type1_down_gts              : in  std_logic_vector(47 downto 0) := (others => '0');
         asi_type1_down_startofpacket    : in  std_logic;
         asi_type1_down_endofpacket      : in  std_logic;
         asi_type1_down_channel          : in  std_logic_vector(AVST_CHANNEL_WIDTH - 1 downto 0);
@@ -530,6 +543,9 @@ architecture rtl of histogram_statistics_v2 is
     signal port_valid     : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
     signal port_data      : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(AVST_DATA_WIDTH - 1 downto 0);
     signal port_ts        : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(DELAY_TIMESTAMP_WIDTH_CONST - 1 downto 0);
+    -- arrival GTS per port, co-sampled with port_ts from the MTS bank conduits.
+    -- delay-mode subtracts this (not a local free-running counter) from port_ts.
+    signal port_arrival_gts : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(DELAY_TIMESTAMP_WIDTH_CONST - 1 downto 0);
     signal port_channel   : hs_slv_array_t(0 to MAX_PORTS_CONST - 1)(AVST_CHANNEL_WIDTH - 1 downto 0);
     signal port_ready     : std_logic_vector(MAX_PORTS_CONST - 1 downto 0);
     signal ingress_accept : std_logic_vector(MAX_PORTS_CONST - 1 downto 0) := (others => '0');
@@ -654,11 +670,8 @@ architecture rtl of histogram_statistics_v2 is
     signal csr_readdata_mux     : std_logic_vector(31 downto 0) := (others => '0');
     signal csr_readdata_reg     : std_logic_vector(31 downto 0) := (others => '0');
     signal run_state_cmd        : run_state_t := IDLE;
-    signal runctl_reset_hold    : std_logic := '0';
     signal runctl_sync_start    : std_logic := '0';
     signal runctl_run_start     : std_logic := '0';
-    signal gts_counter_clear    : std_logic := '1';
-    signal gts_8n               : unsigned(47 downto 0) := (others => '0');
     signal cfg_apply_request    : std_logic := '0';
     signal cfg_apply_pending    : std_logic := '0';
     signal cfg_mode             : std_logic_vector(3 downto 0) := (others => '0');
@@ -1072,6 +1085,22 @@ begin
     port_ts(6) <= (others => '0');
     port_ts(7) <= (others => '0');
 
+    -- Arrival GTS for the active port (port 0), bank-matched to port_ts(0)'s ts.
+    -- The MTS exports counter_gts_8n co-sampled with the emission ts, so
+    -- delay = arrival_gts - hit_ts collapses to the MTS pipeline latency in ONE
+    -- epoch (no cross-IP SYNC race). Use source=TYPE1_UP/DOWN (FILL in_port) for
+    -- delay mode; the EXT0/EXT1 extended packets carry no arrival sideband.
+    port_arrival_gts(0) <= asi_type1_up_gts   when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else
+                           asi_type1_down_gts when cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST else
+                           (others => '0');
+    port_arrival_gts(1) <= (others => '0');
+    port_arrival_gts(2) <= (others => '0');
+    port_arrival_gts(3) <= (others => '0');
+    port_arrival_gts(4) <= (others => '0');
+    port_arrival_gts(5) <= (others => '0');
+    port_arrival_gts(6) <= (others => '0');
+    port_arrival_gts(7) <= (others => '0');
+
     port_channel(0) <= asi_type0_lane0_channel when cfg_source_select = HIST_SOURCE_TYPE0_CONST else
                        asi_type1_up_channel    when cfg_source_select = HIST_SOURCE_TYPE1_UP_CONST else
                        asi_type1_down_channel  when cfg_source_select = HIST_SOURCE_TYPE1_DOWN_CONST else
@@ -1116,21 +1145,12 @@ begin
 
     clear_pulse        <= bool_to_sl((avs_hist_bin_write = '1') and (hist_waitrequest = '0') and (avs_hist_bin_writedata = x"00000000"));
     measure_clear_comb <= clear_pulse or i_interval_reset or run_start_clear_pulse;
-    runctl_reset_hold  <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_RESET_CMD_CONST));
     runctl_sync_start  <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_SYNC_CMD_CONST) and (run_state_cmd /= SYNC));
     runctl_run_start   <= bool_to_sl((asi_ctrl_valid = '1') and (asi_ctrl_data = RUNCTL_RUNNING_CMD_CONST) and (run_state_cmd /= RUNNING));
-    -- gts_counter_clear must mirror mts_processor.counter_gts_8n's reset
-    -- condition: held at 0 throughout the (processor_state = RESET, reset_flow
-    -- = SYNC) interval, released only when the processor transitions to
-    -- RUNNING. Matching MTS exactly requires a LEVEL hold for the entire
-    -- SYNC->RUN host dwell, not a 1-cycle pulse on the SYNC edge. Including
-    -- runctl_run_start was wrong because MTS does not clear on the RUNNING
-    -- pulse; including only runctl_sync_start was also wrong because the
-    -- 1-cycle pulse lets gts_8n increment freely during the 200 ms host
-    -- dwell while MTS's counter is held at 0. The level term keeps the
-    -- counters aligned across any SYNC->RUN dwell.
-    gts_counter_clear  <= i_rst or runctl_reset_hold or
-                          bool_to_sl(run_state_cmd = SYNC);
+    -- gts_counter_clear / runctl_reset_hold REMOVED (gts-unify, BUG-012): the local
+    -- gts_8n is gone, so there is no local counter to clear against MTS. The arrival
+    -- reference is now the MTS-exported counter_gts_8n (port_arrival_gts), already
+    -- in the MTS SYNC epoch, so no cross-IP clear-condition matching is needed.
 
     -- register measure_clear to break timing from AVMM interconnect address decode
     measure_clear_reg : process (i_clk)
@@ -1258,16 +1278,11 @@ begin
         end if;
     end process termination_flush_reg;
 
-    gts_counter_reg : process (i_clk)
-    begin
-        if rising_edge(i_clk) then
-            if i_rst = '1' or gts_counter_clear = '1' then
-                gts_8n <= (others => '0');
-            else
-                gts_8n <= gts_8n + 1;
-            end if;
-        end if;
-    end process gts_counter_reg;
+    -- gts_counter_reg REMOVED (gts-unify, BUG-012): the local free-running gts_8n
+    -- and the MTS counter_gts_8n are two independent SYNC-zeroed counters; their
+    -- relative offset is random per SYNC (~2^20), so delay = gts_8n - hit_ts slid
+    -- out of the bin window. Delay mode now subtracts the MTS-exported arrival GTS
+    -- (port_arrival_gts) which is co-sampled with hit_ts in one epoch.
 
     ingress_comb : process (all)
         variable sampled_v         : std_logic;
@@ -1452,7 +1467,7 @@ begin
                     elsif debug_mode_v = 1 then
                         ingress_key_next(idx) <= build_delay_key_from_ts(
                             hit_ts    => port_ts(idx),
-                            gts_value => gts_8n
+                            gts_value => unsigned(port_arrival_gts(idx))
                         );
 
                         if LOCK_KEY_RANGES then

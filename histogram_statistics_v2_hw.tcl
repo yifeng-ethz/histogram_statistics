@@ -2,11 +2,11 @@ package require -exact qsys 16.1
 
 set VERSION_MAJOR_DEFAULT_CONST  26
 set VERSION_MINOR_DEFAULT_CONST  4
-set VERSION_PATCH_DEFAULT_CONST  2
+set VERSION_PATCH_DEFAULT_CONST  3
 # BUILD field encodes MMDD per the ip-packaging skill convention. The
 # delivered package date is aligned to VERSION_DATE_DEFAULT_CONST below.
-set BUILD_DEFAULT_CONST          527
-set VERSION_DATE_DEFAULT_CONST   20260527
+set BUILD_DEFAULT_CONST          529
+set VERSION_DATE_DEFAULT_CONST   20260529
 set VERSION_GIT_DEFAULT_CONST    0
 set VERSION_STRING_DEFAULT_CONST [format "%d.%d.%d.%04d" \
     $VERSION_MAJOR_DEFAULT_CONST \
@@ -1101,11 +1101,26 @@ set_interface_property type1_up_ts associatedReset reset
 set_interface_property type1_up_ts ENABLED true
 add_interface_port type1_up_ts asi_type1_up_ts export Input 48
 
+# type1_{up,down}_gts: arrival GTS co-sampled with type1_{up,down}_ts, sourced from
+# mts_processor hit_arrival_gts. delay-mode key = arrival_gts - hit_ts in one epoch
+# (gts-unify, BUG-012). Same clock as type1_*_ts: no new CDC point.
+add_interface type1_up_gts conduit end
+set_interface_property type1_up_gts associatedClock clock
+set_interface_property type1_up_gts associatedReset reset
+set_interface_property type1_up_gts ENABLED true
+add_interface_port type1_up_gts asi_type1_up_gts export Input 48
+
 add_interface type1_down_ts conduit end
 set_interface_property type1_down_ts associatedClock clock
 set_interface_property type1_down_ts associatedReset reset
 set_interface_property type1_down_ts ENABLED true
 add_interface_port type1_down_ts asi_type1_down_ts export Input 48
+
+add_interface type1_down_gts conduit end
+set_interface_property type1_down_gts associatedClock clock
+set_interface_property type1_down_gts associatedReset reset
+set_interface_property type1_down_gts ENABLED true
+add_interface_port type1_down_gts asi_type1_down_gts export Input 48
 
 add_interface fill_out avalon_streaming start
 set_interface_property fill_out associatedClock clock

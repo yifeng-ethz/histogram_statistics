@@ -116,6 +116,7 @@ module tb_histogram_statistics_v2;
   logic                       type1_up_valid;
   logic [TYPE1_DATA_WIDTH-1:0] type1_up_data;
   logic [47:0]                type1_up_ts;
+  logic [47:0]                type1_up_gts;   // arrival GTS co-sampled with type1_up_ts (gts-unify)
   logic                       type1_up_sop;
   logic                       type1_up_eop;
   logic [AVST_CHAN_WIDTH-1:0] type1_up_chan;
@@ -123,6 +124,7 @@ module tb_histogram_statistics_v2;
   logic                       type1_down_valid;
   logic [TYPE1_DATA_WIDTH-1:0] type1_down_data;
   logic [47:0]                type1_down_ts;
+  logic [47:0]                type1_down_gts; // arrival GTS co-sampled with type1_down_ts (gts-unify)
   logic                       type1_down_sop;
   logic                       type1_down_eop;
   logic [AVST_CHAN_WIDTH-1:0] type1_down_chan;
@@ -275,6 +277,7 @@ module tb_histogram_statistics_v2;
 	    .asi_type1_up_valid              (type1_up_valid),
 	    .asi_type1_up_data               (type1_up_data),
 	    .asi_type1_up_ts                 (type1_up_ts),
+	    .asi_type1_up_gts                (type1_up_gts),
 	    .asi_type1_up_startofpacket      (type1_up_sop),
 	    .asi_type1_up_endofpacket        (type1_up_eop),
 	    .asi_type1_up_channel            (type1_up_chan),
@@ -285,6 +288,7 @@ module tb_histogram_statistics_v2;
 	    .asi_type1_down_valid            (type1_down_valid),
 	    .asi_type1_down_data             (type1_down_data),
 	    .asi_type1_down_ts               (type1_down_ts),
+	    .asi_type1_down_gts              (type1_down_gts),
 	    .asi_type1_down_startofpacket    (type1_down_sop),
 	    .asi_type1_down_endofpacket      (type1_down_eop),
 	    .asi_type1_down_channel          (type1_down_chan),
@@ -758,7 +762,10 @@ module tb_histogram_statistics_v2;
 
     @(posedge i_clk);
     #1ps;
-    gts_sample = dut.gts_8n;
+    // gts-unify: the hist no longer owns a local gts_8n; it subtracts the arrival
+    // GTS we co-sample with the hit ts. Use a fixed arrival base (> any delay) so
+    // hit_ts = arrival - delay stays non-negative; hist delay = arrival - ts = delay.
+    gts_sample = 48'h0004_0000;
     delay_vec  = delay_ticks[31:0];
     if (gts_sample < delay_vec) begin
       $fatal(1, "inject_delay_hit_exact: gts=%0d smaller than delay=%0d",
@@ -770,6 +777,7 @@ module tb_histogram_statistics_v2;
     if (ext_idx == 0) begin
       type1_up_data  <= hit_data[TYPE1_DATA_WIDTH-1:0];
       type1_up_ts    <= hit_ts;
+      type1_up_gts   <= gts_sample;   // arrival GTS co-sampled with ts
       type1_up_valid <= 1'b1;
       type1_up_sop   <= 1'b0;
       type1_up_eop   <= 1'b0;
@@ -777,6 +785,7 @@ module tb_histogram_statistics_v2;
     end else begin
       type1_down_data  <= hit_data[TYPE1_DATA_WIDTH-1:0];
       type1_down_ts    <= hit_ts;
+      type1_down_gts   <= gts_sample; // arrival GTS co-sampled with ts
       type1_down_valid <= 1'b1;
       type1_down_sop   <= 1'b0;
       type1_down_eop   <= 1'b0;
@@ -793,10 +802,12 @@ module tb_histogram_statistics_v2;
     type1_up_valid   <= 1'b0;
     type1_up_data    <= '0;
     type1_up_ts      <= '0;
+    type1_up_gts     <= '0;
     type1_up_chan    <= '0;
     type1_down_valid <= 1'b0;
     type1_down_data  <= '0;
     type1_down_ts    <= '0;
+    type1_down_gts   <= '0;
     type1_down_chan  <= '0;
   endtask
 
@@ -1819,12 +1830,14 @@ module tb_histogram_statistics_v2;
 	    type1_up_valid   <= 1'b0;
 	    type1_up_data    <= '0;
 	    type1_up_ts      <= '0;
+	    type1_up_gts     <= '0;
 	    type1_up_sop     <= 1'b0;
 	    type1_up_eop     <= 1'b0;
 	    type1_up_chan    <= '0;
 	    type1_down_valid <= 1'b0;
 	    type1_down_data  <= '0;
 	    type1_down_ts    <= '0;
+	    type1_down_gts   <= '0;
 	    type1_down_sop   <= 1'b0;
 	    type1_down_eop   <= 1'b0;
 	    type1_down_chan  <= '0;
